@@ -8,16 +8,22 @@ import {
   ChatInput,
   ChatMessage,
   Count,
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   EmptyState,
   IconButton,
   LockerIcon,
+  ProgressBar,
   Tabs,
   TabsList,
   TabsTrigger,
   TextField,
   VaultIcon,
 } from '@fanvue/ui'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import type { InboxThread, Message, ThreadView } from '../../api'
 import { useActiveAccount, useDispatch } from '../../hooks/useAccounts'
@@ -33,6 +39,13 @@ import { VaultPickerDialog } from '../VaultPickerDialog'
 
 const SEGMENT_BADGE: Record<string, string> = { whale: 'VIP', simp: 'Superfan', hater: 'Hater', freeloader: 'Freebie hunter' }
 const FILTERS = ['All', 'Unread', 'Tipped', 'Dormant'] as const
+const WHY_NOT = { price: 'too pricey for them', taste: 'not their taste', mood: 'not in the mood', liked: '' }
+
+/** The engine decides on the spot; the fan's reply carries the reason. */
+function whyNot(view: ThreadView, messageId: string): string {
+  const d = view.messages.flatMap((x) => x.intent?.ppv ?? []).find((x) => x.messageId === messageId)
+  return d && WHY_NOT[d.reason] ? ` · ${WHY_NOT[d.reason]}` : ''
+}
 
 export function MessagesPage() {
   const { regularId } = useParams()
@@ -148,13 +161,19 @@ function ThreadRow({ thread: t, active, onClick }: { thread: InboxThread; active
 function Conversation({ accountId, regularId, onBack }: { accountId: string; regularId: string; onBack: () => void }) {
   const { data: view } = useThread(accountId, regularId)
   const writer = useFanWriter(accountId, view)
-  const dispatch = useDispatch()
+  const { mutate } = useDispatch()
+  const [profileOpen, setProfileOpen] = useState(false)
 
-  // Seen everything that is written.
+  // Seen everything that is written. Once per new message: the view stays stale
+  // until the save comes back, and asking again meanwhile would loop.
   const written = view?.messages.filter((m) => m.state === 'sent').length ?? 0
+  const marked = useRef('')
   useEffect(() => {
-    if (view && view.read < written) dispatch.mutate({ type: 'dm.read', id: accountId, regularId })
-  }, [view, written, accountId, regularId, dispatch])
+    const key = `${regularId}:${written}`
+    if (!view || view.read >= written || marked.current === key) return
+    marked.current = key
+    mutate({ type: 'dm.read', id: accountId, regularId })
+  }, [view, written, accountId, regularId, mutate])
 
   if (!view) return null
   const r = view.regular
@@ -164,14 +183,28 @@ function Conversation({ accountId, regularId, onBack }: { accountId: string; reg
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-border-primary p-3 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
           <IconButton className="md:hidden" variant="tertiary" size="32" icon={<ArrowLeftIcon />} aria-label="Back" onClick={onBack} />
-          <Avatar size={40} alt={r.name} fallback={r.name.slice(0, 2).toUpperCase()} />
-          <div className="min-w-0">
-            <div className="typography-body-default-16px-semibold truncate">{r.name}</div>
-            <div className="truncate text-xs text-content-tertiary">
-              @{r.handle} · spent {money(r.spent)}
+          {/* Narrow screens have no profile column: tap the fan to see it. */}
+          <button type="button" className="flex min-w-0 items-center gap-3 text-left xl:pointer-events-none" onClick={() => setProfileOpen(true)}>
+            <Avatar size={40} alt={r.name} fallback={r.name.slice(0, 2).toUpperCase()} />
+            <div className="min-w-0">
+              <div className="typography-body-default-16px-semibold truncate">{r.name}</div>
+              <div className="truncate text-xs text-content-tertiary">
+                @{r.handle} · spent {money(r.spent)}
+                <span className="xl:hidden"> · profile ›</span>
+              </div>
             </div>
-          </div>
+          </button>
         </header>
+        <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{r.name}</DialogTitle>
+            </DialogHeader>
+            <DialogBody>
+              <FanDetails view={view} />
+            </DialogBody>
+          </DialogContent>
+        </Dialog>
         <div className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto p-4">
           <div className="flex flex-col gap-3">
             {view.messages.map((m) => (
@@ -217,11 +250,12 @@ function MessageBubble({ view, message: m, writer }: { view: ThreadView; message
       )}
       {m.ppv && (
         <span className="text-xs text-content-tertiary">
-          <LockerIcon size={16} className="inline" /> {money(m.ppv.priceCents)} · {m.ppv.paid ? 'Paid' : 'Not paid yet'}
+          <LockerIcon size={16} className="inline" /> {money(m.ppv.priceCents)} · {m.ppv.paid ? 'Bought' : `Not bought${whyNot(view, m.id)}`}
           {m.massId ? ' · mass message' : ''}
         </span>
       )}
       {m.text && <ChatMessage user={user} message={m.text} time={time} showAvatar={m.from === 'fan'} avatarFallback={view.regular.name.slice(0, 1)} />}
+      {m.writtenBy === 'corpus' && <span className="pl-12 text-xs text-content-tertiary">Preset line: the model was not available</span>}
       {m.tipCents ? <Badge variant="success">💰 Tipped {money(m.tipCents)}</Badge> : null}
     </div>
   )
@@ -284,17 +318,31 @@ function Composer({ accountId, regularId }: { accountId: string; regularId: stri
 }
 
 function FanPanel({ view }: { view: ThreadView }) {
-  const { data: tags = [] } = useTags()
   const r = view.regular
-  const purchases = view.messages.filter((m) => m.ppv?.paid)
   return (
     <aside className="hidden w-72 shrink-0 flex-col gap-4 overflow-y-auto border-l border-border-primary p-4 xl:flex">
       <div className="flex flex-col items-center gap-2 text-center">
         <Avatar size={64} alt={r.name} fallback={r.name.slice(0, 2).toUpperCase()} />
         <div className="typography-body-default-16px-semibold">{r.name}</div>
         <div className="text-xs text-content-tertiary">@{r.handle}</div>
-        {SEGMENT_BADGE[r.segment] && <Badge>{SEGMENT_BADGE[r.segment]}</Badge>}
       </div>
+      <FanDetails view={view} />
+      <div className="mt-auto flex items-center gap-2 text-xs text-content-tertiary">
+        <VaultIcon size={16} /> Attach vault items with the paperclip to sell a paid message.
+      </div>
+    </aside>
+  )
+}
+
+/** Who this fan is and what makes them buy (plan.md §4.4). */
+function FanDetails({ view }: { view: ThreadView }) {
+  const { data: tags = [] } = useTags()
+  const r = view.regular
+  const purchases = view.messages.filter((m) => m.ppv?.paid)
+  const warmth = Math.round(((view.closeness - 0.7) / 0.6) * 100)
+  return (
+    <div className="flex flex-col gap-4">
+      {SEGMENT_BADGE[r.segment] && <Badge className="self-center">{SEGMENT_BADGE[r.segment]}</Badge>}
       <p className="text-sm text-content-secondary">{r.bio}</p>
       <dl className="grid grid-cols-2 gap-y-2 text-sm">
         <dt className="text-content-tertiary">Spent</dt>
@@ -316,9 +364,13 @@ function FanPanel({ view }: { view: ThreadView }) {
           ))}
         </div>
       </div>
-      <div className="mt-auto flex items-center gap-2 text-xs text-content-tertiary">
-        <VaultIcon size={16} /> Attach vault items with the paperclip to sell a paid message.
-      </div>
-    </aside>
+      <ProgressBar
+        variant="brand"
+        value={warmth}
+        title="Warmth"
+        helperRight={`×${view.closeness.toFixed(2)}`}
+        helperLeft="Chat with them first: warmer fans buy more often. Content they like sells better."
+      />
+    </div>
   )
 }

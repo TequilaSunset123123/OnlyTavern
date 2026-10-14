@@ -29,12 +29,14 @@ export type WriterState = { writing: string | null; failed: Record<string, strin
 
 /** Writes pending fan messages of the open conversation, one at a time, oldest first. */
 export function useFanWriter(accountId: string, view: ThreadView | undefined) {
-  const dispatch = useDispatch()
+  const { mutateAsync } = useDispatch()
   const { data: settings } = useSettings()
   const [state, setState] = useState<WriterState>({ writing: null, failed: {} })
   const busy = useRef(false)
+  // Written but maybe not refetched yet: never pay the model twice for one message.
+  const done = useRef(new Set<string>())
 
-  const pending = view?.messages.find((m) => m.state === 'pending' && !state.failed[m.id])
+  const pending = view?.messages.find((m) => m.state === 'pending' && !state.failed[m.id] && !done.current.has(m.id))
 
   useEffect(() => {
     if (!view || !pending || !settings || busy.current) return
@@ -42,10 +44,14 @@ export function useFanWriter(accountId: string, view: ThreadView | undefined) {
     setState((s) => ({ ...s, writing: pending.id }))
     const regularId = view.regular.id
     writeFanMessage(view, pending.id, settings.connectionProfile)
-      .then((text) => dispatch.mutateAsync({ type: 'dm.fill', id: accountId, regularId, messageId: pending.id, text }))
+      .then((text) => {
+        done.current.add(pending.id)
+        return mutateAsync({ type: 'dm.fill', id: accountId, regularId, messageId: pending.id, text })
+      })
       .catch(async (e: unknown) => {
         if (pending.intent?.kind === 'opener') {
-          await dispatch.mutateAsync({ type: 'dm.fallback', id: accountId, regularId, messageId: pending.id })
+          done.current.add(pending.id)
+          await mutateAsync({ type: 'dm.fallback', id: accountId, regularId, messageId: pending.id })
         } else {
           setState((s) => ({ ...s, failed: { ...s.failed, [pending.id]: e instanceof Error ? e.message : String(e) } }))
         }
@@ -54,7 +60,7 @@ export function useFanWriter(accountId: string, view: ThreadView | undefined) {
         busy.current = false
         setState((s) => ({ ...s, writing: null }))
       })
-  }, [view, pending, settings, accountId, dispatch])
+  }, [view, pending, settings, accountId, mutateAsync])
 
   const retry = (messageId: string) =>
     setState((s) => {

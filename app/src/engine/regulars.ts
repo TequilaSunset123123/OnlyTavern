@@ -119,7 +119,7 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     const tip = topic === 'tip' ? tipCents(rng, segment) : undefined
     a = {
       ...a,
-      regulars: [...a.regulars, regular],
+      regulars: [...a.regulars, { ...regular, spent: tip ?? 0 }],
       threads: [...a.threads, { regularId: id, read: 0, messages: [pendingMessage(`${id}-m0`, day, { kind: 'opener', topic, ...(tip ? { tip } : {}) }, tip)] }],
     }
     events.push({ day, type: 'regular', regularId: id })
@@ -167,17 +167,29 @@ function checkPpv(account: Account, ppv: DmInput['ppv']) {
   }
 }
 
-/** Would this fan buy this PPV? Decided by the engine only (plan.md §11, 2026-10-14). */
-function decidePpv(rng: Rng, account: Account, regular: Regular, ppv: NonNullable<DmInput['ppv']>, factor: number) {
+/**
+ * How warm this fan is: the more you wrote to them yourself lately (mass messages
+ * don't count), the likelier they buy. 0.7 cold … 1.3 after 10 messages in 14 days.
+ */
+export function closeness(thread: Thread, day: number): number {
+  const C = R.closeness
+  const recent = thread.messages.filter((m) => m.from === 'me' && !m.massId && m.day > day - C.days).length
+  return C.base + C.perMessage * Math.min(C.maxMessages, recent)
+}
+
+/** Would this fan buy this PPV? Decided by the engine only (plan.md §4.4, 2026-10-14). */
+function decidePpv(rng: Rng, account: Account, regular: Regular, thread: Thread, ppv: NonNullable<DmInput['ppv']>, mass: boolean) {
   const p = preset.segments[regular.segment]
   const items = ppv.vaultIds.map((id) => account.vault.find((v) => v.id === id)!)
   const intensity = Math.max(...items.map((i) => i.intensity))
   const match = intensityMatch(intensity, p.preferredIntensity)
-  const priceFactor = Math.exp((-p.priceSensitivity * ppv.priceCents) / 1000)
+  // Personal offers: prices hurt less than on the wall (per $25 instead of per $10).
+  const priceFactor = Math.exp((-p.priceSensitivity * ppv.priceCents) / R.dmPriceScaleCents)
   const likesBonus = items.some((i) => i.tags.some((t) => regular.likes.includes(t))) ? 1.5 : 1
-  const chance = Math.min(0.95, p.ppvRate * factor * match * priceFactor * likesBonus)
+  const warm = closeness(thread, account.clock.day) * (mass ? R.massPpvFactor : 1)
+  const chance = Math.min(0.95, p.dmPpvRate * warm * match * priceFactor * likesBonus)
   if (rng() < chance) return { bought: true, reason: 'liked' as const }
-  const reason = priceFactor < 0.4 ? ('price' as const) : match < 0.5 ? ('taste' as const) : ('mood' as const)
+  const reason = priceFactor < 0.5 ? ('price' as const) : match < 0.5 ? ('taste' as const) : ('mood' as const)
   return { bought: false, reason }
 }
 
@@ -214,7 +226,7 @@ export function sendDm(
   const decisions = [...(folded?.intent?.ppv ?? [])]
   let spent = 0
   if (input.ppv) {
-    const d = decidePpv(rng, account, regular, input.ppv, R.dmPpvBoost)
+    const d = decidePpv(rng, account, regular, thread, input.ppv, !!massId)
     ppv = { ...input.ppv, paid: d.bought }
     decisions.push({ messageId: myId, ...d })
     if (d.bought) {
@@ -247,13 +259,13 @@ export function sendDm(
   }
 }
 
-/** The model wrote a pending fan message. */
-export function fillMessage(account: Account, regularId: string, messageId: string, text: string): Account {
+/** A pending fan message gets its words (from the model, or a corpus line). */
+export function fillMessage(account: Account, regularId: string, messageId: string, text: string, writtenBy: Message['writtenBy'] = 'model'): Account {
   const thread = threadOf(account, regularId)
   if (!thread.messages.some((m) => m.id === messageId && m.state === 'pending')) return account // already written or gone
   return withThread(account, {
     ...thread,
-    messages: thread.messages.map((m) => (m.id === messageId ? { ...m, text, state: 'sent' as const } : m)),
+    messages: thread.messages.map((m) => (m.id === messageId ? { ...m, text, state: 'sent' as const, writtenBy } : m)),
   })
 }
 

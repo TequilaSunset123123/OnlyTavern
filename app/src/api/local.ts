@@ -45,9 +45,13 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
     await storage.saveIndex(change(await storage.loadIndex()))
   }
 
-  /** Load, change, save; keeps the account list's name/handle in sync. */
+  let writes: Promise<unknown> = Promise.resolve()
+
+  /** Load, change, save; keeps the account list's name/handle in sync. Saves nothing if nothing changed. */
   async function update(id: string, change: (a: Account) => Account) {
-    const account = change(await mustLoad(id))
+    const before = await mustLoad(id)
+    const account = change(before)
+    if (account === before) return account
     await storage.saveAccount(account)
     await updateIndex((i) => ({
       ...i,
@@ -158,7 +162,7 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
 
     async 'dm.fallback'({ id, regularId, messageId }) {
       const { fallbackText, fillMessage } = await dms()
-      await update(id, (a) => fillMessage(a, regularId, messageId, fallbackText(a, regularId, messageId)))
+      await update(id, (a) => fillMessage(a, regularId, messageId, fallbackText(a, regularId, messageId), 'corpus'))
       return { delta: [`account:${id}`], events: [] }
     },
 
@@ -285,14 +289,19 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
         read: thread.read,
         items,
         creator: { name: p.name, handle: p.handle, accountType: p.accountType, priceCents: p.priceCents, subscribers: subscriberCount(account.audience) },
+        closeness: (await dms()).closeness(thread, account.clock.day),
       }
     },
     async getMassMessages(id) {
       return (await mustLoad(id)).massMessages
     },
+    // One write at a time: each action loads, changes and saves the whole account,
+    // so two at once would overwrite each other (e.g. the model's reply and "mark read").
     dispatch(action) {
       const run = actions[action.type] as (a: Action) => Promise<DispatchResult>
-      return run(action)
+      const result = writes.then(() => run(action))
+      writes = result.catch(() => undefined)
+      return result
     },
   }
 }

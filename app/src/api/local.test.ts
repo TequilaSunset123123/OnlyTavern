@@ -135,3 +135,28 @@ describe('local api: content', () => {
     expect((await api.getTags()).length).toBeGreaterThan(10)
   })
 })
+
+describe('local api: writes', () => {
+  it('runs writes one at a time, so actions sent together do not overwrite each other', async () => {
+    // A slow store like SillyTavern's file uploads: every load and save takes a while.
+    const base = createMemoryStorage()
+    const wait = () => new Promise((r) => setTimeout(r, 5))
+    const slow = {
+      ...base,
+      loadAccount: async (id: string) => (await wait(), base.loadAccount(id)),
+      saveAccount: async (a: Parameters<typeof base.saveAccount>[0]) => (await wait(), base.saveAccount(a)),
+    }
+    let n = 0
+    const api = createLocalApi(slow, { now: () => 1000, newId: () => `id${++n}`, newSeed: () => 's' })
+    const { id } = await api.dispatch({ type: 'account.create', name: 'Mia', handle: 'mia' })
+    const item = { description: 'x', tags: [], intensity: 2, cast: 'me' as const }
+    await Promise.all([
+      api.dispatch({ type: 'vault.add', id: id!, item }),
+      api.dispatch({ type: 'vault.add', id: id!, item }),
+      api.dispatch({ type: 'profile.update', id: id!, patch: { bio: 'hi' } }),
+    ])
+    const account = await api.getAccount(id!)
+    expect(account?.vault).toHaveLength(2)
+    expect(account?.profile.bio).toBe('hi')
+  })
+})

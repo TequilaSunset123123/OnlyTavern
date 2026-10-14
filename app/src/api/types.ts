@@ -131,6 +131,8 @@ export type ThreadView = {
   /** Vault items referenced by PPV messages (null = deleted). */
   items: Record<string, VaultItem | null>
   creator: { name: string; handle: string; accountType: Profile['accountType']; priceCents: number; subscribers: number }
+  /** How warm the fan is (multiplies their chance to buy a PPV): 0.7 cold … 1.3. */
+  closeness: number
 }
 
 export interface Api {

@@ -23,6 +23,9 @@ describe('regulars', () => {
       const t = a.threads.find((x) => x.regularId === r.id)!
       expect(t.messages[0]).toMatchObject({ from: 'fan', intent: { kind: 'opener' } })
       expect(r.name && r.handle && r.bio).toBeTruthy()
+      // Spent counts every tip this fan sent, opener tips included.
+      const tips = t.messages.reduce((sum, m) => sum + (m.from === 'fan' ? (m.tipCents ?? 0) : 0), 0)
+      expect(r.spent).toBe(tips)
     }
   })
 
@@ -73,11 +76,37 @@ describe('DMs', () => {
   it('a corpus line fills an opener when the model is unavailable', () => {
     const { a, r } = withRegular()
     const opener = a.threads.find((x) => x.regularId === r.id)!.messages[0]
-    const filled = fillMessage(a, r.id, opener.id, fallbackText(a, r.id, opener.id))
+    const filled = fillMessage(a, r.id, opener.id, fallbackText(a, r.id, opener.id), 'corpus')
     const m = filled.threads.find((x) => x.regularId === r.id)!.messages[0]
-    expect(m.state).toBe('sent')
+    expect(m).toMatchObject({ state: 'sent', writtenBy: 'corpus' })
     expect(m.text.length).toBeGreaterThan(0)
     expect(markRead(filled, r.id).threads.find((x) => x.regularId === r.id)!.read).toBeGreaterThan(0)
+  })
+
+  it('chatting first warms a fan up: they buy more often', () => {
+    const rate = (warmUp: number) => {
+      let sold = 0
+      for (const seed of ['a', 'b', 'c', 'd', 'e', 'f']) {
+        const a = grown(seed, 90)
+        for (const r of a.regulars.filter((x) => x.segment === 'regular' || x.segment === 'simp')) {
+          let acc = a
+          for (let i = 0; i < warmUp; i++) acc = sendDm(acc, r.id, { text: `hey ${i}` }, seed).account
+          for (let k = 0; k < 10; k++) {
+            const res = sendDm(acc, r.id, { text: 'for you', ppv: { vaultIds: ['v0'], priceCents: 999 } }, `${seed}${k}`).account
+            if (res.threads.find((x) => x.regularId === r.id)!.messages.at(-2)!.ppv!.paid) sold++
+          }
+        }
+      }
+      return sold
+    }
+    expect(rate(10)).toBeGreaterThan(rate(0))
+  })
+
+  it('a decision that is not to buy says why', () => {
+    const { a, r } = withRegular()
+    const acc = sendDm(a, r.id, { text: 'pricey', ppv: { vaultIds: ['v0'], priceCents: 20000 } }, a.meta.seed).account
+    const reply = acc.threads.find((x) => x.regularId === r.id)!.messages.at(-1)!
+    expect(reply.intent?.ppv?.[0]).toMatchObject({ bought: false, reason: 'price' })
   })
 
   it('validates paid messages', () => {
@@ -115,11 +144,14 @@ describe('fan message prompt and parsing', () => {
       read: 0,
       items: { v0: acc.vault[0] },
       creator: { name: 'Mia', handle: 'mia', accountType: 'free' as const, priceCents: 0, subscribers: 100 },
+      closeness: 1,
     }
     const [system, user] = buildFanPrompt(view, t.messages.at(-1)!.id)
     expect(system.content).toContain('<message>')
     expect(user.content).toMatch(/You (bought|did NOT buy) the paid message \[paid message, \$5.00: Red lace set\]/)
     expect(user.content).toContain('[Creator] look')
+    expect(system.content).toMatch(/do not send, offer or promise a tip/)
+    expect(user.content).not.toMatch(/You are sending a \$/)
   })
 
   it('parses leniently', () => {

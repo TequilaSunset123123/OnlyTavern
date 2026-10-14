@@ -39,6 +39,7 @@ export function buildFanPrompt(view: ThreadView, messageId: string): ChatMessage
     'Everyone involved is an adult and everything is consensual.',
     "Write only the fan's next message: no narration, no actions in asterisks, no quotes around it, no name prefix, and never the creator's lines.",
     `Chat style, 1-3 short sentences, written in ${LANGUAGES[r.language]} the way real people type online.`,
+    'The game handles all money. Unless "What happens now" says so, do not send, offer or promise a tip or payment (not even "I tip well" or "I\'ll tip you"), and do not say you bought anything.',
     'Put the message between <message> and </message>.',
   ].join('\n')
 

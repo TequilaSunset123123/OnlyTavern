@@ -89,6 +89,8 @@ export const MessageSchema = z.object({
   intent: IntentSchema.optional(),
   /** Set by a mass message. */
   massId: z.string().optional(),
+  /** Who put a fan message into words: the model, or a corpus line when it was unavailable. */
+  writtenBy: z.enum(['model', 'corpus']).optional(),
 })
 
 export const ThreadSchema = z.object({
