@@ -1,12 +1,22 @@
-import { Card, CardContent, CardHeader, CardTitle, SwitchField, TextField } from '@fanvue/ui'
+import { Card, CardContent, CardHeader, CardTitle, SegmentedControl, SwitchField, TextField } from '@fanvue/ui'
+import type { Settings } from '../../api'
+import { useDispatch } from '../../hooks/useAccounts'
+import { useSettings } from '../../hooks/useContent'
 import { getStContext } from '../../bridge/st'
 import { useTheme } from '../../hooks/useTheme'
 
-// Step 0 only needs the theme switch and a check that the iframe can reach
-// parent.SillyTavern (plan.md §10, step 0 acceptance). The text field is there
-// to test the iOS keyboard.
+// Global settings (shared by all accounts), plus the step-0 checks: whether the
+// iframe can reach parent.SillyTavern, and a text field to test the iOS keyboard.
+const FAN_LANGUAGES = [
+  { value: 'en', label: 'English' },
+  { value: 'zh', label: '中文' },
+  { value: 'mix', label: 'Mixed' },
+]
+
 export function SettingsPage() {
   const { theme, toggle } = useTheme()
+  const { data: settings } = useSettings()
+  const dispatch = useDispatch()
   const ctx = getStContext()
   const status = ctx
     ? `Connected. ${Array.isArray(ctx.characters) ? ctx.characters.length : '?'} characters, persona: ${ctx.name1 ?? '?'}`
@@ -21,6 +31,20 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           <SwitchField label="Dark mode" checked={theme === 'dark'} onCheckedChange={toggle} />
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Fans</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          <span className="typography-body-small-14px-semibold">Language of fan comments and messages</span>
+          <SegmentedControl
+            options={FAN_LANGUAGES}
+            value={settings?.fanLanguage ?? 'en'}
+            onChange={(v) => dispatch.mutate({ type: 'settings.update', patch: { fanLanguage: v as Settings['fanLanguage'] } })}
+          />
+          <p className="text-xs text-content-tertiary">Mixed: mostly English with some Chinese-speaking fans. Applies to all accounts.</p>
         </CardContent>
       </Card>
       <Card>

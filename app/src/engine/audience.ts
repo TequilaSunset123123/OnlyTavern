@@ -30,14 +30,27 @@ function renewalRate(p: SegmentParams, profile: Profile): number {
   return profile.accountType === 'free' ? 1 - (1 - p.renewal) * preset.freeChurnFactor : p.renewal
 }
 
-export function simulateAudienceDay(audience: Audience, profile: Profile, seed: string, day: number): AudienceDay {
+export type DayInputs = {
+  /** Visitors brought in by posts (plan.md §4.2). */
+  extraVisitors?: number
+  /** Multiplies renewal chances (e.g. lower when the creator stopped posting). */
+  renewalFactor?: number
+}
+
+export function simulateAudienceDay(
+  audience: Audience,
+  profile: Profile,
+  seed: string,
+  day: number,
+  { extraVisitors = 0, renewalFactor = 1 }: DayInputs = {},
+): AudienceDay {
   const bucket = day % 30
   const cohorts = structuredClone(audience.cohorts)
   const total = subscriberCount(audience)
 
   const visitorRng = rngFor(seed, day, 'visitors')
   const expected = preset.visitorsBase + preset.visitorsPerSubscriber * total
-  const visitors = Math.round(logNormal(visitorRng, expected, preset.visitorNoise))
+  const visitors = Math.round(logNormal(visitorRng, expected, preset.visitorNoise)) + extraVisitors
 
   let renewals = 0
   let churned = 0
@@ -49,7 +62,7 @@ export function simulateAudienceDay(audience: Audience, profile: Profile, seed: 
 
     // Renewals: this bucket's fans decide whether to stay another month.
     const due = cohorts[s][bucket]
-    const stay = binomial(rngFor(seed, day, `renew:${s}`), due, renewalRate(p, profile))
+    const stay = binomial(rngFor(seed, day, `renew:${s}`), due, renewalRate(p, profile) * renewalFactor)
     renewals += stay
     churned += due - stay
     cohorts[s][bucket] = stay

@@ -107,7 +107,9 @@ iframe：dist/app/index.html（React 应用）
 - 通知模板
 - 熟客的一句话背景模板
 
-在 SillyTavern 里用你自己的 DeepSeek 跑，只花几分钱，不用 Claude 的 token。生成用的提示词放在 `docs/prompts/`，到第 3 步再写。
+在 SillyTavern 里用你自己的 DeepSeek 跑，只花几分钱，不用 Claude 的 token。生成用的提示词放在 `docs/prompts/`。第 3 步已生成标签表和评论语料（`docs/prompts/run-in-st.js` 自动通过连接配置调用，`app/scripts/build-corpus.mjs` 整理成 JSON）。粉丝参数的初始值是第 2 步手写的。
+
+实际情况补记（第 2、3 步）：Statements、Statistics、Vault、动态、通知这几页没有复制 Fastt 的组件。它们绑着 Fastt 自己的基础组件、请求层和"按粉丝一行"的数据，搬过来要连带一整套基础组件，还会和 Fanvue 的样式打架；所以直接用 Fanvue 的组件拼（`Table`、`ChartCard`、`Card`、`Chip`、`Dialog` 等），示例照抄 Fanvue 的 story。
 
 ## 4. 真正要自己写的（只剩这些）
 

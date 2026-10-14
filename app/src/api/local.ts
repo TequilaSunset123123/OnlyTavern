@@ -2,13 +2,16 @@
 // the iframe. Time and ids come in through `env` so tests are
 // deterministic and store/ never calls Date.now() or Math.random() itself.
 import { subscriberCount } from '../engine/audience'
+import { addVaultItem, canLockPosts, deletePost, deleteVaultItem, publishPost, updateVaultItem } from '../engine/content'
+import { postIntensity, postTags } from '../engine/posts'
 import { balances, requestPayout } from '../engine/economy'
 import { simulate } from '../engine/simulate'
 import audiencePreset from '../presets/audience.json'
 import economy from '../presets/economy.json'
+import tags from '../presets/tags.json'
 import { createAccount, summarize } from '../store/account'
 import { migrate, SaveError, versionOf } from '../store/migrate'
-import { type Account, type AccountIndex, LedgerKindSchema, SCHEMA_VERSION, SEGMENTS } from '../store/schema'
+import { type Account, type AccountIndex, LedgerKindSchema, SCHEMA_VERSION, SEGMENTS, SettingsSchema } from '../store/schema'
 import type { AccountStorage } from '../store/storage'
 import { exportAccount, exportFileName, importAccount } from '../store/transfer'
 import type { Action, Api, DispatchResult, ProfilePatch, Statements } from './types'
@@ -102,6 +105,39 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       await update(id, (a) => requestPayout(a, amount))
       return { delta: [`account:${id}`], events: [] }
     },
+
+    async 'vault.add'({ id, item }) {
+      const itemId = env.newId()
+      await update(id, (a) => addVaultItem(a, itemId, item))
+      return { delta: [`account:${id}`], events: [], id: itemId }
+    },
+
+    async 'vault.update'({ id, itemId, patch }) {
+      await update(id, (a) => updateVaultItem(a, itemId, patch))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
+    async 'vault.delete'({ id, itemId }) {
+      await update(id, (a) => deleteVaultItem(a, itemId))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
+    async 'post.publish'({ id, post }) {
+      const postId = env.newId()
+      await update(id, (a) => publishPost(a, postId, post))
+      return { delta: [`account:${id}`], events: [], id: postId }
+    },
+
+    async 'post.delete'({ id, postId }) {
+      await update(id, (a) => deletePost(a, postId))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
+    async 'settings.update'({ patch }) {
+      const next = SettingsSchema.parse({ ...(await storage.loadSettings()), ...patch })
+      await storage.saveSettings(next)
+      return { delta: ['settings'], events: [] }
+    },
   }
 
   return {
@@ -132,6 +168,34 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       }))
       return { day: account.clock.day, history: account.history, segments }
     },
+    async getVault(id) {
+      return (await mustLoad(id)).vault
+    },
+    async getFeed(id) {
+      const account = await mustLoad(id)
+      const posts = account.posts.map((p) => ({
+        ...p,
+        items: p.vaultIds.map((v) => account.vault.find((i) => i.id === v) ?? null),
+        intensity: postIntensity(p, account),
+        tags: postTags(p, account),
+      }))
+      return { day: account.clock.day, canLockPosts: canLockPosts(account), posts }
+    },
+    async getComments(id, postId) {
+      const account = await mustLoad(id)
+      const post = account.posts.find((p) => p.id === postId)
+      if (!post) throw new SaveError('Post not found')
+      // Loaded on demand: faker's name data and the corpus are large and only needed here.
+      const { generateComments } = await import('../engine/comments')
+      return generateComments(account, post, await storage.loadSettings())
+    },
+    async getNotifications(id) {
+      return [...(await mustLoad(id)).events].reverse()
+    },
+    async getTags() {
+      return tags
+    },
+    getSettings: () => storage.loadSettings(),
     dispatch(action) {
       const run = actions[action.type] as (a: Action) => Promise<DispatchResult>
       return run(action)

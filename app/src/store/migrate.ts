@@ -21,6 +21,13 @@ export const MIGRATIONS: Record<number, Migration> = {
       history: [],
     }
   },
+  // Step 3 (vault, posts): typed vault/posts, a 'post' earnings kind.
+  2: (doc) => ({
+    ...doc,
+    vault: [],
+    posts: [],
+    history: (doc.history as { net: object }[]).map((d) => ({ ...d, net: { ...d.net, post: 0 } })),
+  }),
 }
 
 export class SaveError extends Error {}

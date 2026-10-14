@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createAccount } from '../store/account'
 import { migrate } from '../store/migrate'
-import type { Account } from '../store/schema'
+import { type Account, SCHEMA_VERSION } from '../store/schema'
 import { balances, PayoutError, requestPayout } from './economy'
 import { binomial, rngFor } from './rng'
 import { simulate } from './simulate'
@@ -96,7 +96,7 @@ describe('rng helpers', () => {
   })
 })
 
-describe('schema 1 -> 2 migration', () => {
+describe('migrations', () => {
   it('upgrades a step-1 save', () => {
     const v1 = {
       ...createAccount({ id: 'old', seed: 's', now: 5, name: 'Old', handle: 'old' }),
@@ -105,9 +105,21 @@ describe('schema 1 -> 2 migration', () => {
       audience: {},
     } as unknown
     const v2 = migrate(v1)
-    expect(v2.meta.schemaVersion).toBe(2)
+    expect(v2.meta.schemaVersion).toBe(SCHEMA_VERSION)
     expect(v2.profile.priceCents).toBe(1250)
     expect(v2.history).toEqual([])
     expect(simulate(v2, 30).account.history).toHaveLength(30)
+  })
+
+  it('upgrades a step-2 save (adds the post earnings kind to history)', () => {
+    const v2 = simulate(account('a'), 5).account as unknown as Record<string, unknown>
+    const doc = {
+      ...v2,
+      meta: { ...(v2.meta as object), schemaVersion: 2 },
+      history: (v2.history as { net: Record<string, number> }[]).map(({ net: { post: _, ...net }, ...d }) => ({ ...d, net })),
+    }
+    const v3 = migrate(doc)
+    expect(v3.history.every((d) => d.net.post === 0)).toBe(true)
+    expect(v3.posts).toEqual([])
   })
 })

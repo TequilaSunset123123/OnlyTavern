@@ -4,7 +4,7 @@
 // /api/files endpoints (TauriTavern implements the same ones), and the account
 // list in extension settings (plan.md §7.2). Outside SillyTavern (dev server):
 // localStorage.
-import type { Account, AccountIndex } from '../store/schema'
+import { type Account, type AccountIndex, DEFAULT_SETTINGS, type Settings } from '../store/schema'
 import { EMPTY_INDEX, type AccountStorage } from '../store/storage'
 import type { StContext } from './st'
 
@@ -22,7 +22,7 @@ function toBase64(text: string): string {
 
 export function createStStorage(ctx: StContext): AccountStorage {
   const settings = () => {
-    const s = (ctx.extensionSettings[SETTINGS_KEY] ??= {}) as { index?: AccountIndex }
+    const s = (ctx.extensionSettings[SETTINGS_KEY] ??= {}) as { index?: AccountIndex; settings?: Partial<Settings> }
     return s
   }
   const post = async (url: string, body: unknown) => {
@@ -37,6 +37,13 @@ export function createStStorage(ctx: StContext): AccountStorage {
     },
     async saveIndex(index) {
       settings().index = structuredClone(index)
+      ctx.saveSettingsDebounced()
+    },
+    async loadSettings() {
+      return { ...DEFAULT_SETTINGS, ...settings().settings }
+    },
+    async saveSettings(next) {
+      settings().settings = structuredClone(next)
       ctx.saveSettingsDebounced()
     },
     async loadAccount(id) {
@@ -80,6 +87,12 @@ export function createLocalStorageStorage(): AccountStorage {
     },
     async deleteAccount(id) {
       localStorage.removeItem(key(`account:${id}`))
+    },
+    async loadSettings() {
+      return { ...DEFAULT_SETTINGS, ...read('settings') }
+    },
+    async saveSettings(next) {
+      localStorage.setItem(key('settings'), JSON.stringify(next))
     },
   }
 }

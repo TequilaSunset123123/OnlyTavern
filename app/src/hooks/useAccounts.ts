@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { type Action, api, type Topic } from '../api'
 import { downloadText } from '../bridge/st'
 
-const topicKey = (t: Topic) => (t === 'accounts' ? ['accounts'] : ['account', t.slice('account:'.length)])
+// 'settings' refreshes everything: e.g. comments depend on the fan language.
+const topicKey = (t: Topic) =>
+  t === 'accounts' ? ['accounts'] : t === 'settings' ? [] : ['account', t.slice('account:'.length)]
 
 export function useAccounts() {
   return useQuery({ queryKey: ['accounts'], queryFn: () => api.listAccounts() })

@@ -3,20 +3,51 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
 export const SegmentSchema = z.enum(SEGMENTS)
 
 /** All money is integer cents. */
 const Cents = z.number().int()
+const Count = z.number().int().nonnegative()
+
+/** Moods of crowd comments (corpus keys). */
+export const MOODS = ['praise', 'flirty', 'casual', 'request', 'negative'] as const
+
+/** A content item in the vault. Everything is text: no images (plan.md §1). */
+export const VaultItemSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  /** Tag ids from presets/tags.json. */
+  tags: z.array(z.string()),
+  /** 1 = safe for work … 5 = most explicit. */
+  intensity: z.number().int().min(1).max(5),
+  /** Who is in it. */
+  cast: z.enum(['me', 'partner', 'both']),
+  source: z.enum(['manual', 'rp']),
+  createdDay: z.number().int(),
+})
+
+export const PostSchema = z.object({
+  id: z.string(),
+  day: z.number().int(),
+  text: z.string(),
+  vaultIds: z.array(z.string()),
+  /** Locked = pay-per-view post (free pages only, like real OF). */
+  access: z.enum(['free', 'locked']),
+  priceCents: Cents.nonnegative(),
+  /** Member id of whoever posted it. */
+  author: z.string(),
+  stats: z.object({ views: Count, likes: Count, comments: Count, purchases: Count, earned: Cents }),
+})
 
 /** The crowd as counts only (plan.md §2.4): per segment, subscribers by renewal day (day % 30). */
 export const AudienceSchema = z.object({
   cohorts: z.record(SegmentSchema, z.array(z.number().int().nonnegative()).length(30)),
 })
 
-export const LedgerKindSchema = z.enum(['subscription', 'renewal', 'tip', 'payout'])
+export const LedgerKindSchema = z.enum(['subscription', 'renewal', 'tip', 'post', 'payout'])
 
 /** One line per day and kind (the crowd's payments are aggregated, not stored per fan). */
 export const LedgerEntrySchema = z.object({
@@ -45,6 +76,8 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
   z.object({ day: z.number().int(), type: z.literal('tips'), count: z.number().int(), gross: Cents }),
   z.object({ day: z.number().int(), type: z.literal('milestone'), subscribers: z.number().int() }),
   z.object({ day: z.number().int(), type: z.literal('payout'), amount: Cents }),
+  z.object({ day: z.number().int(), type: z.literal('post'), postId: z.string(), views: Count, likes: Count, comments: Count }),
+  z.object({ day: z.number().int(), type: z.literal('purchases'), postId: z.string(), count: Count, gross: Cents }),
 ])
 
 export const MemberSchema = z.object({
@@ -74,8 +107,8 @@ export const AccountSchema = z.object({
   profile: ProfileSchema,
   members: z.array(MemberSchema),
   clock: z.object({ day: z.number().int().nonnegative() }),
-  vault: z.array(z.unknown()),
-  posts: z.array(z.unknown()),
+  vault: z.array(VaultItemSchema),
+  posts: z.array(PostSchema),
   queue: z.array(z.unknown()),
   audience: AudienceSchema,
   regulars: z.array(z.unknown()),
@@ -93,6 +126,9 @@ export type Member = z.infer<typeof MemberSchema>
 export type Profile = z.infer<typeof ProfileSchema>
 export type Account = z.infer<typeof AccountSchema>
 export type Segment = z.infer<typeof SegmentSchema>
+export type Mood = (typeof MOODS)[number]
+export type VaultItem = z.infer<typeof VaultItemSchema>
+export type Post = z.infer<typeof PostSchema>
 export type Audience = z.infer<typeof AudienceSchema>
 export type LedgerKind = z.infer<typeof LedgerKindSchema>
 export type LedgerEntry = z.infer<typeof LedgerEntrySchema>
@@ -111,3 +147,11 @@ export type AccountIndex = {
   accounts: AccountSummary[]
   activeId: string | null
 }
+
+/** Global settings (extension settings, not per account; plan.md §7.2). */
+export const SettingsSchema = z.object({
+  /** Language of fan comments and (from step 4) messages. */
+  fanLanguage: z.enum(['en', 'zh', 'mix']),
+})
+export type Settings = z.infer<typeof SettingsSchema>
+export const DEFAULT_SETTINGS: Settings = { fanLanguage: 'en' }

@@ -104,3 +104,34 @@ describe('local api: engine', () => {
     await expect(api.dispatch({ type: 'profile.update', id, patch: { name: ' ' } })).rejects.toThrow(/empty/)
   })
 })
+
+describe('local api: content', () => {
+  it('vault, publishing, feed, comments and notifications work end to end', async () => {
+    const api = setup()
+    const { id } = await api.dispatch({ type: 'account.create', name: 'Mia', handle: 'mia' })
+    const accountId = id!
+    await api.dispatch({ type: 'clock.advance', id: accountId, days: 20 })
+    const v = await api.dispatch({
+      type: 'vault.add',
+      id: accountId,
+      item: { description: 'Red lingerie set', tags: ['lingerie'], intensity: 3, cast: 'me' },
+    })
+    expect((await api.getVault(accountId)).map((i) => i.id)).toEqual([v.id])
+
+    const p = await api.dispatch({ type: 'post.publish', id: accountId, post: { text: 'new set', vaultIds: [v.id!], access: 'free', priceCents: 0 } })
+    await api.dispatch({ type: 'clock.advance', id: accountId, days: 3 })
+    const feed = await api.getFeed(accountId)
+    expect(feed.canLockPosts).toBe(false) // paid page
+    expect(feed.posts[0]).toMatchObject({ id: p.id, tags: ['lingerie'], intensity: 3 })
+    expect(feed.posts[0].items[0]?.description).toBe('Red lingerie set')
+
+    const comments = await api.getComments(accountId, p.id!)
+    expect(comments).toHaveLength(feed.posts[0].stats.comments)
+    expect((await api.getNotifications(accountId)).some((e) => e.type === 'post')).toBe(true)
+
+    await api.dispatch({ type: 'settings.update', patch: { fanLanguage: 'zh' } })
+    expect(await api.getSettings()).toEqual({ fanLanguage: 'zh' })
+    await expect(api.dispatch({ type: 'settings.update', patch: { fanLanguage: 'fr' as 'zh' } })).rejects.toThrow()
+    expect((await api.getTags()).length).toBeGreaterThan(10)
+  })
+})
