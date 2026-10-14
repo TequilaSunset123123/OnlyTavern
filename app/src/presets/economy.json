@@ -1,0 +1,9 @@
+{
+  "platformFee": 0.2,
+  "pendingDays": 7,
+  "minPayoutCents": 2000,
+  "minPriceCents": 499,
+  "maxPriceCents": 4999,
+  "eventDays": 30,
+  "milestones": [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
+}

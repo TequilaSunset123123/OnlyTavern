@@ -12,10 +12,11 @@ import {
   MenuIcon,
   MessageIcon,
 } from '@fanvue/ui'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { closeApp } from '../../bridge/st'
 import { useActiveAccount } from '../../hooks/useAccounts'
+import { ClockControl } from './ClockControl'
 import { NAV_ITEMS, NEW_POST_PATH } from './nav'
 
 const GRADIENT = 'bg-linear-to-r from-(--cs-gradient-start) to-(--cs-gradient-end)'
@@ -83,6 +84,12 @@ export function NavList({ onPick }: { onPick?: () => void }) {
 export function AppShell() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const main = useRef<HTMLElement>(null)
+
+  // <main> is the scroll container, so reset it when the page changes.
+  useEffect(() => {
+    main.current?.scrollTo(0, 0)
+  }, [pathname])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeApp()
@@ -101,6 +108,7 @@ export function AppShell() {
           <IconButton variant="tertiary" size="32" icon={<CloseIcon />} aria-label="Close" onClick={closeApp} />
         </div>
         <ActiveAccount />
+        <ClockControl />
         <div className="min-h-0 flex-1 overflow-y-auto">
           <NavList />
         </div>
@@ -117,7 +125,7 @@ export function AppShell() {
       </aside>
 
       {/* Content; on mobile leave room for the bottom bar */}
-      <main className="min-w-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+80px)] md:pb-0">
+      <main ref={main} className="min-w-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+80px)] md:pb-0">
         <Outlet />
       </main>
 

@@ -42,3 +42,21 @@ export function useExportAccount() {
     },
   })
 }
+
+// Statements / Statistics hang under ['account', id], so any action that touches
+// the account (clock.advance, payout.request, ...) refreshes them too.
+export function useStatements(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ['account', id, 'statements'],
+    queryFn: () => api.getStatements(id!),
+    enabled: !!id,
+  })
+}
+
+export function useStatistics(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ['account', id, 'statistics'],
+    queryFn: () => api.getStatistics(id!),
+    enabled: !!id,
+  })
+}

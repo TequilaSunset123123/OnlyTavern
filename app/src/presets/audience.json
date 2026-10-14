@@ -1,0 +1,16 @@
+{
+  "segments": {
+    "regular":    { "label": "Regular",    "mix": 0.35, "conversion": 0.06, "priceSensitivity": 1.0, "renewal": 0.65, "tipDaily": 0.010, "tipMedian": 5,  "tipSpread": 0.5 },
+    "lurker":     { "label": "Lurker",     "mix": 0.30, "conversion": 0.05, "priceSensitivity": 1.2, "renewal": 0.55, "tipDaily": 0.002, "tipMedian": 3,  "tipSpread": 0.4 },
+    "simp":       { "label": "Simp",       "mix": 0.08, "conversion": 0.12, "priceSensitivity": 0.5, "renewal": 0.85, "tipDaily": 0.080, "tipMedian": 8,  "tipSpread": 0.6 },
+    "whale":      { "label": "Whale",      "mix": 0.02, "conversion": 0.10, "priceSensitivity": 0.2, "renewal": 0.80, "tipDaily": 0.100, "tipMedian": 40, "tipSpread": 0.7 },
+    "hater":      { "label": "Hater",      "mix": 0.05, "conversion": 0.03, "priceSensitivity": 0.8, "renewal": 0.30, "tipDaily": 0,     "tipMedian": 1,  "tipSpread": 0 },
+    "freeloader": { "label": "Freeloader", "mix": 0.20, "conversion": 0.08, "priceSensitivity": 3.0, "renewal": 0.20, "tipDaily": 0.001, "tipMedian": 2,  "tipSpread": 0.3 }
+  },
+  "start": { "regular": 6, "lurker": 4, "simp": 1, "freeloader": 1 },
+  "visitorsBase": 40,
+  "visitorsPerSubscriber": 0.05,
+  "visitorNoise": 0.3,
+  "freeChurnFactor": 0.5,
+  "maxTipDollars": 200
+}

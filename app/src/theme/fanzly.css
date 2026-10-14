@@ -34,3 +34,11 @@
   --color-buttons-link-brand-default: #9e42fc;
   --color-border-new-feature: #9e42fc;
 }
+
+/*
+ * Fanvue's brand buttons use black text (made for its bright green). Fanzly uses
+ * white on violet. Unlayered, so it wins over Tailwind's layered utilities.
+ */
+.bg-buttons-brand-default {
+  color: #fff;
+}

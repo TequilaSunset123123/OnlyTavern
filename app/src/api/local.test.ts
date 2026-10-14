@@ -62,3 +62,45 @@ describe('local api: accounts', () => {
     for (const v of values) expect(JSON.parse(JSON.stringify(v))).toEqual(v)
   })
 })
+
+describe('local api: engine', () => {
+  async function withAccount() {
+    const api = setup()
+    const { id } = await api.dispatch({ type: 'account.create', name: 'Mia', handle: 'mia' })
+    return { api, id: id! }
+  }
+
+  it('advances the clock and reports events', async () => {
+    const { api, id } = await withAccount()
+    const r = await api.dispatch({ type: 'clock.advance', id, days: 30 })
+    expect(r.delta).toEqual([`account:${id}`])
+    expect(r.events.length).toBeGreaterThan(0)
+    const stats = await api.getStatistics(id)
+    expect(stats.day).toBe(30)
+    expect(stats.history).toHaveLength(30)
+    expect(stats.segments.reduce((a, s) => a + s.count, 0)).toBe(stats.history.at(-1)!.subscribers)
+    await expect(api.dispatch({ type: 'clock.advance', id, days: 0 })).rejects.toThrow(/1–90/)
+  })
+
+  it('statements total up the ledger and payouts reduce the balance', async () => {
+    const { api, id } = await withAccount()
+    await api.dispatch({ type: 'clock.advance', id, days: 60 })
+    const before = await api.getStatements(id)
+    const sumNet = before.entries.reduce((a, e) => a + e.net, 0)
+    expect(before.balances.earned).toBe(sumNet)
+    expect(before.entries[0].day).toBeGreaterThanOrEqual(before.entries.at(-1)!.day) // newest first
+    await api.dispatch({ type: 'payout.request', id, amount: 2000 })
+    const after = await api.getStatements(id)
+    expect(after.balances.available).toBe(before.balances.available - 2000)
+    expect(after.totals.payout).toEqual({ count: 1, gross: 0, net: -2000 })
+  })
+
+  it('updates the profile and keeps the account list in sync', async () => {
+    const { api, id } = await withAccount()
+    await api.dispatch({ type: 'profile.update', id, patch: { name: 'Mia Rose', handle: '@miarose', priceCents: 1499 } })
+    expect((await api.getAccount(id))?.profile).toMatchObject({ name: 'Mia Rose', handle: 'miarose', priceCents: 1499 })
+    expect((await api.listAccounts()).accounts[0]).toMatchObject({ name: 'Mia Rose', handle: 'miarose' })
+    await expect(api.dispatch({ type: 'profile.update', id, patch: { priceCents: 100 } })).rejects.toThrow(/Price/)
+    await expect(api.dispatch({ type: 'profile.update', id, patch: { name: ' ' } })).rejects.toThrow(/empty/)
+  })
+})

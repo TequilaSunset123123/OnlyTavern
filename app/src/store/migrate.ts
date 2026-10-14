@@ -1,3 +1,4 @@
+import { initialAudience } from './account'
 import { type Account, AccountSchema, SCHEMA_VERSION } from './schema'
 
 type Doc = Record<string, unknown>
@@ -6,8 +7,21 @@ type Doc = Record<string, unknown>
 export type Migration = (doc: Doc) => Doc
 
 // When the account structure changes: bump SCHEMA_VERSION in schema.ts and add
-// the step from the previous version here, e.g. `1: (doc) => ({ ...doc, newField: [] })`.
-export const MIGRATIONS: Record<number, Migration> = {}
+// the step from the previous version here.
+export const MIGRATIONS: Record<number, Migration> = {
+  // Step 2 (engine v0): price in cents, a real starting crowd, daily history.
+  1: (doc) => {
+    const { subscriptionPrice, ...profile } = doc.profile as { subscriptionPrice?: number }
+    return {
+      ...doc,
+      profile: { ...profile, priceCents: Math.round((subscriptionPrice ?? 9.99) * 100) },
+      audience: initialAudience(),
+      ledger: [],
+      events: [],
+      history: [],
+    }
+  },
+}
 
 export class SaveError extends Error {}
 

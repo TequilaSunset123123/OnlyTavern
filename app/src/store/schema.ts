@@ -3,7 +3,49 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
+
+export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
+export const SegmentSchema = z.enum(SEGMENTS)
+
+/** All money is integer cents. */
+const Cents = z.number().int()
+
+/** The crowd as counts only (plan.md §2.4): per segment, subscribers by renewal day (day % 30). */
+export const AudienceSchema = z.object({
+  cohorts: z.record(SegmentSchema, z.array(z.number().int().nonnegative()).length(30)),
+})
+
+export const LedgerKindSchema = z.enum(['subscription', 'renewal', 'tip', 'payout'])
+
+/** One line per day and kind (the crowd's payments are aggregated, not stored per fan). */
+export const LedgerEntrySchema = z.object({
+  id: z.string(),
+  day: z.number().int(),
+  kind: LedgerKindSchema,
+  count: z.number().int().nonnegative(),
+  gross: Cents,
+  fee: Cents,
+  net: Cents,
+})
+
+export const DailyStatSchema = z.object({
+  day: z.number().int(),
+  subscribers: z.number().int().nonnegative(),
+  bySegment: z.record(SegmentSchema, z.number().int().nonnegative()),
+  newSubscribers: z.number().int().nonnegative(),
+  churned: z.number().int().nonnegative(),
+  visitors: z.number().int().nonnegative(),
+  net: z.record(LedgerKindSchema, Cents),
+})
+
+export const EngineEventSchema = z.discriminatedUnion('type', [
+  z.object({ day: z.number().int(), type: z.literal('subscribers'), count: z.number().int() }),
+  z.object({ day: z.number().int(), type: z.literal('churn'), count: z.number().int() }),
+  z.object({ day: z.number().int(), type: z.literal('tips'), count: z.number().int(), gross: Cents }),
+  z.object({ day: z.number().int(), type: z.literal('milestone'), subscribers: z.number().int() }),
+  z.object({ day: z.number().int(), type: z.literal('payout'), amount: Cents }),
+])
 
 export const MemberSchema = z.object({
   id: z.string(),
@@ -18,7 +60,8 @@ export const ProfileSchema = z.object({
   handle: z.string(),
   bio: z.string(),
   accountType: z.enum(['free', 'paid']),
-  subscriptionPrice: z.number().nonnegative(),
+  /** Monthly subscription price; ignored for free accounts. */
+  priceCents: Cents.nonnegative(),
 })
 
 export const AccountSchema = z.object({
@@ -34,18 +77,27 @@ export const AccountSchema = z.object({
   vault: z.array(z.unknown()),
   posts: z.array(z.unknown()),
   queue: z.array(z.unknown()),
-  audience: z.record(z.string(), z.unknown()),
+  audience: AudienceSchema,
   regulars: z.array(z.unknown()),
   threads: z.array(z.unknown()),
   requests: z.array(z.unknown()),
-  ledger: z.array(z.unknown()),
-  events: z.array(z.unknown()),
+  ledger: z.array(LedgerEntrySchema),
+  /** Recent engine events (the last `eventDays` days), for notifications. */
+  events: z.array(EngineEventSchema),
+  /** One snapshot per simulated day, for charts. */
+  history: z.array(DailyStatSchema),
   settings: z.record(z.string(), z.unknown()),
 })
 
 export type Member = z.infer<typeof MemberSchema>
 export type Profile = z.infer<typeof ProfileSchema>
 export type Account = z.infer<typeof AccountSchema>
+export type Segment = z.infer<typeof SegmentSchema>
+export type Audience = z.infer<typeof AudienceSchema>
+export type LedgerKind = z.infer<typeof LedgerKindSchema>
+export type LedgerEntry = z.infer<typeof LedgerEntrySchema>
+export type DailyStat = z.infer<typeof DailyStatSchema>
+export type EngineEvent = z.infer<typeof EngineEventSchema>
 
 /** One row of the account list (kept in the index, not in the account file). */
 export type AccountSummary = {
