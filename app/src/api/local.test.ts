@@ -130,7 +130,7 @@ describe('local api: content', () => {
     expect((await api.getNotifications(accountId)).some((e) => e.type === 'post')).toBe(true)
 
     await api.dispatch({ type: 'settings.update', patch: { fanLanguage: 'zh' } })
-    expect(await api.getSettings()).toEqual({ fanLanguage: 'zh' })
+    expect(await api.getSettings()).toMatchObject({ fanLanguage: 'zh' })
     await expect(api.dispatch({ type: 'settings.update', patch: { fanLanguage: 'fr' as 'zh' } })).rejects.toThrow()
     expect((await api.getTags()).length).toBeGreaterThan(10)
   })

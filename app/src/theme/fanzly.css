@@ -16,6 +16,11 @@
   /* Used by BottomNavigation's active glow but not defined in theme.css */
   --color-special-bottom-nav-highlight: #9235fa;
 
+  /* Your chat bubbles: violet instead of Fanvue green */
+  --color-messages-background-sender: #efe5ff;
+  --color-messages-background-sender-stroke: #dccbff;
+  --color-messages-user-callout: #9235fa;
+
   /* Fanzly's gradient buttons and cards (Create, wallet balance) */
   --cs-gradient-start: #9554f4;
   --cs-gradient-end: #aa32f6;
@@ -33,6 +38,12 @@
 
   --color-buttons-link-brand-default: #9e42fc;
   --color-border-new-feature: #9e42fc;
+
+  --color-messages-background-sender: #3a1d63;
+  --color-messages-background-sender-stroke: #4b2a7e;
+  --color-messages-background-receiver: #181818;
+  --color-messages-background-receiver-stroke: #262626;
+  --color-messages-user-callout: #9e42fc;
 }
 
 /*

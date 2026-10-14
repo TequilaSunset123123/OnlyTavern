@@ -99,24 +99,24 @@ describe('comments', () => {
   it('match the post comment count and are the same every time', () => {
     const a = setup()
     const post = a.posts[0]
-    const once = generateComments(a, post, { fanLanguage: 'en' })
+    const once = generateComments(a, post, { fanLanguage: 'en' as const })
     expect(once).toHaveLength(post.stats.comments)
-    expect(generateComments(a, post, { fanLanguage: 'en' })).toEqual(once)
+    expect(generateComments(a, post, { fanLanguage: 'en' as const })).toEqual(once)
     expect(once.every((c) => c.text && c.name && c.handle && c.language === 'en')).toBe(true)
   })
 
   it('earlier comments stay the same when more arrive', () => {
     const a = setup()
-    const before = generateComments(a, a.posts[0], { fanLanguage: 'en' })
+    const before = generateComments(a, a.posts[0], { fanLanguage: 'en' as const })
     const later = simulate(a, 2).account
-    const after = generateComments(later, later.posts[0], { fanLanguage: 'en' })
+    const after = generateComments(later, later.posts[0], { fanLanguage: 'en' as const })
     expect(after.length).toBeGreaterThanOrEqual(before.length)
     for (const c of before) expect(after.find((x) => x.id === c.id)?.text).toBe(c.text)
   })
 
   it('use the chosen language', () => {
     const a = setup()
-    const zh = generateComments(a, a.posts[0], { fanLanguage: 'zh' })
+    const zh = generateComments(a, a.posts[0], { fanLanguage: 'zh' as const })
     expect(zh.every((c) => c.language === 'zh' && /[一-鿿]/.test(c.name))).toBe(true)
   })
 })

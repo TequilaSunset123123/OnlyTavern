@@ -28,6 +28,14 @@ export const MIGRATIONS: Record<number, Migration> = {
     posts: [],
     history: (doc.history as { net: object }[]).map((d) => ({ ...d, net: { ...d.net, post: 0 } })),
   }),
+  // Step 4 (DMs): regulars, threads, mass messages, a 'message' earnings kind.
+  3: (doc) => ({
+    ...doc,
+    regulars: [],
+    threads: [],
+    massMessages: [],
+    history: (doc.history as { net: object }[]).map((d) => ({ ...d, net: { ...d.net, message: 0 } })),
+  }),
 }
 
 export class SaveError extends Error {}

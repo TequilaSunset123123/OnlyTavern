@@ -5,7 +5,6 @@ import { subscriberCount } from '../engine/audience'
 import { addVaultItem, canLockPosts, deletePost, deleteVaultItem, publishPost, updateVaultItem } from '../engine/content'
 import { postIntensity, postTags } from '../engine/posts'
 import { balances, requestPayout } from '../engine/economy'
-import { simulate } from '../engine/simulate'
 import audiencePreset from '../presets/audience.json'
 import economy from '../presets/economy.json'
 import tags from '../presets/tags.json'
@@ -14,7 +13,12 @@ import { migrate, SaveError, versionOf } from '../store/migrate'
 import { type Account, type AccountIndex, LedgerKindSchema, SCHEMA_VERSION, SEGMENTS, SettingsSchema } from '../store/schema'
 import type { AccountStorage } from '../store/storage'
 import { exportAccount, exportFileName, importAccount } from '../store/transfer'
-import type { Action, Api, DispatchResult, ProfilePatch, Statements } from './types'
+import type { Action, Api, DispatchResult, InboxThread, ProfilePatch, Statements } from './types'
+
+// Loaded on demand: these pull in faker's name data and the comment corpus.
+const engine = () => import('../engine/simulate')
+const dms = () => import('../engine/regulars')
+const mass = () => import('../engine/massMessages')
 
 export type Env = {
   now(): number
@@ -92,9 +96,11 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
 
     async 'clock.advance'({ id, days }) {
       if (!Number.isInteger(days) || days < 1 || days > 90) throw new SaveError('days must be 1–90')
+      const { simulate } = await engine()
+      const settings = await storage.loadSettings()
       let events: DispatchResult['events'] = []
       await update(id, (a) => {
-        const r = simulate(a, days)
+        const r = simulate(a, days, a.meta.seed, settings)
         events = r.events
         return r.account
       })
@@ -133,6 +139,47 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       return { delta: [`account:${id}`], events: [] }
     },
 
+    async 'dm.send'({ id, regularId, message }) {
+      const { sendDm } = await dms()
+      let events: DispatchResult['events'] = []
+      await update(id, (a) => {
+        const r = sendDm(a, regularId, message, a.meta.seed)
+        events = r.events
+        return r.account
+      })
+      return { delta: [`account:${id}`], events }
+    },
+
+    async 'dm.fill'({ id, regularId, messageId, text }) {
+      const { fillMessage } = await dms()
+      await update(id, (a) => fillMessage(a, regularId, messageId, text))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
+    async 'dm.fallback'({ id, regularId, messageId }) {
+      const { fallbackText, fillMessage } = await dms()
+      await update(id, (a) => fillMessage(a, regularId, messageId, fallbackText(a, regularId, messageId)))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
+    async 'dm.read'({ id, regularId }) {
+      const { markRead } = await dms()
+      await update(id, (a) => markRead(a, regularId))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
+    async 'mass.send'({ id, message }) {
+      const { sendMass } = await mass()
+      const massId = env.newId()
+      let events: DispatchResult['events'] = []
+      await update(id, (a) => {
+        const r = sendMass(a, massId, message, a.meta.seed)
+        events = r.events
+        return r.account
+      })
+      return { delta: [`account:${id}`], events, id: massId }
+    },
+
     async 'settings.update'({ patch }) {
       const next = SettingsSchema.parse({ ...(await storage.loadSettings()), ...patch })
       await storage.saveSettings(next)
@@ -166,7 +213,16 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
         label: audiencePreset.segments[s].label,
         count: subscriberCount(account.audience, s),
       }))
-      return { day: account.clock.day, history: account.history, segments }
+      // Earnings per day from the ledger: DM income happens between simulated days.
+      const net = new Map<number, Record<string, number>>()
+      for (const e of account.ledger) {
+        if (e.kind === 'payout') continue
+        const d = net.get(e.day) ?? { subscription: 0, renewal: 0, tip: 0, post: 0, message: 0, payout: 0 }
+        d[e.kind] += e.net
+        net.set(e.day, d)
+      }
+      const history = account.history.map((h) => ({ ...h, net: { ...h.net, ...net.get(h.day) } }))
+      return { day: account.clock.day, history, segments }
     },
     async getVault(id) {
       return (await mustLoad(id)).vault
@@ -196,6 +252,44 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       return tags
     },
     getSettings: () => storage.loadSettings(),
+    async getInbox(id) {
+      const account = await mustLoad(id)
+      const threads: InboxThread[] = account.regulars.map((regular) => {
+        const t = account.threads.find((x) => x.regularId === regular.id)!
+        const written = t.messages.filter((m) => m.state === 'sent')
+        return {
+          regular,
+          last: written.at(-1) ?? null,
+          unread: t.messages.slice(t.read).filter((m) => m.from === 'fan').length,
+          pending: t.messages.some((m) => m.state === 'pending'),
+          tipped: t.messages.reduce((s, m) => s + (m.from === 'fan' ? (m.tipCents ?? 0) : 0), 0),
+        }
+      })
+      const lastDay = (x: InboxThread) => Math.max(x.regular.since, ...account.threads.find((t) => t.regularId === x.regular.id)!.messages.map((m) => m.day))
+      threads.sort((a, b) => lastDay(b) - lastDay(a))
+      return { day: account.clock.day, threads }
+    },
+    async getThread(id, regularId) {
+      const account = await mustLoad(id)
+      const regular = account.regulars.find((r) => r.id === regularId)
+      const thread = account.threads.find((t) => t.regularId === regularId)
+      if (!regular || !thread) throw new SaveError('Conversation not found')
+      const items = Object.fromEntries(
+        thread.messages.flatMap((m) => m.ppv?.vaultIds ?? []).map((v) => [v, account.vault.find((i) => i.id === v) ?? null]),
+      )
+      const p = account.profile
+      return {
+        day: account.clock.day,
+        regular,
+        messages: thread.messages,
+        read: thread.read,
+        items,
+        creator: { name: p.name, handle: p.handle, accountType: p.accountType, priceCents: p.priceCents, subscribers: subscriberCount(account.audience) },
+      }
+    },
+    async getMassMessages(id) {
+      return (await mustLoad(id)).massMessages
+    },
     dispatch(action) {
       const run = actions[action.type] as (a: Action) => Promise<DispatchResult>
       return run(action)

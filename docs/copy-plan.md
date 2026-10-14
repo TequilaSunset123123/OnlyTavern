@@ -111,6 +111,8 @@ iframe：dist/app/index.html（React 应用）
 
 实际情况补记（第 2、3 步）：Statements、Statistics、Vault、动态、通知这几页没有复制 Fastt 的组件。它们绑着 Fastt 自己的基础组件、请求层和"按粉丝一行"的数据，搬过来要连带一整套基础组件，还会和 Fanvue 的样式打架；所以直接用 Fanvue 的组件拼（`Table`、`ChartCard`、`Card`、`Chip`、`Dialog` 等），示例照抄 Fanvue 的 story。
 
+第 4 步同样没复制 Fastt 的 `components/chat/`、群发和 Fans 组件（加起来约 1.5 万行，同样绑着它自己的基础组件和请求层）。聊天气泡和输入框用的是上表"Fastt 的不顺手时"那一行的 Fanvue `ChatMessage`、`ChatInput`，配色改成 Fanzly 的紫色；收件箱、群发、Fans 页用 Fanvue 的 `Tabs`、`Chip`、`SegmentedControl`、`ProgressBar`、`Table` 拼。从素材库挑东西的弹窗抽成了一个 `VaultPickerDialog`，发帖和私信共用。EchoText 的 `connection_utils.js` 是用 `cp` 复制的（原文件是 CRLF 换行，比对时用 `diff --strip-trailing-cr`），只做了定点修改，见 plan.md §5。
+
 ## 4. 真正要自己写的（只剩这些）
 
 | 部分 | 规模 |

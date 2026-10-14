@@ -3,13 +3,14 @@ import { useState } from 'react'
 import type { EngineEvent } from '../../api'
 import { useActiveAccount } from '../../hooks/useAccounts'
 import { useFeed, useNotifications } from '../../hooks/useContent'
+import { useInbox } from '../../hooks/useMessages'
 import { count, money } from '../format'
 import { ClockControl } from '../shell/ClockControl'
 
 const s = (n: number) => (n === 1 ? '' : 's')
 
 // Notification texts are templates over engine events (plan.md §4.5); no model involved.
-function describe(e: EngineEvent, postText: (id: string) => string): string {
+function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: string) => string): string {
   switch (e.type) {
     case 'subscribers':
       return `${count(e.count)} new subscriber${s(e.count)}`
@@ -25,13 +26,24 @@ function describe(e: EngineEvent, postText: (id: string) => string): string {
       return `${postText(e.postId)}: ${count(e.views)} view${s(e.views)}, ${count(e.likes)} like${s(e.likes)}, ${count(e.comments)} comment${s(e.comments)}`
     case 'purchases':
       return `${count(e.count)} fan${s(e.count)} unlocked ${postText(e.postId)} (${money(e.gross)})`
+    case 'regular':
+      return `${fan(e.regularId)} started talking to you`
+    case 'dm':
+      return `New message from ${fan(e.regularId)}`
+    case 'dm-purchase':
+      return `${fan(e.regularId)} unlocked your paid message (${money(e.gross)})`
+    case 'dm-tip':
+      return `${fan(e.regularId)} tipped you ${money(e.gross)} in messages`
+    case 'mass':
+      return `Mass message: ${count(e.views)} view${s(e.views)}${e.purchases ? `, ${count(e.purchases)} unlocked (${money(e.gross)})` : ''}`
   }
 }
 
 const FILTERS: Record<string, EngineEvent['type'][]> = {
-  all: ['subscribers', 'churn', 'tips', 'milestone', 'payout', 'post', 'purchases'],
+  all: ['subscribers', 'churn', 'tips', 'milestone', 'payout', 'post', 'purchases', 'regular', 'dm', 'dm-purchase', 'dm-tip', 'mass'],
   subscriptions: ['subscribers', 'churn', 'milestone'],
-  tips: ['tips'],
+  tips: ['tips', 'dm-tip'],
+  messages: ['regular', 'dm', 'dm-purchase', 'mass'],
   posts: ['post', 'purchases'],
 }
 
@@ -39,6 +51,7 @@ export function NotificationsPage() {
   const { data: active } = useActiveAccount()
   const { data: events = [] } = useNotifications(active?.id)
   const { data: feed } = useFeed(active?.id)
+  const { data: inbox } = useInbox(active?.id)
   const [filter, setFilter] = useState('all')
 
   if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
@@ -49,6 +62,7 @@ export function NotificationsPage() {
     const t = p.text || p.items.find(Boolean)?.description || 'your post'
     return `“${t.length > 40 ? `${t.slice(0, 40)}…` : t}”`
   }
+  const fan = (id: string) => inbox?.threads.find((t) => t.regular.id === id)?.regular.name ?? 'A fan'
   const shown = events.filter((e) => FILTERS[filter].includes(e.type))
   const days = [...new Set(shown.map((e) => e.day))]
 
@@ -66,6 +80,7 @@ export function NotificationsPage() {
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="tips">Tips</TabsTrigger>
           <TabsTrigger value="posts">Posts</TabsTrigger>
+          <TabsTrigger value="messages">Messages</TabsTrigger>
         </TabsList>
       </Tabs>
       {shown.length === 0 && <EmptyState title="Nothing yet" description="Notifications from the last 30 days show up here." />}
@@ -78,7 +93,7 @@ export function NotificationsPage() {
               .map((e, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <BellIcon size={16} className="mt-1 shrink-0 text-(--color-brand-primary-default)" />
-                  <span>{describe(e, postText)}</span>
+                  <span>{describe(e, postText, fan)}</span>
                 </div>
               ))}
           </CardContent>

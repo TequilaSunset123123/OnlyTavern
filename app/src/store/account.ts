@@ -30,6 +30,7 @@ export function createAccount({ id, seed, now, name, handle }: NewAccountInput):
     audience: initialAudience(),
     regulars: [],
     threads: [],
+    massMessages: [],
     requests: [],
     ledger: [],
     events: [],

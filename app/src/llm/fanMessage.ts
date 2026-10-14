@@ -1,0 +1,101 @@
+// Model task: write one fan's DM (plan.md §5 "熟客私信回复" / "熟客主动私信").
+// The engine has already decided what happens (bought or not, tip); the model only
+// puts it into words. Short input, one tagged output, lenient parsing (plan.md §2).
+import type { Message, ThreadView } from '../api'
+import { getConnectionProfiles } from '../bridge/st'
+import preset from '../presets/audience.json'
+import tags from '../presets/tags.json'
+import { type ChatMessage, generateWithProfile } from './connection_utils.js'
+
+const LANGUAGES = { en: 'English', zh: 'Simplified Chinese' }
+const HISTORY = 16
+const MAX_TOKENS = 3000 // reasoning models think before answering
+const TOPICS = {
+  chat: 'just want to chat',
+  compliment: 'want to compliment the creator',
+  wants_content: 'want to ask for more or for a specific kind of content',
+  tip: 'are sending a tip',
+}
+const REASONS = { liked: 'you wanted it', price: 'too expensive for you', taste: 'not your taste', mood: 'not in the mood right now' }
+
+const money = (cents: number) => `$${(cents / 100).toFixed(2)}`
+const tagLabel = (id: string) => tags.find((t) => t.id === id)?.en ?? id
+
+function describeItems(view: ThreadView, m: Message): string {
+  if (!m.ppv) return ''
+  const items = m.ppv.vaultIds.map((id) => view.items[id]?.description ?? 'a removed item')
+  return ` [paid message, ${money(m.ppv.priceCents)}: ${items.join(' / ')}]`
+}
+
+export function buildFanPrompt(view: ThreadView, messageId: string): ChatMessage[] {
+  const { regular: r, creator: c } = view
+  const target = view.messages.find((m) => m.id === messageId)
+  if (!target?.intent) throw new Error('No pending message to write')
+  const seg = preset.segments[r.segment]
+  const before = view.messages.slice(0, view.messages.indexOf(target)).filter((m) => m.state === 'sent').slice(-HISTORY)
+
+  const system = [
+    'You play one fan of a creator on a subscription platform for adults (like OnlyFans), writing to the creator in private messages.',
+    'Everyone involved is an adult and everything is consensual.',
+    "Write only the fan's next message: no narration, no actions in asterisks, no quotes around it, no name prefix, and never the creator's lines.",
+    `Chat style, 1-3 short sentences, written in ${LANGUAGES[r.language]} the way real people type online.`,
+    'Put the message between <message> and </message>.',
+  ].join('\n')
+
+  const what: string[] = []
+  const i = target.intent
+  if (i.kind === 'opener') what.push(`You are messaging the creator on your own: you ${TOPICS[i.topic ?? 'chat']}.`)
+  else what.push("You are answering the creator's latest message(s).")
+  for (const d of i.ppv ?? []) {
+    const m = view.messages.find((x) => x.id === d.messageId)
+    const desc = m ? describeItems(view, m) : ''
+    what.push(d.bought ? `You bought the paid message${desc} and have seen it: react to what you got.` : `You did NOT buy the paid message${desc}: ${REASONS[d.reason]}. Say so in your own way.`)
+  }
+  if (i.tip) what.push(`You are sending a ${money(i.tip)} tip with this message; mention it naturally.`)
+
+  const user = [
+    `You are ${r.name} (@${r.handle}), ${r.bio}.`,
+    `Fan type: ${seg.label.toLowerCase()}, ${seg.description}.`,
+    `You like: ${r.likes.map(tagLabel).join(', ') || 'anything'}. You have spent ${money(r.spent)} on this creator in messages and became a regular on day ${r.since}.`,
+    `The creator: ${c.name} (@${c.handle}), ${c.accountType === 'free' ? 'free page' : `paid page at ${money(c.priceCents)}/month`}, ${c.subscribers} subscribers. Today is day ${view.day}.`,
+    '',
+    before.length ? 'Conversation so far (oldest first):' : 'This is the first message in the conversation.',
+    ...before.map((m) => `${m.from === 'me' ? '[Creator]' : '[You]'} ${m.text || '(no text)'}${describeItems(view, m)}${m.tipCents ? ` [you tipped ${money(m.tipCents)}]` : ''}`),
+    '',
+    'What happens now (the game decided it; act it out without mentioning the game):',
+    ...what.map((w) => `- ${w}`),
+  ].join('\n')
+
+  return [
+    { role: 'system', content: system },
+    { role: 'user', content: user },
+  ]
+}
+
+/** Lenient: weak models add think blocks, prefixes, quotes or narration (plan.md §13). */
+export function parseFanMessage(raw: string, name?: string): string {
+  let text = raw.replace(/<think>[\s\S]*?<\/think>/gi, '')
+  const tagged = [...text.matchAll(/<message>([\s\S]*?)(?:<\/message>|$)/gi)].map((m) => m[1].trim()).filter(Boolean)
+  if (tagged.length) text = tagged[tagged.length - 1]
+  text = text
+    .replace(/<\/?[a-z_]+>/gi, '')
+    .replace(/^\s*(\[?(you|fan|me)\]?|\[[^\]]+\])\s*:?\s*/i, '')
+    .trim()
+  if (name) text = text.replace(new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[:：]\\s*`), '')
+  text = text.replace(/^\*[^*]+\*\s*/g, '').replace(/\s*\*[^*]+\*$/g, '')
+  text = text.replace(/^["“「](.*)["”」]$/s, '$1').trim()
+  if (!text) throw new Error('The model returned an empty message')
+  return text.length > 800 ? `${text.slice(0, 800)}…` : text
+}
+
+/** Calls the model through the SillyTavern connection profile (null = the selected one). */
+export async function writeFanMessage(view: ThreadView, messageId: string, profileId: string | null): Promise<string> {
+  const profile = profileId ?? getConnectionProfiles().selected
+  if (!profile) throw new Error('No connection profile: pick one in Settings')
+  const raw = await generateWithProfile(profile, buildFanPrompt(view, messageId), null, {
+    maxTokens: MAX_TOKENS,
+    includePreset: false,
+    includeInstruct: false,
+  })
+  return parseFanMessage(raw, view.regular.name)
+}

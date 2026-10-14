@@ -1,12 +1,25 @@
-import { Card, CardContent, CardHeader, CardTitle, SegmentedControl, SwitchField, TextField } from '@fanvue/ui'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  SegmentedControl,
+  Select,
+  SelectContent,
+  SelectItem,
+  SwitchField,
+  TextField,
+} from '@fanvue/ui'
 import type { Settings } from '../../api'
 import { useDispatch } from '../../hooks/useAccounts'
 import { useSettings } from '../../hooks/useContent'
-import { getStContext } from '../../bridge/st'
+import { getConnectionProfiles, getStContext } from '../../bridge/st'
 import { useTheme } from '../../hooks/useTheme'
 
 // Global settings (shared by all accounts), plus the step-0 checks: whether the
 // iframe can reach parent.SillyTavern, and a text field to test the iOS keyboard.
+const FOLLOW_ST = '__sillytavern__'
+
 const FAN_LANGUAGES = [
   { value: 'en', label: 'English' },
   { value: 'zh', label: '中文' },
@@ -16,6 +29,8 @@ const FAN_LANGUAGES = [
 export function SettingsPage() {
   const { theme, toggle } = useTheme()
   const { data: settings } = useSettings()
+  const profiles = getConnectionProfiles()
+  const selectedName = profiles.profiles.find((p) => p.id === profiles.selected)?.name ?? 'none selected'
   const dispatch = useDispatch()
   const ctx = getStContext()
   const status = ctx
@@ -45,6 +60,38 @@ export function SettingsPage() {
             onChange={(v) => dispatch.mutate({ type: 'settings.update', patch: { fanLanguage: v as Settings['fanLanguage'] } })}
           />
           <p className="text-xs text-content-tertiary">Mixed: mostly English with some Chinese-speaking fans. Applies to all accounts.</p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Model</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          {profiles.profiles.length === 0 ? (
+            <p className="text-content-tertiary">
+              No connection profiles found. Create one in SillyTavern (Connection Manager) to let fans write messages.
+            </p>
+          ) : (
+            <Select
+              label="Connection profile for fan messages"
+              value={settings?.connectionProfile ?? FOLLOW_ST}
+              onValueChange={(v) => dispatch.mutate({ type: 'settings.update', patch: { connectionProfile: v === FOLLOW_ST ? null : v } })}
+              fullWidth
+            >
+              <SelectContent>
+                <SelectItem value={FOLLOW_ST}>Same as SillyTavern ({selectedName})</SelectItem>
+                {profiles.profiles.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.name}
+                    {p.model ? ` · ${p.model}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <p className="text-xs text-content-tertiary">
+            Only regulars' messages use the model. Everything with a number (sales, tips) is decided by the game.
+          </p>
         </CardContent>
       </Card>
       <Card>

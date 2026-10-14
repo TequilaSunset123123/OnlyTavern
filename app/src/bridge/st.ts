@@ -38,6 +38,19 @@ export function getStContext(): StContext | null {
   }
 }
 
+export type ConnectionProfiles = { selected: string | null; profiles: { id: string; name: string; model?: string }[] }
+
+/** SillyTavern's connection profiles (Connection Manager), for choosing who writes fan messages. */
+export function getConnectionProfiles(): ConnectionProfiles {
+  const cm = getStContext()?.extensionSettings.connectionManager as
+    | { selectedProfile?: string; profiles?: { id: string; name: string; model?: string }[] }
+    | undefined
+  return {
+    selected: cm?.selectedProfile ?? null,
+    profiles: (cm?.profiles ?? []).map(({ id, name, model }) => ({ id, name, model })),
+  }
+}
+
 /** Ask index.js to hide the overlay. */
 export function closeApp(): void {
   host()?.OnlyTavernHost?.close()

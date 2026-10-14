@@ -9,9 +9,13 @@ export type {
   EngineEvent,
   LedgerEntry,
   LedgerKind,
+  Intent,
+  MassMessage,
   Member,
+  Message,
   Mood,
   Post,
+  Regular,
   Profile,
   Segment,
   Settings,
@@ -19,8 +23,12 @@ export type {
 } from '../store/schema'
 export type { Comment } from '../engine/comments'
 export type { PostInput, VaultInput } from '../engine/content'
+export type { DmInput } from '../engine/regulars'
+export type { MassInput } from '../engine/massMessages'
 import type { Comment } from '../engine/comments'
 import type { PostInput, VaultInput } from '../engine/content'
+import type { MassInput } from '../engine/massMessages'
+import type { DmInput } from '../engine/regulars'
 import type {
   Account,
   AccountIndex,
@@ -28,8 +36,11 @@ import type {
   EngineEvent,
   LedgerEntry,
   LedgerKind,
+  MassMessage,
+  Message,
   Post,
   Profile,
+  Regular,
   Segment,
   Settings,
   VaultItem,
@@ -52,6 +63,13 @@ export type Action =
   | { type: 'post.publish'; id: string; post: PostInput }
   | { type: 'post.delete'; id: string; postId: string }
   | { type: 'settings.update'; patch: Partial<Settings> }
+  | { type: 'dm.send'; id: string; regularId: string; message: DmInput }
+  /** The model wrote a pending fan message. */
+  | { type: 'dm.fill'; id: string; regularId: string; messageId: string; text: string }
+  /** The model failed for a fan opener: use a corpus line instead (plan.md §5). */
+  | { type: 'dm.fallback'; id: string; regularId: string; messageId: string }
+  | { type: 'dm.read'; id: string; regularId: string }
+  | { type: 'mass.send'; id: string; message: MassInput }
 
 /** What changed, so the UI knows which queries to refetch. */
 export type Topic = 'accounts' | 'settings' | `account:${string}`
@@ -91,6 +109,30 @@ export type FeedPost = Post & {
 
 export type Feed = { day: number; canLockPosts: boolean; posts: FeedPost[] }
 
+export type InboxThread = {
+  regular: Regular
+  last: Message | null
+  unread: number
+  /** A fan message is waiting for the model to write it. */
+  pending: boolean
+  /** Cents this fan tipped you in DMs. */
+  tipped: number
+}
+
+export type Inbox = { day: number; threads: InboxThread[] }
+
+/** Everything needed to show a conversation and to prompt the model for the fan. */
+export type ThreadView = {
+  day: number
+  regular: Regular
+  messages: Message[]
+  /** Messages you have seen. */
+  read: number
+  /** Vault items referenced by PPV messages (null = deleted). */
+  items: Record<string, VaultItem | null>
+  creator: { name: string; handle: string; accountType: Profile['accountType']; priceCents: number; subscribers: number }
+}
+
 export interface Api {
   listAccounts(): Promise<AccountIndex>
   getAccount(id: string): Promise<Account | null>
@@ -104,5 +146,8 @@ export interface Api {
   getNotifications(id: string): Promise<EngineEvent[]>
   getTags(): Promise<Tag[]>
   getSettings(): Promise<Settings>
+  getInbox(id: string): Promise<Inbox>
+  getThread(id: string, regularId: string): Promise<ThreadView>
+  getMassMessages(id: string): Promise<MassMessage[]>
   dispatch(action: Action): Promise<DispatchResult>
 }

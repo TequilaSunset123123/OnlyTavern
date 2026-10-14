@@ -3,7 +3,7 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
 export const SegmentSchema = z.enum(SEGMENTS)
@@ -47,7 +47,67 @@ export const AudienceSchema = z.object({
   cohorts: z.record(SegmentSchema, z.array(z.number().int().nonnegative()).length(30)),
 })
 
-export const LedgerKindSchema = z.enum(['subscription', 'renewal', 'tip', 'post', 'payout'])
+/** A crowd fan who talks to you: has a profile, memory and a DM thread (plan.md §4.4). */
+export const RegularSchema = z.object({
+  id: z.string(),
+  segment: SegmentSchema,
+  name: z.string(),
+  handle: z.string(),
+  language: z.enum(['en', 'zh']),
+  country: z.string(),
+  age: z.number().int(),
+  /** One-line background, built from templates (no model). */
+  bio: z.string(),
+  /** Tag ids this fan likes. */
+  likes: z.array(z.string()),
+  since: z.number().int(),
+  /** Total cents spent on you in DMs (PPV + tips). */
+  spent: Cents.nonnegative(),
+  status: z.enum(['active', 'dormant']),
+})
+
+/** Engine decisions the model has to act out in a fan message (plan.md §2.3). */
+export const IntentSchema = z.object({
+  /** opener: fan starts a chat on their own; reply: answering you. */
+  kind: z.enum(['opener', 'reply']),
+  topic: z.enum(['chat', 'compliment', 'wants_content', 'tip']).optional(),
+  /** Outcome for each PPV you sent since the fan's last message. */
+  ppv: z.array(z.object({ messageId: z.string(), bought: z.boolean(), reason: z.enum(['liked', 'price', 'taste', 'mood']) })).optional(),
+  tip: Cents.optional(),
+})
+
+export const MessageSchema = z.object({
+  id: z.string(),
+  day: z.number().int(),
+  from: z.enum(['me', 'fan']),
+  text: z.string(),
+  /** Pay-per-view attachment. */
+  ppv: z.object({ vaultIds: z.array(z.string()), priceCents: Cents.nonnegative(), paid: z.boolean() }).optional(),
+  tipCents: Cents.nonnegative().optional(),
+  /** Fan messages wait as 'pending' until the model has written them. */
+  state: z.enum(['sent', 'pending']),
+  intent: IntentSchema.optional(),
+  /** Set by a mass message. */
+  massId: z.string().optional(),
+})
+
+export const ThreadSchema = z.object({
+  regularId: z.string(),
+  messages: z.array(MessageSchema),
+  /** How many messages you have seen; fan messages after that are unread. */
+  read: z.number().int().nonnegative(),
+})
+
+export const MassMessageSchema = z.object({
+  id: z.string(),
+  day: z.number().int(),
+  text: z.string(),
+  ppv: z.object({ vaultIds: z.array(z.string()), priceCents: Cents.nonnegative() }).optional(),
+  audience: z.enum(['all', 'regulars']),
+  stats: z.object({ sent: Count, views: Count, purchases: Count, earned: Cents }),
+})
+
+export const LedgerKindSchema = z.enum(['subscription', 'renewal', 'tip', 'post', 'message', 'payout'])
 
 /** One line per day and kind (the crowd's payments are aggregated, not stored per fan). */
 export const LedgerEntrySchema = z.object({
@@ -78,6 +138,11 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
   z.object({ day: z.number().int(), type: z.literal('payout'), amount: Cents }),
   z.object({ day: z.number().int(), type: z.literal('post'), postId: z.string(), views: Count, likes: Count, comments: Count }),
   z.object({ day: z.number().int(), type: z.literal('purchases'), postId: z.string(), count: Count, gross: Cents }),
+  z.object({ day: z.number().int(), type: z.literal('regular'), regularId: z.string() }),
+  z.object({ day: z.number().int(), type: z.literal('dm'), regularId: z.string() }),
+  z.object({ day: z.number().int(), type: z.literal('dm-purchase'), regularId: z.string(), gross: Cents }),
+  z.object({ day: z.number().int(), type: z.literal('dm-tip'), regularId: z.string(), gross: Cents }),
+  z.object({ day: z.number().int(), type: z.literal('mass'), massId: z.string(), views: Count, purchases: Count, gross: Cents }),
 ])
 
 export const MemberSchema = z.object({
@@ -111,8 +176,9 @@ export const AccountSchema = z.object({
   posts: z.array(PostSchema),
   queue: z.array(z.unknown()),
   audience: AudienceSchema,
-  regulars: z.array(z.unknown()),
-  threads: z.array(z.unknown()),
+  regulars: z.array(RegularSchema),
+  threads: z.array(ThreadSchema),
+  massMessages: z.array(MassMessageSchema),
   requests: z.array(z.unknown()),
   ledger: z.array(LedgerEntrySchema),
   /** Recent engine events (the last `eventDays` days), for notifications. */
@@ -129,6 +195,11 @@ export type Segment = z.infer<typeof SegmentSchema>
 export type Mood = (typeof MOODS)[number]
 export type VaultItem = z.infer<typeof VaultItemSchema>
 export type Post = z.infer<typeof PostSchema>
+export type Regular = z.infer<typeof RegularSchema>
+export type Message = z.infer<typeof MessageSchema>
+export type Intent = z.infer<typeof IntentSchema>
+export type Thread = z.infer<typeof ThreadSchema>
+export type MassMessage = z.infer<typeof MassMessageSchema>
 export type Audience = z.infer<typeof AudienceSchema>
 export type LedgerKind = z.infer<typeof LedgerKindSchema>
 export type LedgerEntry = z.infer<typeof LedgerEntrySchema>
@@ -152,6 +223,8 @@ export type AccountIndex = {
 export const SettingsSchema = z.object({
   /** Language of fan comments and (from step 4) messages. */
   fanLanguage: z.enum(['en', 'zh', 'mix']),
+  /** SillyTavern connection profile id for fan messages; null = ST's selected one. */
+  connectionProfile: z.string().nullable(),
 })
 export type Settings = z.infer<typeof SettingsSchema>
-export const DEFAULT_SETTINGS: Settings = { fanLanguage: 'en' }
+export const DEFAULT_SETTINGS: Settings = { fanLanguage: 'en', connectionProfile: null }

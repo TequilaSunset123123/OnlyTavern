@@ -1,20 +1,4 @@
-import {
-  AddIcon,
-  Alert,
-  Button,
-  Card,
-  CardContent,
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  EmptyState,
-  SegmentedControl,
-  TextArea,
-  TextField,
-} from '@fanvue/ui'
+import { AddIcon, Alert, Button, Card, CardContent, EmptyState, SegmentedControl, TextArea, TextField } from '@fanvue/ui'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import type { PostInput } from '../../api'
@@ -22,6 +6,7 @@ import { useActiveAccount, useDispatch } from '../../hooks/useAccounts'
 import { useFeed, useVault } from '../../hooks/useContent'
 import { errorText } from '../format'
 import { MediaTile } from '../MediaTile'
+import { VaultPickerDialog } from '../VaultPickerDialog'
 
 const ACCESS = [
   { value: 'free', label: 'Free for subscribers' },
@@ -104,38 +89,7 @@ export function NewPostPage() {
         Post now
       </Button>
 
-      <Dialog open={picking} onOpenChange={setPicking}>
-        <DialogContent size="lg">
-          <DialogHeader>
-            <DialogTitle>Add from vault</DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            {vault.length === 0 ? (
-              <EmptyState
-                title="Your vault is empty"
-                description="Add items in the Vault first."
-                primaryAction={<Button onClick={() => navigate('/vault')}>Open vault</Button>}
-              />
-            ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {vault.map((v) => (
-                  <MediaTile
-                    key={v.id}
-                    item={v}
-                    selected={vaultIds.includes(v.id)}
-                    onClick={() => setVaultIds(vaultIds.includes(v.id) ? vaultIds.filter((id) => id !== v.id) : [...vaultIds, v.id])}
-                  />
-                ))}
-              </div>
-            )}
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="brand" onClick={() => setPicking(false)}>
-              Done ({vaultIds.length})
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <VaultPickerDialog open={picking} onOpenChange={setPicking} vault={vault} selected={vaultIds} onChange={setVaultIds} />
     </div>
   )
 }

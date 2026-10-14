@@ -8,6 +8,7 @@ It includes work from the projects below, under their own licenses.
 | File | Source | License |
 |---|---|---|
 | `app/src/hooks/useTheme.ts` | [Fastt](https://github.com/BlackPhoenixSlo/inflowwkiller) (`app/hooks/useTheme.ts`), Copyright (c) 2026 Fastt contributors | MIT, `licenses/fastt-MIT.txt` |
+| `app/src/llm/connection_utils.js` | [EchoText](https://github.com/mattjaybe/SillyTavern-EchoText) (`connection_utils.js`), Copyright (c) 2026 mattjaybe | MIT, `licenses/echotext-MIT.txt` |
 | `index.js` (`addLaunchButton`) | [SillyTavern-Chess](https://github.com/SillyTavern/SillyTavern-Chess) | AGPL-3.0, same as this project |
 
 ## Bundled into `dist/`
