@@ -1,3 +1,4 @@
+// Adapted from Fastt (github.com/BlackPhoenixSlo/inflowwkiller, app/hooks/useTheme.ts), MIT; see THIRD_PARTY_NOTICES.md.
 /**
  * useTheme — reads/writes the active theme as a `data-theme` attribute
  * on `<html>`, with localStorage persistence so the choice survives

@@ -85,7 +85,7 @@ iframe：dist/app/index.html（React 应用）
 | 表单、弹窗、提示 | `TextField`、`TextArea`、`Select`、`Switch`、`Tabs`、`Dialog`、`Drawer`、`Toast`、`Pill`、`Chip` |
 | 聊天气泡（Fastt 的不顺手时） | `ChatMessage`、`ChatInput` |
 
-换肤只覆盖 Fanvue 的品牌色和深色底色变量，改成 Fanzly 新版的黑紫（色值已经取好，见 `plan.md` §8.3）。新版截图在 `docs/ref/fanzly-2026/`。
+换肤只覆盖 Fanvue 的品牌色和深色底色变量，改成 Fanzly 新版的黑紫（色值已经取好，见 `plan.md` §8.3）。新版截图在本机的 `docs/ref/fanzly-2026/`（不进仓库）。
 
 ### 3.4 其他来源
 

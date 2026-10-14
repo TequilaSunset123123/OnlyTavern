@@ -216,7 +216,7 @@ app/              React 应用（Vite + TS + Tailwind v4），在 iframe 里跑
   src/presets/    DeepSeek 生成的预设（JSON）
 dist/             构建产物，提交进仓库（TauriTavern 不会帮你构建）
 vendor/           抄袭来源的浅克隆，不进仓库
-docs/             plan.md（本文件）、copy-plan.md、ref/（Fanzly 截图）、prompts/（生成预设用的提示词）
+docs/             plan.md（本文件）、copy-plan.md、ref/（逆向笔记；Fanzly 截图只在本机，不进仓库）、prompts/（生成预设用的提示词）
 server-plugin/    以后可选：SillyTavern 后端插件（装法是复制或链接到 SillyTavern 的 plugins/）
 ```
 
@@ -297,7 +297,7 @@ llm/ 永远在前端：引擎只产出"需要写字"的事件，前端调模型�
   - `service/`（签名、curl_cffi、代理，连真 OF）完全不要。
 - [lucasdetoledo4/of-chatter-chrome-extension](https://github.com/lucasdetoledo4/of-chatter-chrome-extension)：给经纪公司代聊人员出 AI 回复建议的 Chrome 扩展。只看 `types/`（粉丝档案字段）和 `mock/`（假数据），给熟客预设当素材。
 - **真实 OF**：照它的菜单、页面构成、文案和规则。2026-10-14 已从公开的前端代码逆向（不用登录）：导航、私信、收入、粉丝管理的结构、文案、配色都在 `docs/ref/onlyfans-creator.md`，还原出的模板和文案表在 `vendor/onlyfans/`。
-- **Fanzly**（Appscrip 的商业版 OF 仿站，[销售页](https://appscrip.com/onlyfans-clone/)）：外观目标，配色用新版黑紫。截图：`docs/ref/` 下三张旧版（只参考布局）、`docs/ref/fanzly-2026/` 下十六张新版。没有源码，只能照截图取色、量尺寸，细节见 §8.3。
+- **Fanzly**（Appscrip 的商业版 OF 仿站，[销售页](https://appscrip.com/onlyfans-clone/)）：外观目标，配色用新版黑紫。截图：`docs/ref/` 下三张旧版（只参考布局）、`docs/ref/fanzly-2026/` 下十六张新版，都只在本机、不进公开仓库（版权属于 Appscrip）。没有源码，只能照截图取色、量尺寸，细节见 §8.3。
 - [ckelimarks/open-membership-site](https://github.com/ckelimarks/open-membership-site)：0 星，原生 HTML 的会员站（`feed.html`、`post.html`、`join.html`），粉丝视角。需要一个纯 HTML 的动态卡片做起点时再看。
 
 ### 架构 / 提示词
@@ -328,7 +328,7 @@ llm/ 永远在前端：引擎只产出"需要写字"的事件，前端调模型�
 - 用中文交流。
 - 只有你明确说了才提交；提交信息用英文，只写一句话，不加署名或 Co-Authored-By，不推送。
 - 一次只做一步（或一小步），做完停下来等你看。
-- 选界面来源只看质量，不看许可证（私人实验）。
+- 仓库公开（2026-10-14 起），许可证 AGPL-3.0（`LICENSE`）。只放有权分发的东西：别人产品的截图等参考素材只留本机，`docs/ref/` 下的图片在 `.gitignore` 里；复制进来的代码要许可证兼容，并在 `THIRD_PARTY_NOTICES.md` 登记；打包库的许可证原文用 `npm run licenses` 生成到 `licenses/bundled.txt`。Fanzly 只借配色和布局思路，不描图、不搬 logo、图标和文案。
 - 不手画界面，能抄就抄（`docs/copy-plan.md`）。复制靠 `cp`，不让模型重打一遍；照清单做的机械活交给便宜模型。
 - 提示词里的示例不要带某种特定语言的句子，否则会把模型带成那种语言。
 - 解析要宽容（DeepSeek 这类较弱的模型经常不守格式）；发给模型的一律用规范写法。
