@@ -5,6 +5,12 @@
 // The iframe sits in a modal <dialog>: SillyTavern puts a transform on <html>,
 // which breaks position:fixed (it scrolls with the page). The dialog's top layer
 // is always relative to the viewport.
+//
+// The app (app/src/bridge/st.ts) calls back into this page through
+// window.OnlyTavernHost. Downloads go through SillyTavern's own download(),
+// which TauriTavern replaces with a native save on iPhone.
+
+import { download } from '../../../utils.js';
 
 const APP_URL = new URL('./dist/index.html', import.meta.url);
 const OVERLAY_ID = 'onlytavern-overlay';
@@ -89,11 +95,5 @@ function addSettingsBlock() {
 (function () {
     addLaunchButton();
     addSettingsBlock();
-
-    // The app asks to be closed via postMessage (app/src/bridge/st.ts).
-    window.addEventListener('message', (event) => {
-        if (event.origin === window.location.origin && event.data?.type === 'onlytavern:close') {
-            closeApp();
-        }
-    });
+    window.OnlyTavernHost = { close: closeApp, download };
 })();

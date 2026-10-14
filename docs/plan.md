@@ -142,7 +142,9 @@ account
 
 ### 7.2 存放
 
-- 账号不跟聊天走，像群聊一样单独存：一个账号一份数据，另有一个账号列表。群众不逐个存，单个账号数据量小。具体存成单独文件还是放扩展设置，先在 TauriTavern 上验证（§11）；存储包一层接口，以后能换。
+- 账号不跟聊天走，像群聊一样单独存：一个账号一份数据，另有一个账号列表。群众不逐个存，单个账号数据量小。
+- **已定（2026-10-14）**：每个账号一个文件 `onlytavern-<id>.json`，走 SillyTavern 的用户文件接口（`/api/files/upload`、`/api/files/delete`，读取走 `/user/files/`），存在 `data/default-user/user/files/`。TauriTavern 实现了同一套接口（见它的 `src/tauri/main/routes/resource-routes.js`）。账号列表和当前账号放在扩展设置 `extensionSettings.onlytavern.index`。存储包在 `store/storage.ts` 的接口后面（`bridge/storage.ts` 里有 SillyTavern 和 localStorage 两种实现），以后能换。
+- 导出走 SillyTavern 自带的 `download()`（由 `index.js` 通过 `window.OnlyTavernHost` 提供给 iframe），TauriTavern 把它换成了原生保存，所以 iPhone 上也能导出。
 - 聊天元数据里最多只存一个关联的账号 id（§6）。分支 / 另存聊天把它复制过去也没关系，两条聊天关联同一个账号是正常的。
 - **导入 / 导出**：一个带 `schemaVersion` 的 JSON 文件。导入时生成新 id（"复刻"），也用来在 Mac 和 iPhone 之间搬存档。
 - 数据结构改版时写迁移函数，老存档自动升级。
@@ -273,7 +275,6 @@ llm/ 永远在前端：引擎只产出"需要写字"的事件，前端调模型�
 - 账号类型规则要不要照真实 OF（免费主页能发锁定帖，付费主页靠私信卖）。
 - 要不要商店（实物商品）。
 - 语义搜索用模型排序，还是用 SillyTavern 的向量（Vectors 扩展；TauriTavern 是否支持未知）。
-- 账号存成单独文件还是放扩展设置（先在 TauriTavern 上验证；账号已经定为独立于聊天）。
 - 角色卡订阅者的私信，要不要也能被"过一天"推进（比如它主动来找你），还是只在你打开对话时说话。
 - 同一张角色卡在不同账号里，记忆要不要共享（目前按各账号分开记）。
 - 后端插件做不做、做来干什么。按现在的设计（群众不逐个存、数据量小），它能带来的主要是更大的存储、SQLite 和全文搜索；不做，本地版也是完整的（§9.1）。
@@ -337,8 +338,8 @@ llm/ 永远在前端：引擎只产出"需要写字"的事件，前端调模型�
 
 - [x] 规划（2026-10-11）
 - [x] 逆向真实 OF 创作者后台（2026-10-14）→ `docs/ref/onlyfans-creator.md`
-- [ ] 0 骨架：代码完成（2026-10-14）。Mac 上的 SillyTavern 已验收：入口按钮、全屏打开、关闭后再开状态保留、浅色 / 深色、手机 / 桌面两种导航、iframe 能拿到 `parent.SillyTavern`。**还差 iPhone 上 TauriTavern 的验收**（滚动、键盘、safe-area、`parent.SillyTavern`）。
-- [ ] 1 数据层
+- [x] 0 骨架（2026-10-14）：Mac 上的 SillyTavern 和 iPhone 上的 TauriTavern 都验收通过。
+- [ ] 1 数据层：代码完成（2026-10-14）。账号结构、迁移框架、导入导出、`api/local.ts` 和 `dispatch`，14 个 Node 测试（含"界面不直接 import store/engine"的检查）。Accounts 页能新建、切换、删除、导出、导入；侧栏和 More 页显示当前账号。Mac 上的 SillyTavern 已验收：账号文件写进 `user/files/`、刷新后还在、中文名正常、导出再导入内容一致、删除后文件消失。**还差 iPhone 上 TauriTavern 的验收**（新建、刷新后还在、导出能保存、导入）。
 - [ ] 2 引擎 v0
 - [ ] 3 素材库 + 发帖 + 动态
 - [ ] 4 私信

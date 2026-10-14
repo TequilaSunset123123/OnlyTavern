@@ -1,4 +1,5 @@
 import type { RouteObject } from 'react-router'
+import { AccountsPage } from './pages/AccountsPage'
 import { MorePage } from './pages/MorePage'
 import { Placeholder } from './pages/Placeholder'
 import { SettingsPage } from './pages/SettingsPage'
@@ -17,8 +18,8 @@ export const routes: RouteObject[] = [
       { path: '/statements', element: <Placeholder title="Statements" step="step 2" /> },
       { path: '/statistics', element: <Placeholder title="Statistics" step="step 2" /> },
       { path: '/fans', element: <Placeholder title="Fans" step="step 4" /> },
-      { path: '/profile', element: <Placeholder title="My Profile" step="step 1" /> },
-      { path: '/accounts', element: <Placeholder title="Accounts" step="step 1" /> },
+      { path: '/profile', element: <Placeholder title="My Profile" step="step 2" /> },
+      { path: '/accounts', element: <AccountsPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/more', element: <MorePage /> },
     ],

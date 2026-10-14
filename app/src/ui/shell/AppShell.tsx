@@ -1,5 +1,6 @@
 import {
   AddIcon,
+  Avatar,
   BellIcon,
   BottomNavigation,
   BottomNavigationAction,
@@ -14,6 +15,7 @@ import {
 import { useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { closeApp } from '../../bridge/st'
+import { useActiveAccount } from '../../hooks/useAccounts'
 import { NAV_ITEMS, NEW_POST_PATH } from './nav'
 
 const GRADIENT = 'bg-linear-to-r from-(--cs-gradient-start) to-(--cs-gradient-end)'
@@ -24,6 +26,29 @@ const MORE_PATH = '/more'
 
 function isActive(current: string, path: string) {
   return path === '/' ? current === '/' : current.startsWith(path)
+}
+
+/** Which account you are working in; tap to manage accounts. */
+export function ActiveAccount() {
+  const navigate = useNavigate()
+  const { data: account, isLoading } = useActiveAccount()
+  if (isLoading) return null
+  const initials = account?.name.trim().slice(0, 2).toUpperCase() || '?'
+  return (
+    <button
+      type="button"
+      className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-buttons-tertiary-hover"
+      onClick={() => navigate('/accounts')}
+    >
+      <Avatar size={40} alt={account?.name ?? 'No account'} fallback={initials} />
+      <span className="min-w-0">
+        <span className="typography-body-default-16px-semibold block truncate">{account?.name ?? 'No account'}</span>
+        <span className="typography-body-small-14px-regular block truncate text-content-tertiary">
+          {account ? `@${account.handle}` : 'Create one to start'}
+        </span>
+      </span>
+    </button>
+  )
 }
 
 export function NavList({ onPick }: { onPick?: () => void }) {
@@ -75,6 +100,7 @@ export function AppShell() {
           <span className={`${GRADIENT} bg-clip-text text-2xl font-bold text-transparent`}>OnlyTavern</span>
           <IconButton variant="tertiary" size="32" icon={<CloseIcon />} aria-label="Close" onClick={closeApp} />
         </div>
+        <ActiveAccount />
         <div className="min-h-0 flex-1 overflow-y-auto">
           <NavList />
         </div>
