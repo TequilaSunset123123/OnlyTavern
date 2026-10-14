@@ -3,7 +3,6 @@ node_modules/
 .DS_Store
 .claude/
 
-# Reference screenshots of other products (Fanzly / Appscrip) stay local: we have no right to redistribute them.
-docs/ref/*.png
-docs/ref/*.webp
-docs/ref/fanzly-2026/
+# Dev-only: plans, notes, prompts and reference screenshots of other products stay local.
+docs/
+CLAUDE.md
