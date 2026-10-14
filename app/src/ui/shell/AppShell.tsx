@@ -72,7 +72,7 @@ export function AppShell() {
       {/* Desktop: left sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col gap-4 border-r border-border-primary p-4 md:flex">
         <div className="flex items-center justify-between">
-          <span className={`${GRADIENT} bg-clip-text text-2xl font-bold text-transparent`}>CreatorSim</span>
+          <span className={`${GRADIENT} bg-clip-text text-2xl font-bold text-transparent`}>OnlyTavern</span>
           <IconButton variant="tertiary" size="32" icon={<CloseIcon />} aria-label="Close" onClick={closeApp} />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">

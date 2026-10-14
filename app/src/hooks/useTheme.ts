@@ -11,7 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 
 export type Theme = "dark" | "light";
 
-const STORAGE_KEY = "creatorsim:theme";
+const STORAGE_KEY = "onlytavern:theme";
 
 // Fastt uses data-theme; @fanvue/ui uses the .dark class. Set both.
 function applyTheme(t: Theme) {

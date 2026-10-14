@@ -1,4 +1,4 @@
-# CreatorSim 规划（暂名）
+# OnlyTavern 规划
 
 > SillyTavern 里独立的 OF 式博主经营模拟插件。每次开始新一步前先读本文件，完成后更新最后的「进度」。
 > 2026-10-11 起草，构思来自在 EchoText 会话里的讨论。
@@ -227,7 +227,7 @@ server-plugin/    以后可选：SillyTavern 后端插件（装法是复制或�
 ```
 ui/ ──调用──▶ api（全部 async，参数和返回值都是纯 JSON）
                ├─ local：engine/ + store/ 在浏览器里跑（默认；TauriTavern 只有这个）
-               └─ server：fetch('/api/plugins/creatorsim/…')（以后，可选）
+               └─ server：fetch('/api/plugins/onlytavern/…')（以后，可选）
 llm/ 永远在前端：引擎只产出"需要写字"的事件，前端调模型写完，再交回 api。
 ```
 
@@ -240,7 +240,7 @@ llm/ 永远在前端：引擎只产出"需要写字"的事件，前端调模型�
 5. id 用字符串，不靠数组下标。
 6. 模型调用留在前端：连接配置是前端的东西（`ConnectionManagerRequestService`），服务器插件很难用上。后端只管计算和存储。
 7. **功能对齐**：任何功能在本地版都必须完整可用；后端只能加容量（更大的存储、SQLite、全文搜索），不能成为功能门槛，否则 iPhone 上就是残缺版。
-8. 启动时探测：请求 `/api/plugins/creatorsim/ping`，有回应就用 server，没有就用 local；设置里可以强制用本地。
+8. 启动时探测：请求 `/api/plugins/onlytavern/ping`，有回应就用 server，没有就用 local；设置里可以强制用本地。
 9. 不需要后台任务：以后就算时钟改成真实时间，本地版也是打开时从上次的时间 `simulate` 到现在（"追赶"）。引擎是确定性的，结果和"一直在后台跑"一样。
 
 装后端插件需要在 SillyTavern 的 `config.yaml` 里打开 `enableServerPlugins`，插件放在 SillyTavern 的 `plugins/` 目录（不在 extensions 里），路由挂在 `/api/plugins/<id>/`。`engine/` 怎么同时给扩展和插件用（复制脚本还是链接），到时候再定；结构可以参考 st-image-atelier 的 `server-plugin/`。
@@ -264,7 +264,7 @@ llm/ 永远在前端：引擎只产出"需要写字"的事件，前端调模型�
 
 ## 11. 待决定
 
-- 插件名（文件夹暂名 `SillyTavern-CreatorSim`，写代码之前改名最省事）；平台在界面上叫什么。
+- 平台在界面上叫什么（插件名已定为 OnlyTavern，仓库 [TequilaSunset123123/OnlyTavern](https://github.com/TequilaSunset123123/OnlyTavern)，2026-10-14）。
 - 时钟来源（先做手动"过一天"）。
 - 单人模式是只有你，还是只有她。
 - 协助创作者替你发帖：直接发布，还是先存成草稿等你批。
@@ -325,7 +325,7 @@ llm/ 永远在前端：引擎只产出"需要写字"的事件，前端调模型�
 ## 13. 约定（给之后的每次会话）
 
 - 用中文交流。
-- 只有你明确说了才提交；提交信息只写一句话，不加署名或 Co-Authored-By，不推送。
+- 只有你明确说了才提交；提交信息用英文，只写一句话，不加署名或 Co-Authored-By，不推送。
 - 一次只做一步（或一小步），做完停下来等你看。
 - 选界面来源只看质量，不看许可证（私人实验）。
 - 不手画界面，能抄就抄（`docs/copy-plan.md`）。复制靠 `cp`，不让模型重打一遍；照清单做的机械活交给便宜模型。

@@ -28,5 +28,5 @@ export function getStContext(): StContext | null {
 
 /** Ask index.js to hide the overlay. */
 export function closeApp(): void {
-  host()?.postMessage({ type: 'creatorsim:close' }, window.location.origin);
+  host()?.postMessage({ type: 'onlytavern:close' }, window.location.origin);
 }
