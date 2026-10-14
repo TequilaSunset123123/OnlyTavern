@@ -1,0 +1,36 @@
+/*
+ * Fanzly (Appscrip, 2026 screenshots in docs/ref/fanzly-2026/) colours mapped onto
+ * Fanvue's design tokens. Values were sampled from the screenshots; see plan.md §8.3.
+ * Only tokens that differ from Fanvue are listed. Loaded after theme.css, so the
+ * same selectors win.
+ */
+
+:root {
+  /* Brand: Fanvue green -> Fanzly violet */
+  --color-brand-primary-default: #9235fa;
+  --color-brand-primary-hover: #9e42fc;
+  --color-brand-primary-muted: #9235fa33;
+  --color-buttons-brand-hover: #9e42fc;
+  --color-buttons-link-brand-default: #9235fa;
+  --color-border-new-feature: #9235fa;
+  /* Used by BottomNavigation's active glow but not defined in theme.css */
+  --color-special-bottom-nav-highlight: #9235fa;
+
+  /* Fanzly's gradient buttons and cards (Create, wallet balance) */
+  --cs-gradient-start: #9554f4;
+  --cs-gradient-end: #aa32f6;
+}
+
+.dark {
+  /* Neutral black layers from the Fanzly screenshots */
+  --color-background-primary: #0a0a0a;
+  --color-background-secondary: #0a0a0a;
+  --color-surface-primary: #181818;
+  --color-surface-secondary: #121212;
+  --color-border-primary: #222222;
+  --color-border-strong: #262626;
+  --color-content-tertiary: #7a7978;
+
+  --color-buttons-link-brand-default: #9e42fc;
+  --color-border-new-feature: #9e42fc;
+}

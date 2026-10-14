@@ -1,0 +1,12 @@
+{
+    "display_name": "CreatorSim",
+    "loading_order": 200,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "",
+    "author": "TequilaSunset123123",
+    "version": "0.0.1",
+    "homePage": "",
+    "auto_update": false
+}

@@ -1,0 +1,20 @@
+/* Setup from the @fanvue/ui README (section "Configure CSS"). */
+@import "tailwindcss";
+@source "../node_modules/@fanvue/ui";
+@import "@fanvue/ui/styles/theme.css";
+
+/* Fanzly (new version) palette on top of Fanvue's tokens. */
+@import "./theme/fanzly.css";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, sans-serif;
+  background: var(--color-background-primary);
+  color: var(--color-content-primary);
+}
