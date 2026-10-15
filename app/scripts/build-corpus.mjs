@@ -1,7 +1,7 @@
 // Builds presets/tags.json and presets/corpus/{en,zh}.json from the raw answers that
 // docs/prompts/run-in-st.js saved (onlytavern-gen-*.txt in SillyTavern's user files).
 // Usage: node scripts/build-corpus.mjs <folder with onlytavern-gen-*.txt>
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { jsonrepair } from 'jsonrepair'
 
@@ -17,9 +17,9 @@ function parse(name) {
   return JSON.parse(jsonrepair(text))
 }
 
-// Tag lines when the model broke the JSON (it sometimes drops a "["): take every quoted
-// string after each tag id, up to the next tag id.
-function parseTagLines(name, ids) {
+// Lines by key when the model broke the JSON (it sometimes drops a "["): take every
+// quoted string after each key, up to the next key.
+function parseKeyed(name, ids) {
   try {
     return parse(name)
   } catch {
@@ -47,13 +47,21 @@ mkdirSync(new URL('corpus/', out), { recursive: true })
 for (const lang of ['en', 'zh']) {
   const segments = {}
   for (const s of SEGMENTS) {
-    const raw = parse(`comments-${lang}-${s}`)
+    const raw = parseKeyed(`comments-${lang}-${s}`, MOODS)
     segments[s] = Object.fromEntries(MOODS.map((m) => [m, clean(raw[m])]))
-    const short = MOODS.filter((m) => segments[s][m].length < 5)
+    const short = MOODS.filter((m) => segments[s][m].length < 20)
     if (short.length) console.warn(`  ${lang}/${s}: few lines for ${short.join(', ')}`)
   }
-  const rawTags = parseTagLines(`tagcomments-${lang}`, tags.map((t) => t.id))
-  const tagLines = Object.fromEntries(tags.map((t) => [t.id, clean(rawTags[t.id])]).filter(([, l]) => l.length))
+  const rawTags = parseKeyed(`tagcomments-${lang}`, tags.map((t) => t.id))
+  // The provider sometimes refuses explicit tags (it answers with a moderation notice
+  // instead of lines): keep the previous lines for those.
+  const file = new URL(`corpus/${lang}.json`, out)
+  const previous = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).tags ?? {} : {}
+  const tagLines = Object.fromEntries(
+    tags.map((t) => [t.id, clean(rawTags[t.id]).length ? clean(rawTags[t.id]) : clean(previous[t.id])]).filter(([, l]) => l.length),
+  )
+  const kept = tags.filter((t) => !clean(rawTags[t.id]).length && tagLines[t.id]).length
+  if (kept) console.warn(`  ${lang}: kept previous lines for ${kept} tags the model left out`)
   writeFileSync(new URL(`corpus/${lang}.json`, out), JSON.stringify({ segments, tags: tagLines }, null, 1) + '\n')
   const n = Object.values(segments).flatMap((m) => Object.values(m)).flat().length
   console.log(`${lang}: ${n} comments, tag lines for ${Object.keys(tagLines).length}/${tags.length} tags`)

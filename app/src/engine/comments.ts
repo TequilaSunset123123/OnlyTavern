@@ -43,6 +43,10 @@ export function generateComments(account: Account, post: Post, settings: Pick<Se
   const tags = postTags(post, account).filter((t) => CORPUS.en.tags[t] || CORPUS.zh.tags[t])
   const lastDay = Math.max(post.day + 1, Math.min(account.clock.day, post.day + preset.post.heat.length))
   const comments: Comment[] = []
+  // No line twice under one post (2026-10-15). Comments are made in order, so earlier
+  // ones never change when more arrive.
+  const used = new Set<string>()
+  const fresh = (lines: string[]) => lines.filter((l) => !used.has(l))
 
   for (let i = 0; i < Math.min(post.stats.comments, MAX_COMMENTS); i++) {
     const rng = rngFor(account.meta.seed, post.day, `comment:${post.id}:${i}`)
@@ -54,6 +58,11 @@ export function generateComments(account: Account, post: Post, settings: Pick<Se
     const lines = tagLines?.length && rng() < preset.post.tagCommentShare ? tagLines : corpus.segments[segment][mood]
 
     const { name, handle } = fanIdentity(rng, language)
+    // Unused lines of the chosen kind, else the same mood from other fan types (haters only
+    // borrow from haters and vice versa), else any unused line of his type, else repeat.
+    const sameMood = SEGMENTS.filter((s) => (s === 'hater') === (segment === 'hater')).flatMap((s) => corpus.segments[s][mood])
+    const own = Object.values(corpus.segments[segment]).flat()
+    const pool = [fresh(lines), fresh(sameMood), fresh(own)].find((l) => l.length) ?? (lines.length ? lines : corpus.segments.regular.casual)
 
     comments.push({
       id: `${post.id}:${i}`,
@@ -63,8 +72,9 @@ export function generateComments(account: Account, post: Post, settings: Pick<Se
       language,
       name,
       handle,
-      text: pick(rng, lines.length ? lines : corpus.segments.regular.casual),
+      text: pick(rng, pool),
     })
+    used.add(comments[comments.length - 1].text)
   }
   return comments.sort((a, b) => a.day - b.day)
 }

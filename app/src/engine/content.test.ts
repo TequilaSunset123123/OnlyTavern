@@ -114,6 +114,16 @@ describe('comments', () => {
     for (const c of before) expect(after.find((x) => x.id === c.id)?.text).toBe(c.text)
   })
 
+  it('never repeat a line under the same post', () => {
+    const a = setup()
+    const busy = { ...a.posts[0], stats: { ...a.posts[0].stats, comments: 60 } }
+    for (const fanLanguage of ['en', 'zh'] as const) {
+      const texts = generateComments(a, busy, { fanLanguage }).map((c) => c.text)
+      expect(texts).toHaveLength(60)
+      expect(new Set(texts).size).toBe(60)
+    }
+  })
+
   it('use the chosen language', () => {
     const a = setup()
     const zh = generateComments(a, a.posts[0], { fanLanguage: 'zh' as const })
