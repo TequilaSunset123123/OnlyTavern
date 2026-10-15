@@ -19,6 +19,7 @@ export type {
   Regular,
   Request,
   DeliveryReason,
+  DirectionId,
   Profile,
   Segment,
   Settings,
@@ -28,14 +29,17 @@ export type { Comment } from '../engine/comments'
 export type { PostInput, VaultInput } from '../engine/content'
 export type { DmInput } from '../engine/regulars'
 export type { MassInput } from '../engine/massMessages'
+export type { DirectionInfo } from '../engine/directions'
 import type { Comment } from '../engine/comments'
 import type { PostInput, VaultInput } from '../engine/content'
+import type { DirectionInfo } from '../engine/directions'
 import type { MassInput } from '../engine/massMessages'
 import type { DmInput } from '../engine/regulars'
 import type {
   Account,
   AccountIndex,
   DailyStat,
+  DirectionId,
   EngineEvent,
   LedgerEntry,
   LedgerKind,
@@ -54,7 +58,7 @@ import type {
 export type ProfilePatch = Partial<Pick<Profile, 'name' | 'handle' | 'bio' | 'accountType' | 'priceCents'>>
 
 export type Action =
-  | { type: 'account.create'; name: string; handle: string }
+  | { type: 'account.create'; name: string; handle: string; direction?: DirectionId }
   | { type: 'account.select'; id: string }
   | { type: 'account.delete'; id: string }
   | { type: 'account.import'; json: string }
@@ -68,6 +72,8 @@ export type Action =
   | { type: 'post.publish'; id: string; post: PostInput }
   | { type: 'post.delete'; id: string; postId: string }
   | { type: 'settings.update'; patch: Partial<Settings> }
+  /** Pick your direction: the first pick is free, switching later loses subscribers. */
+  | { type: 'direction.set'; id: string; direction: DirectionId }
   | { type: 'dm.send'; id: string; regularId: string; message: DmInput }
   /** The model wrote a pending fan message. */
   | { type: 'dm.fill'; id: string; regularId: string; messageId: string; text: string }
@@ -150,7 +156,7 @@ export type ThreadView = {
   read: number
   /** Vault items referenced by PPV messages (null = deleted). */
   items: Record<string, VaultItem | null>
-  creator: { name: string; handle: string; accountType: Profile['accountType']; priceCents: number; subscribers: number }
+  creator: { name: string; handle: string; accountType: Profile['accountType']; priceCents: number; subscribers: number; direction: string }
   /** How warm the fan is (multiplies their chance to buy a PPV): 0.7 cold … 1.3. */
   closeness: number
   /** How this fan writes and behaves: a short label for the UI, the description for the model. */
@@ -174,6 +180,15 @@ export type MeetupRow = { meetup: Meetup; regular: Regular; message: Message | n
 /** Newest first. */
 export type Requests = { day: number; requests: RequestRow[]; meetups: MeetupRow[] }
 
+export type Directions = {
+  current: DirectionId
+  /** False until you pick one yourself; the first pick is free. */
+  chosen: boolean
+  /** Share of subscribers that leave when you switch (0–1). */
+  switchLoss: number
+  all: DirectionInfo[]
+}
+
 export interface Api {
   listAccounts(): Promise<AccountIndex>
   getAccount(id: string): Promise<Account | null>
@@ -192,5 +207,8 @@ export interface Api {
   getThread(id: string, regularId: string): Promise<ThreadView>
   getMassMessages(id: string): Promise<MassMessage[]>
   getRequests(id: string): Promise<Requests>
+  getDirections(id: string): Promise<Directions>
+  /** The directions you can pick, for a new account. */
+  getDirectionOptions(): Promise<{ id: DirectionId; label: string; blurb: string }[]>
   dispatch(action: Action): Promise<DispatchResult>
 }

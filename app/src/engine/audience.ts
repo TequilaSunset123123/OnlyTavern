@@ -35,6 +35,9 @@ export type DayInputs = {
   extraVisitors?: number
   /** Multiplies renewal chances (e.g. lower when the creator stopped posting). */
   renewalFactor?: number
+  /** Your direction: multiplies each fan type's share of visitors, and how many visit. */
+  mixFactors?: Partial<Record<Segment, number>>
+  visitorFactor?: number
 }
 
 export function simulateAudienceDay(
@@ -42,14 +45,14 @@ export function simulateAudienceDay(
   profile: Profile,
   seed: string,
   day: number,
-  { extraVisitors = 0, renewalFactor = 1 }: DayInputs = {},
+  { extraVisitors = 0, renewalFactor = 1, mixFactors = {}, visitorFactor = 1 }: DayInputs = {},
 ): AudienceDay {
   const bucket = day % 30
   const cohorts = structuredClone(audience.cohorts)
   const total = subscriberCount(audience)
 
   const visitorRng = rngFor(seed, day, 'visitors')
-  const expected = preset.visitorsBase + preset.visitorsPerSubscriber * total
+  const expected = (preset.visitorsBase + preset.visitorsPerSubscriber * total) * visitorFactor
   const visitors = Math.round(logNormal(visitorRng, expected, preset.visitorNoise)) + extraVisitors
 
   let renewals = 0
@@ -77,7 +80,7 @@ export function simulateAudienceDay(
     }
 
     // Newcomers: visitors of this segment who subscribe.
-    const arrivals = binomial(rngFor(seed, day, `arrive:${s}`), visitors, p.mix)
+    const arrivals = binomial(rngFor(seed, day, `arrive:${s}`), visitors, Math.min(1, p.mix * (mixFactors[s] ?? 1)))
     const joined = binomial(rngFor(seed, day, `join:${s}`), arrivals, conversionRate(p, profile))
     cohorts[s][bucket] += joined
     newSubscribers += joined

@@ -137,8 +137,7 @@ function preview(m: Message | null, pending: boolean): string {
   if (pending) return 'New message'
   if (!m) return ''
   const prefix = m.from === 'me' ? 'You: ' : ''
-  if (m.intent?.request?.phase === 'ask') return `📝 Custom request: ${m.text}`
-  if (m.intent?.meetup?.phase === 'invite') return `📅 Meetup invite: ${m.text}`
+  if (m.intent?.deal?.step === 'ask') return `${m.intent.deal.kind === 'custom' ? '📝 Custom request' : '📅 Meetup invite'}: ${m.text}`
   if (m.delivery) return 'You: 📝 Custom delivered'
   if (m.ppv) return `${prefix}🔒 Paid message ${money(m.ppv.priceCents)}`
   if (m.tipCents) return `💰 Tipped ${money(m.tipCents)}`
@@ -295,9 +294,10 @@ function Delivery({ view, delivery }: { view: ThreadView; delivery: NonNullable<
 /** The request or invitation a fan message carries, with its buttons. */
 function Extras({ accountId, view, message: m }: { accountId: string; view: ThreadView; message: Message }) {
   if (m.from !== 'fan') return null
-  const q = m.intent?.request?.phase === 'ask' && view.requests.find((x) => x.id === m.intent!.request!.requestId)
+  // The card sits under the fan message that opened the deal (deals.ts).
+  const q = view.requests.find((x) => x.messageId === m.id)
   if (q) return <RequestCard accountId={accountId} day={view.day} request={q} items={(q.delivery?.vaultIds ?? []).map((id) => view.items[id] ?? null)} />
-  const o = m.intent?.meetup?.phase === 'invite' && view.meetups.find((x) => x.id === m.intent!.meetup!.meetupId)
+  const o = view.meetups.find((x) => x.messageId === m.id)
   if (o) return <MeetupCard accountId={accountId} day={view.day} meetup={o} />
   return null
 }

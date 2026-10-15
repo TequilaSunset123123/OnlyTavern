@@ -3,7 +3,8 @@ import { buildFanPrompt } from '../llm/fanMessage'
 import preset from '../presets/audience.json'
 import { createAccount } from '../store/account'
 import { migrate } from '../store/migrate'
-import type { Account } from '../store/schema'
+import D from '../presets/directions.json'
+import { type Account, DIRECTIONS } from '../store/schema'
 import { addVaultItem, publishPost } from './content'
 import { balances } from './economy'
 import { acceptMeetup, cancelMeetup, declineMeetup, hideMeetup } from './meetups'
@@ -50,7 +51,7 @@ describe('custom requests', () => {
     expect(q.offerCents).toBeGreaterThanOrEqual(preset.requests.minCents)
     expect(q.dueDay).toBe(q.day + preset.requests.dueDays)
     const ask = a.threads.find((t) => t.regularId === fan.id)!.messages.find((m) => m.id === q.messageId)!
-    expect(ask).toMatchObject({ from: 'fan', intent: { kind: 'opener', request: { requestId: q.id, phase: 'ask' } } })
+    expect(ask).toMatchObject({ from: 'fan', intent: { kind: 'opener', deal: { kind: 'custom', step: 'ask', id: q.id } } })
     expect(withRequest().a.requests).toEqual(a.requests) // deterministic
   })
 
@@ -69,8 +70,13 @@ describe('custom requests', () => {
     expect(acc.regulars.find((x) => x.id === q.regularId)!.spent).toBe(spentBefore + q.offerCents + tip)
     const messages = acc.threads.find((t) => t.regularId === q.regularId)!.messages
     expect(messages.at(-2)).toMatchObject({ from: 'me', text: 'made just for you', delivery: { requestId: q.id } })
-    expect(messages.at(-1)).toMatchObject({ state: 'pending', intent: { kind: 'reply', request: { phase: 'delivered' } } })
+    expect(messages.at(-1)).toMatchObject({ state: 'pending', intent: { kind: 'reply', deal: { kind: 'custom', step: 'delivered', id: q.id } } })
     expect(acc.events.some((e) => e.type === 'request-paid')).toBe(true)
+    // A paid custom counts for the directions whose tags it asked for.
+    for (const d of DIRECTIONS) {
+      const counts = D.directions[d].signatureTags.some((t) => q.tags.includes(t))
+      expect(acc.direction.points[d] - a.direction.points[d]).toBe(counts ? 2 : 0)
+    }
     expect(() => deliverRequest(acc, q.id, ['c1'], '', 's')).toThrow(/no longer open/)
   })
 
@@ -91,7 +97,7 @@ describe('custom requests', () => {
     const { a, q } = withRequest()
     const late = simulate(acceptRequest(a, q.id), preset.requests.dueDays + 1, a.meta.seed, SETTINGS).account
     expect(late.requests.find((x) => x.id === q.id)).toMatchObject({ status: 'expired', acceptedDay: a.clock.day })
-    const said = late.threads.find((t) => t.regularId === q.regularId)!.messages.some((m) => m.intent?.request?.phase === 'late')
+    const said = late.threads.find((t) => t.regularId === q.regularId)!.messages.some((m) => m.intent?.deal?.step === 'late')
     expect(said).toBe(true)
   })
 
@@ -104,15 +110,16 @@ describe('custom requests', () => {
       messages: t.messages,
       read: 0,
       items: {},
-      creator: { name: 'Mia', handle: 'mia', accountType: 'free' as const, priceCents: 0, subscribers: 100 },
+      creator: { name: 'Mia', handle: 'mia', accountType: 'free' as const, priceCents: 0, subscribers: 100, direction: 'an anime e-girl' },
       closeness: 1,
       traits: [],
       requests: a.requests,
       meetups: [],
     }
     const [, user] = buildFanPrompt(view, q.messageId)
-    expect(user.content).toContain(`You offer $${(q.offerCents / 100).toFixed(2)}`)
-    expect(user.content).not.toContain('just want to chat')
+    expect(user.content).toContain(`you offer $${(q.offerCents / 100).toFixed(2)}`)
+    // One line for what happens: the ask, and no topic line on top of it.
+    expect(user.content.split('What happens now:')[1].trim().split('\n')).toHaveLength(1)
     expect(fallbackText(a, q.regularId, q.messageId)).toContain(`$${q.offerCents / 100}`)
   })
 })
@@ -128,7 +135,7 @@ describe('meetups', () => {
   it('fans you write to a lot invite you; accepted meetups pay cash on the day, outside the platform balance', () => {
     const { a, m } = withInvite()
     const invite = a.threads.find((t) => t.regularId === m.regularId)!.messages.find((x) => x.id === m.messageId)!
-    expect(invite.intent).toMatchObject({ kind: 'opener', meetup: { meetupId: m.id, phase: 'invite' } })
+    expect(invite.intent).toMatchObject({ kind: 'opener', deal: { kind: 'meetup', step: 'ask', id: m.id } })
     expect(m.offerCents % preset.meetups.roundCents).toBe(0)
 
     const today = a.clock.day
@@ -148,7 +155,8 @@ describe('meetups', () => {
     expect(b.cash).toBe(before.cash + m.offerCents)
     expect(b.earned + b.cash).toBe(after.ledger.filter((l) => l.kind !== 'payout').reduce((s, l) => s + l.net, 0))
     expect(after.events.some((e) => e.type === 'meetup-done' && e.gross === m.offerCents)).toBe(true)
-    const last = after.threads.find((t) => t.regularId === m.regularId)!.messages.find((x) => x.intent?.meetup?.phase === 'after')
+    expect(after.direction.points.escort - accepted.direction.points.escort).toBe(5)
+    const last = after.threads.find((t) => t.regularId === m.regularId)!.messages.find((x) => x.intent?.deal?.step === 'met')
     expect(last).toBeDefined()
   })
 

@@ -1,24 +1,18 @@
-// Custom requests (plan.md §4.3, step 5). Regulars you talk to ask for a piece
-// made just for them: the engine picks what they want (from their likes), the
-// offer and the deadline, and on delivery decides whether it matches. They pay
-// on delivery, through the platform (20% fee). The model only writes the words.
+// Custom requests after they start (plan.md §4.3, step 5): you accept or decline,
+// deliver, or miss the deadline; on delivery the engine decides whether it matches
+// and the fan pays (through the platform, 20% fee). How a request starts is deals.ts.
 import preset from '../presets/audience.json'
-import tags from '../presets/tags.json'
 import type { Account, DeliveryReason, EngineEvent, LedgerEntry, Message, Request } from '../store/schema'
 import { ContentError } from './content'
+import { requestOpen as isOpen } from './deals'
+import { addPoints, customPoints } from './directions'
+import { paymentLine as line } from './economy'
 import { intensityMatch } from './posts'
-import { closeness, line, pendingMessage, recentMine, threadOf, tipCents, unanswered, withReply, withThread } from './regulars'
-import { logNormal, rngFor } from './rng'
+import { tipCents } from './regulars'
+import { rngFor } from './rng'
+import { addFanMessage, threadOf, withReply, withThread } from './threads'
 
 const Q = preset.requests
-
-const isOpen = (q: Request) => q.status === 'open' || q.status === 'accepted'
-
-/** Ended badly for the fan: you backed out, were late, or what you sent was not it. */
-const wentBadly = (q: Request) =>
-  (q.status === 'declined' && q.acceptedDay !== undefined) ||
-  (q.status === 'expired' && q.acceptedDay !== undefined) ||
-  (q.status === 'delivered' && !q.delivery?.paid)
 
 function update(account: Account, id: string, change: (q: Request) => Request): Account {
   return { ...account, requests: account.requests.map((q) => (q.id === id ? change(q) : q)) }
@@ -30,55 +24,15 @@ function mustFind(account: Account, id: string): Request {
   return q
 }
 
-/** One simulated day: late requests expire; fans you talk to may ask for a custom. */
-export function simulateRequestsDay(account: Account, seed: string, day: number): { account: Account; events: EngineEvent[] } {
+/** One simulated day: requests past their deadline expire. If you had said yes, he lets you know he is disappointed. */
+export function simulateRequestsDay(account: Account, day: number): { account: Account; events: EngineEvent[] } {
   let a = account
   const events: EngineEvent[] = []
-
-  // Past the deadline. If you had said yes, the fan lets you know they are disappointed.
   for (const q of a.requests.filter((x) => isOpen(x) && day > x.dueDay)) {
     a = update(a, q.id, (x) => ({ ...x, status: 'expired', closedDay: day }))
     events.push({ day, type: 'request-expired', regularId: q.regularId, accepted: q.acceptedDay !== undefined })
-    if (q.acceptedDay !== undefined) {
-      const t = threadOf(a, q.regularId)
-      a = withThread(a, { ...t, messages: [...t.messages, pendingMessage(`${q.regularId}-m${t.messages.length}`, day, { kind: 'opener', request: { requestId: q.id, phase: 'late' } })] })
-    }
+    if (q.acceptedDay !== undefined) a = addFanMessage(a, q.regularId, day, { kind: 'opener', deal: { kind: 'custom', step: 'late', id: q.id } })
   }
-
-  for (const r of a.regulars) {
-    if (r.status !== 'active') continue
-    const p = preset.segments[r.segment]
-    if (!p.requestDaily) continue
-    const t = threadOf(a, r.id)
-    // Only fans you have been talking to lately, one request at a time, and a pause after the last one.
-    if (recentMine(t, day) === 0 || unanswered(t) >= Q.maxUnanswered) continue
-    const mine = a.requests.filter((x) => x.regularId === r.id)
-    if (mine.some(isOpen)) continue
-    const last = mine.at(-1)
-    if (last && day - (last.closedDay ?? last.day) < Q.cooldownDays) continue
-
-    const rng = rngFor(seed, day, `requests:${r.id}`)
-    const chance = p.requestDaily * closeness(t, day) * (last && wentBadly(last) ? Q.upsetFactor : 1)
-    if (rng() >= chance) continue
-
-    // One or two of the things they like; as explicit as the most explicit of them.
-    const likes = [...r.likes]
-    for (let i = likes.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1))
-      ;[likes[i], likes[j]] = [likes[j], likes[i]]
-    }
-    const wanted = likes.slice(0, rng() < 0.5 ? 1 : 2)
-    const intensity = Math.max(1, ...wanted.map((id) => tags.find((x) => x.id === id)?.intensity ?? 1))
-    const offer = Math.min(Q.maxCents, Math.max(Q.minCents, Math.round(logNormal(rng, p.requestMedian, Q.spread)) * 100))
-    const id = `${r.id}-q${mine.length}`
-    const messageId = `${r.id}-m${t.messages.length}`
-    a = {
-      ...withThread(a, { ...t, messages: [...t.messages, pendingMessage(messageId, day, { kind: 'opener', request: { requestId: id, phase: 'ask' } })] }),
-      requests: [...a.requests, { id, regularId: r.id, day, tags: wanted, intensity, offerCents: offer, dueDay: day + Q.dueDays, status: 'open', messageId }],
-    }
-    events.push({ day, type: 'request', regularId: r.id, requestId: id })
-  }
-
   return { account: a, events }
 }
 
@@ -161,9 +115,10 @@ export function deliverRequest(account: Account, id: string, vaultIds: string[],
   }
 
   const mine: Message = { id: myId, day, from: 'me', text: text.trim(), state: 'sent', delivery: { requestId: id, vaultIds } }
-  const next = withReply(thread, mine, (i) => ({ ...i, request: { requestId: id, phase: 'delivered' } }), tip)
+  const next = withReply(thread, mine, (i) => ({ ...i, deal: { kind: 'custom', step: 'delivered', id } }), tip)
   const spent = (check.paid ? q.offerCents : 0) + (tip ?? 0)
-  const delivered = update(withThread(account, next), id, (x) => ({
+  const credited = check.paid ? addPoints(account, customPoints(q.tags)) : account
+  const delivered = update(withThread(credited, next), id, (x) => ({
     ...x,
     status: 'delivered',
     closedDay: day,

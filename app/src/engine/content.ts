@@ -1,6 +1,7 @@
 // Vault items and publishing (plan.md §4.3). Pure: ids and the day come in.
 import economy from '../presets/economy.json'
 import type { Account, Post, VaultItem } from '../store/schema'
+import { addPoints, postPoints } from './directions'
 
 export class ContentError extends Error {}
 
@@ -75,7 +76,8 @@ export function publishPost(account: Account, id: string, input: PostInput, auth
     author,
     stats: { views: 0, likes: 0, comments: 0, purchases: 0, earned: 0 },
   }
-  return { ...account, posts: [post, ...account.posts] }
+  // What you post builds your direction (and maybe others).
+  return addPoints({ ...account, posts: [post, ...account.posts] }, postPoints(account, post))
 }
 
 export function deletePost(account: Account, postId: string): Account {

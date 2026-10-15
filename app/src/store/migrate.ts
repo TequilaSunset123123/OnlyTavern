@@ -1,6 +1,6 @@
 import { makePersona } from '../engine/personas'
 import { rngFor } from '../engine/rng'
-import { initialAudience } from './account'
+import { initialAudience, noPoints } from './account'
 import { type Account, AccountSchema, SCHEMA_VERSION, type Segment } from './schema'
 
 type Doc = Record<string, unknown>
@@ -53,6 +53,23 @@ export const MIGRATIONS: Record<number, Migration> = {
     return {
       ...doc,
       regulars: (doc.regulars as Old[]).map((r) => ({ ...r, ...makePersona(rngFor(seed, r.since, `persona:${r.id}`), r.segment, r.language) })),
+    }
+  },
+  // Directions (2026-10-15): older accounts start as girl next door, not yet chosen
+  // (so the first pick is free), with no points.
+  6: (doc) => ({ ...doc, direction: { id: 'girl_next_door', chosen: false, points: noPoints() } }),
+  // One deal field on fan messages instead of separate request / meetup ones (2026-10-15).
+  7: (doc) => {
+    type OldIntent = { request?: { requestId: string; phase: string }; meetup?: { meetupId: string; phase: string } } & Record<string, unknown>
+    const deal = ({ request, meetup, ...rest }: OldIntent) => ({
+      ...rest,
+      ...(request ? { deal: { kind: 'custom', step: request.phase, id: request.requestId } } : {}),
+      ...(meetup ? { deal: { kind: 'meetup', step: meetup.phase === 'invite' ? 'ask' : 'met', id: meetup.meetupId } } : {}),
+    })
+    type OldThread = { messages: { intent?: OldIntent }[] }
+    return {
+      ...doc,
+      threads: (doc.threads as OldThread[]).map((t) => ({ ...t, messages: t.messages.map((m) => (m.intent ? { ...m, intent: deal(m.intent) } : m)) })),
     }
   },
 }

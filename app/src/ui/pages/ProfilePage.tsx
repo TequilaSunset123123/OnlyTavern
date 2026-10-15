@@ -2,6 +2,7 @@ import { Alert, Button, Card, CardContent, EmptyState, SegmentedControl, TextAre
 import { useEffect, useState } from 'react'
 import type { Profile } from '../../api'
 import { useAccount, useActiveAccount, useDispatch } from '../../hooks/useAccounts'
+import { DirectionCard } from '../DirectionCard'
 import { errorText } from '../format'
 
 const TYPES = [
@@ -49,6 +50,7 @@ export function ProfilePage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
       <h1 className="typography-header-heading-sm">My Profile</h1>
+      <DirectionCard accountId={active.id} />
       <Card>
         <CardContent className="flex flex-col gap-4">
           <TextField label="Display name" value={form.name} onChange={(e) => set({ name: e.target.value })} />

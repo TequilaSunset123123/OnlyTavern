@@ -1,0 +1,238 @@
+{
+ "levels": {
+  "points": [
+   0,
+   10,
+   35,
+   90,
+   180
+  ],
+  "strength": [
+   0.4,
+   0.55,
+   0.7,
+   0.85,
+   1
+  ]
+ },
+ "switchLoss": 0.5,
+ "points": {
+  "perTag": 1,
+  "maxPerPost": 3,
+  "partnerBonus": 1,
+  "custom": 2
+ },
+ "directions": {
+  "girl_next_door": {
+   "label": "Girl next door",
+   "zh": "素人",
+   "blurb": "Casual, intimate everyday content. A broad, friendly crowd; nothing extreme.",
+   "prompt": "an amateur girl-next-door creator: casual, intimate, everyday content",
+   "titles": [
+    "New face",
+    "Cute neighbor",
+    "Local crush",
+    "Everyone's crush",
+    "America's sweetheart"
+   ],
+   "signatureTags": [
+    "casual_outfit",
+    "bedroom",
+    "bathroom",
+    "outdoor",
+    "romantic",
+    "photo_set",
+    "text_post"
+   ],
+   "audience": {
+    "regular": 1.2,
+    "lurker": 1.1
+   },
+   "visitors": 1,
+   "traits": {},
+   "requests": {
+    "rate": 1,
+    "offer": 1
+   },
+   "meetups": {
+    "rate": 1,
+    "offer": 1
+   },
+   "meetupPoints": 0
+  },
+  "porn_star": {
+   "label": "Porn star",
+   "zh": "网黄",
+   "blurb": "Hardcore, explicit content. Big reach, lots of customs, but also freeloaders and haters.",
+   "prompt": "an explicit adult content star: hardcore videos and sex with partners, nothing held back",
+   "titles": [
+    "Amateur",
+    "Rising star",
+    "Known name",
+    "Adult star",
+    "Porn icon"
+   ],
+   "signatureTags": [
+    "fully_nude",
+    "boy_girl",
+    "girl_girl",
+    "threesome",
+    "mutual_masturbation",
+    "video",
+    "joi",
+    "ass",
+    "breasts"
+   ],
+   "audience": {
+    "regular": 1.2,
+    "freeloader": 1.6,
+    "hater": 1.6,
+    "simp": 0.9,
+    "whale": 1.1
+   },
+   "visitors": 1.5,
+   "traits": {
+    "horny_direct": 1.8,
+    "creepy_compliments": 1.3,
+    "misogynist": 1.5
+   },
+   "requests": {
+    "rate": 1.6,
+    "offer": 1.1
+   },
+   "meetups": {
+    "rate": 0.6,
+    "offer": 1
+   },
+   "meetupPoints": 0
+  },
+  "egirl": {
+   "label": "Anime e-girl",
+   "zh": "二次元 e-girl",
+   "blurb": "Cosplay, roleplay and cute voice notes. Devoted simps who tip and chat, and get obsessed easily.",
+   "prompt": "an anime e-girl: cosplay, roleplay, cute voice notes, gamer vibes",
+   "titles": [
+    "Cosplay newbie",
+    "Discord kitten",
+    "Anime waifu",
+    "E-girl queen",
+    "The internet's waifu"
+   ],
+   "signatureTags": [
+    "cosplay",
+    "roleplay",
+    "voice_note",
+    "feet",
+    "text_post"
+   ],
+   "audience": {
+    "simp": 2.2,
+    "lurker": 1.3,
+    "regular": 0.9,
+    "whale": 0.8,
+    "hater": 1.2
+   },
+   "visitors": 1.2,
+   "traits": {
+    "obsessive": 1.7,
+    "stalker": 1.6,
+    "pet_names": 1.6,
+    "shy": 1.5,
+    "lowercase": 1.4
+   },
+   "requests": {
+    "rate": 1.3,
+    "offer": 0.9
+   },
+   "meetups": {
+    "rate": 0.5,
+    "offer": 0.9
+   },
+   "meetupPoints": 0
+  },
+  "escort": {
+   "label": "High-end escort",
+   "zh": "高端外围",
+   "blurb": "Exclusivity for wealthy men. Few subscribers, many whales, and meetups that pay a lot.",
+   "prompt": "a high-end companion who sells exclusivity and private time to wealthy men",
+   "titles": [
+    "Sugar baby",
+    "Discreet companion",
+    "Private date",
+    "High-end companion",
+    "Elite courtesan"
+   ],
+   "signatureTags": [
+    "lingerie",
+    "romantic",
+    "full_body",
+    "studio",
+    "photo_set"
+   ],
+   "audience": {
+    "whale": 4.5,
+    "regular": 0.8,
+    "simp": 0.9,
+    "lurker": 0.6,
+    "hater": 0.8,
+    "freeloader": 0.3
+   },
+   "visitors": 0.7,
+   "traits": {
+    "older_gentleman": 2,
+    "dominant": 1.5,
+    "negging": 1.3
+   },
+   "requests": {
+    "rate": 0.8,
+    "offer": 1.5
+   },
+   "meetups": {
+    "rate": 3,
+    "offer": 2
+   },
+   "meetupPoints": 5
+  },
+  "couple": {
+   "label": "Couple account",
+   "zh": "情侣 / 兴趣账号",
+   "blurb": "Real sex and intimacy with your partner. A steady, loyal crowd; few meetup offers.",
+   "prompt": "half of a couple who posts real sex and intimacy with her partner",
+   "titles": [
+    "Cute couple",
+    "Couple next door",
+    "Fan-favorite couple",
+    "Power couple",
+    "Iconic duo"
+   ],
+   "signatureTags": [
+    "boy_girl",
+    "mutual_masturbation",
+    "romantic",
+    "video",
+    "bedroom"
+   ],
+   "audience": {
+    "regular": 1.4,
+    "lurker": 1.2,
+    "simp": 0.7,
+    "whale": 0.8,
+    "hater": 0.9
+   },
+   "visitors": 1.1,
+   "traits": {
+    "horny_direct": 1.2
+   },
+   "requests": {
+    "rate": 1.3,
+    "offer": 1.2
+   },
+   "meetups": {
+    "rate": 0.3,
+    "offer": 1
+   },
+   "meetupPoints": 0,
+   "partnerContent": true
+  }
+ }
+}

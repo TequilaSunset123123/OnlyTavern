@@ -3,8 +3,10 @@
 // deterministic and store/ never calls Date.now() or Math.random() itself.
 import { subscriberCount } from '../engine/audience'
 import { addVaultItem, canLockPosts, deletePost, deleteVaultItem, publishPost, updateVaultItem } from '../engine/content'
+import { directionInfo, directionPrompt, setDirection, SPECS, SWITCH_LOSS } from '../engine/directions'
 import { traitLabel, traitPrompt } from '../engine/personas'
 import { postIntensity, postTags } from '../engine/posts'
+import { closeness } from '../engine/threads'
 import { balances, requestPayout } from '../engine/economy'
 import audiencePreset from '../presets/audience.json'
 import economy from '../presets/economy.json'
@@ -12,7 +14,7 @@ import captions from '../presets/captions.json'
 import tags from '../presets/tags.json'
 import { createAccount, summarize } from '../store/account'
 import { migrate, SaveError, versionOf } from '../store/migrate'
-import { type Account, type AccountIndex, LedgerKindSchema, type Message, SCHEMA_VERSION, SEGMENTS, SettingsSchema } from '../store/schema'
+import { type Account, type AccountIndex, DIRECTIONS, DirectionIdSchema, LedgerKindSchema, type Message, SCHEMA_VERSION, SEGMENTS, SettingsSchema } from '../store/schema'
 import type { AccountStorage } from '../store/storage'
 import { exportAccount, exportFileName, importAccount } from '../store/transfer'
 import type { Action, Api, DispatchResult, InboxThread, ProfilePatch, Statements } from './types'
@@ -65,8 +67,8 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
   }
 
   const actions: { [T in Action['type']]: (a: Extract<Action, { type: T }>) => Promise<DispatchResult> } = {
-    async 'account.create'({ name, handle }) {
-      const account = createAccount({ id: env.newId(), seed: env.newSeed(), now: env.now(), name, handle })
+    async 'account.create'({ name, handle, direction }) {
+      const account = createAccount({ id: env.newId(), seed: env.newSeed(), now: env.now(), name, handle, direction: direction && DirectionIdSchema.parse(direction) })
       await storage.saveAccount(account)
       await updateIndex((i) => ({ accounts: [...i.accounts, summarize(account, env.now())], activeId: account.meta.id }))
       return { delta: ['accounts'], events: [], id: account.meta.id }
@@ -235,6 +237,16 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       return { delta: [`account:${id}`], events: [] }
     },
 
+    async 'direction.set'({ id, direction }) {
+      let events: DispatchResult['events'] = []
+      await update(id, (a) => {
+        const r = setDirection(a, DirectionIdSchema.parse(direction), a.meta.seed)
+        events = r.events
+        return r.account
+      })
+      return { delta: [`account:${id}`], events }
+    },
+
     async 'settings.update'({ patch }) {
       const next = SettingsSchema.parse({ ...(await storage.loadSettings()), ...patch })
       await storage.saveSettings(next)
@@ -344,8 +356,15 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
         messages: thread.messages,
         read: thread.read,
         items,
-        creator: { name: p.name, handle: p.handle, accountType: p.accountType, priceCents: p.priceCents, subscribers: subscriberCount(account.audience) },
-        closeness: (await dms()).closeness(thread, account.clock.day),
+        creator: {
+          name: p.name,
+          handle: p.handle,
+          accountType: p.accountType,
+          priceCents: p.priceCents,
+          subscribers: subscriberCount(account.audience),
+          direction: directionPrompt(account),
+        },
+        closeness: closeness(thread, account.clock.day),
         traits: regular.traits.map((id) => ({ id, label: traitLabel(id), prompt: traitPrompt(id) })),
         requests: account.requests.filter((q) => q.regularId === regularId),
         meetups: account.meetups.filter((m) => m.regularId === regularId),
@@ -353,6 +372,18 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
     },
     async getMassMessages(id) {
       return (await mustLoad(id)).massMessages
+    },
+    async getDirections(id) {
+      const account = await mustLoad(id)
+      return {
+        current: account.direction.id,
+        chosen: account.direction.chosen,
+        switchLoss: SWITCH_LOSS,
+        all: DIRECTIONS.map((d) => directionInfo(account, d)),
+      }
+    },
+    async getDirectionOptions() {
+      return DIRECTIONS.map((id) => ({ id, label: SPECS[id].label, blurb: SPECS[id].blurb }))
     },
     async getRequests(id) {
       const account = await mustLoad(id)

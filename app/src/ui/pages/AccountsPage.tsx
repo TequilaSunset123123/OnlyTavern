@@ -14,13 +14,17 @@ import {
   DialogTitle,
   DownloadIcon,
   EmptyState,
+  Select,
+  SelectContent,
+  SelectItem,
   TextField,
   TrashIcon,
   UploadIcon,
 } from '@fanvue/ui'
 import { type ChangeEvent, useRef, useState } from 'react'
-import type { AccountSummary } from '../../api'
+import type { AccountSummary, DirectionId } from '../../api'
 import { useAccounts, useDispatch, useExportAccount } from '../../hooks/useAccounts'
+import { useDirectionOptions } from '../../hooks/useMessages'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -109,7 +113,7 @@ export function AccountsPage() {
       <NewAccountDialog
         open={creating}
         onOpenChange={setCreating}
-        onCreate={(name, handle) => run(dispatch.mutateAsync({ type: 'account.create', name, handle }).then(() => setCreating(false)))}
+        onCreate={(name, handle, direction) => run(dispatch.mutateAsync({ type: 'account.create', name, handle, direction }).then(() => setCreating(false)))}
       />
 
       <Dialog open={deleting !== null} onOpenChange={(o) => !o && setDeleting(null)}>
@@ -146,10 +150,12 @@ function NewAccountDialog({
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCreate: (name: string, handle: string) => void
+  onCreate: (name: string, handle: string, direction: DirectionId) => void
 }) {
   const [name, setName] = useState('')
   const [handle, setHandle] = useState('')
+  const [direction, setDirection] = useState<DirectionId>('girl_next_door')
+  const { data: directions = [] } = useDirectionOptions()
   const cleanHandle = handle.replace(/[^A-Za-z0-9_.]/g, '') // what OF allows in usernames, roughly
   const valid = name.trim() !== '' && cleanHandle !== ''
 
@@ -171,12 +177,24 @@ function NewAccountDialog({
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            if (valid) onCreate(name.trim(), cleanHandle)
+            if (valid) onCreate(name.trim(), cleanHandle, direction)
           }}
         >
           <DialogBody className="flex flex-col gap-4">
             <TextField label="Display name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
             <TextField label="Handle" leftLabel="@" value={handle} onChange={(e) => setHandle(e.target.value)} />
+            <Select label="Direction" value={direction} onValueChange={(v) => setDirection(v as DirectionId)} fullWidth>
+              <SelectContent>
+                {directions.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-content-tertiary">
+              {directions.find((d) => d.id === direction)?.blurb} You can switch later in My Profile, but part of your subscribers will leave.
+            </p>
           </DialogBody>
           <DialogFooter>
             <DialogClose asChild>

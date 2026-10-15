@@ -68,9 +68,11 @@ describe('ignored fans turn on you', () => {
       // Half of them obsessed, half just horny; nobody gets an answer.
       a = { ...a, regulars: a.regulars.map(({ turned: _, ...r }, i) => ({ ...r, segment: 'simp' as const, traits: i % 2 ? ['horny_direct'] : ['obsessive'] })) }
       const ids = new Set(a.regulars.filter((r) => r.traits.includes('obsessive')).map((r) => r.id))
+      const horny = new Set(a.regulars.filter((r) => r.traits.includes('horny_direct')).map((r) => r.id))
       const after = simulate(a, 25, seed).account
-      for (const r of after.regulars) {
-        if (!ids.has(r.id)) {
+      // Only the fans set up above: new ones may arrive meanwhile with any traits.
+      for (const r of after.regulars.filter((x) => ids.has(x.id) || horny.has(x.id))) {
+        if (horny.has(r.id)) {
           expect(r.turned).toBeUndefined()
           continue
         }

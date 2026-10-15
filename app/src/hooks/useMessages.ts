@@ -71,6 +71,14 @@ export function useFanWriter(accountId: string, view: ThreadView | undefined) {
   return { ...state, retry }
 }
 
+export function useDirections(id: string | null | undefined) {
+  return useQuery({ queryKey: ['account', id, 'directions'], queryFn: () => api.getDirections(id!), enabled: !!id })
+}
+
+export function useDirectionOptions() {
+  return useQuery({ queryKey: ['directionOptions'], queryFn: () => api.getDirectionOptions(), staleTime: Infinity })
+}
+
 export function useRequests(id: string | null | undefined) {
   return useQuery({ queryKey: ['account', id, 'requests'], queryFn: () => api.getRequests(id!), enabled: !!id })
 }

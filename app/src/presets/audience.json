@@ -14,7 +14,7 @@
   "freeChurnFactor": 0.5,
   "maxTipDollars": 200,
   "post": {"heat": [1, 0.4, 0.15], "visitorsPerPost": 15, "visitorsPerLike": 0.3, "intensityTolerance": 1.5, "tagRepeatDecay": 0.85, "freshnessWindowDays": 14, "inactiveDays": 14, "inactiveRenewalFactor": 0.9, "tagCommentShare": 0.25},
-  "regulars": {"cap": 8, "maxNewDaily": 0.3, "ignoredFactor": 0.3, "dormantAfterDays": 30, "dmPriceScaleCents": 2500, "closeness": {"base": 0.7, "perMessage": 0.06, "maxMessages": 10, "days": 14}, "maxMassReplies": 3, "massPpvFactor": 0.5, "massHeat": [1, 0.3]},
-  "requests": {"dueDays": 7, "cooldownDays": 3, "maxUnanswered": 3, "upsetFactor": 0.5, "spread": 0.5, "minCents": 500, "maxCents": 200000, "passScore": 0.5, "perfectScore": 0.9, "tipFactor": 2},
-  "meetups": {"minMessages": 3, "replyDays": 5, "maxAheadDays": 14, "cooldownDays": 10, "maxUnanswered": 3, "spread": 0.4, "roundCents": 5000, "minCents": 10000}
+  "regulars": {"cap": 8, "baseDaily": 0.12, "maxNewDaily": 0.3, "ignoredFactor": 0.3, "dormantAfterDays": 30, "dmPriceScaleCents": 2500, "closeness": {"base": 0.7, "perMessage": 0.06, "maxMessages": 10, "days": 14}, "maxMassReplies": 3, "massPpvFactor": 0.5, "massHeat": [1, 0.3]},
+  "requests": {"accept": {"regular": 0.5, "lurker": 0.3, "simp": 0.8, "whale": 0.8, "hater": 0, "freeloader": 0.4}, "dueDays": 7, "cooldownDays": 3, "maxUnanswered": 3, "upsetFactor": 0.5, "spread": 0.5, "minCents": 500, "maxCents": 200000, "passScore": 0.5, "perfectScore": 0.9, "tipFactor": 2},
+  "meetups": {"accept": {"regular": 0.3, "lurker": 0.15, "simp": 0.6, "whale": 0.7, "hater": 0, "freeloader": 0}, "minMessages": 3, "replyDays": 5, "maxAheadDays": 14, "cooldownDays": 10, "maxUnanswered": 3, "spread": 0.4, "roundCents": 5000, "minCents": 10000}
 }

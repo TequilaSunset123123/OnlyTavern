@@ -3,6 +3,8 @@
 import economy from '../presets/economy.json'
 import { type Account, type DailyStat, DEFAULT_SETTINGS, type EngineEvent, LedgerKindSchema, SEGMENTS, type Settings } from '../store/schema'
 import { simulateAudienceDay, subscriberCount } from './audience'
+import { simulateDealsDay } from './deals'
+import { directionEffects } from './directions'
 import { ledgerLine } from './economy'
 import { simulateMassDay } from './massMessages'
 import { simulateMeetupsDay } from './meetups'
@@ -31,9 +33,12 @@ export function simulate(
     const pd = simulatePostsDay(acc, acc.audience, seed, day)
     const md = simulateMassDay({ ...acc, posts: pd.posts }, acc.audience, seed, day)
     acc = { ...acc, posts: pd.posts, massMessages: md.massMessages }
+    const fx = directionEffects(acc)
     const r = simulateAudienceDay(acc.audience, acc.profile, seed, day, {
       extraVisitors: pd.extraVisitors,
       renewalFactor: activityFactor(acc, day),
+      mixFactors: fx.mix,
+      visitorFactor: fx.visitors,
     })
     const after = subscriberCount(r.audience)
 
@@ -48,9 +53,10 @@ export function simulate(
 
     // Regulars come last: they react to today's crowd. Then their customs and meetups.
     const rd = simulateRegularsDay(acc, acc.audience, seed, day, settings)
-    const qd = simulateRequestsDay(rd.account, seed, day)
-    const od = simulateMeetupsDay(qd.account, seed, day)
-    acc = od.account
+    const qd = simulateRequestsDay(rd.account, day)
+    const od = simulateMeetupsDay(qd.account, day)
+    const dd = simulateDealsDay(od.account, seed, day)
+    acc = dd.account
 
     const net = Object.fromEntries(LedgerKindSchema.options.map((k) => [k, 0])) as DailyStat['net']
     for (const l of acc.ledger) if (l.day === day) net[l.kind] += l.net
@@ -77,7 +83,7 @@ export function simulate(
     for (const m of economy.milestones) {
       if (before < m && after >= m) events.push({ day, type: 'milestone', subscribers: m })
     }
-    events.push(...rd.events, ...qd.events, ...od.events)
+    events.push(...rd.events, ...qd.events, ...od.events, ...dd.events)
   }
 
   const today = account.clock.day + days

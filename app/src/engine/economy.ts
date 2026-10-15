@@ -4,6 +4,12 @@ import type { Account, LedgerEntry, LedgerKind } from '../store/schema'
 
 export const PLATFORM_FEE = economy.platformFee
 
+/** One payment from one regular. Cash from meetups ('offline') pays no platform fee. */
+export function paymentLine(day: number, kind: LedgerKind, id: string, gross: number): LedgerEntry {
+  const fee = kind === 'offline' ? 0 : Math.round(gross * PLATFORM_FEE)
+  return { id: `${day}-${kind}-${id}`, day, kind, count: 1, gross, fee, net: gross - fee }
+}
+
 export function ledgerLine(day: number, kind: LedgerKind, count: number, gross: number): LedgerEntry {
   const fee = Math.round(gross * PLATFORM_FEE)
   return { id: `${day}-${kind}`, day, kind, count, gross, fee, net: gross - fee }

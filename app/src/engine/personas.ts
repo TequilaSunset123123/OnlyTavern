@@ -51,15 +51,20 @@ export function fanIdentity(rng: Rng, language: Language): { name: string; handl
 
 export type Persona = { name: string; handle: string; age: number; country: string; bio: string; traits: TraitId[] }
 
-/** A whole regular: identity, age, job, where he lives, relationship and how he writes. */
-export function makePersona(rng: Rng, segment: Segment, language: Language): Persona {
+/**
+ * A whole regular: identity, age, job, where he lives, relationship and how he writes.
+ * `traitFactors` (from your direction) make some styles and traits likelier.
+ */
+export function makePersona(rng: Rng, segment: Segment, language: Language, traitFactors: Record<string, number> = {}): Persona {
   const { name, handle } = fanIdentity(rng, language)
   const S = personas.segments[segment]
   const age = S.age[0] + Math.floor(rng() * (S.age[1] - S.age[0] + 1))
   const job = at(S.jobs[language], rng())
   const relationship = personas.relationships[weighted(rng, S.relationships)][language]
+  const f = (t: string) => traitFactors[t] ?? 1
+  const styles = Object.fromEntries(Object.entries(S.styles).map(([t, w]) => [t, w * f(t)])) as Partial<Record<TraitId, number>>
   const extra = 'traits' in S ? (Object.entries(S.traits) as [TraitId, number][]) : []
-  const traits = [weighted(rng, S.styles as Partial<Record<TraitId, number>>), ...extra.filter(([, p]) => rng() < p).map(([t]) => t)]
+  const traits = [weighted(rng, styles), ...extra.filter(([t, p]) => rng() < Math.min(0.9, p * f(t))).map(([t]) => t)]
   if (language === 'zh') {
     const place = at(personas.zh.cities, rng())
     return { name, handle, age, country: place.country, bio: `${age}岁，${place.city}，${job}，${relationship}`, traits }

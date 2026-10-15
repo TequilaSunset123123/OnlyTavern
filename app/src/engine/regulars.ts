@@ -23,10 +23,13 @@ import { SEGMENTS } from '../store/schema'
 import { subscriberCount } from './audience'
 import { CORPUS, pick, pickWeighted } from './comments'
 import { ContentError } from './content'
-import { PLATFORM_FEE } from './economy'
+import { paymentLine as line } from './economy'
+import { answerDeal, askedFor } from './deals'
+import { directionEffects } from './directions'
 import { behaviour, makePersona, pickLanguage, WIN_BACK } from './personas'
 import { intensityMatch } from './posts'
 import { logNormal, type Rng, rngFor } from './rng'
+import { closeness, pendingMessage, recentMine, threadOf, unanswered, updateRegular, withReply, withThread } from './threads'
 
 const R = preset.regulars
 
@@ -47,37 +50,12 @@ function openerTopics(r: Regular): Record<Topic, number> {
   return t
 }
 
-/** One payment from one regular. Cash from meetups ('offline') pays no platform fee. */
-export function line(day: number, kind: LedgerEntry['kind'], id: string, gross: number): LedgerEntry {
-  const fee = kind === 'offline' ? 0 : Math.round(gross * PLATFORM_FEE)
-  return { id: `${day}-${kind}-${id}`, day, kind, count: 1, gross, fee, net: gross - fee }
-}
-
 export function tipCents(rng: Rng, segment: Segment): number {
   const p = preset.segments[segment]
   return Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(rng, p.dmTipMedian, 0.6)))) * 100
 }
 
-export function threadOf(account: Account, regularId: string): Thread {
-  const t = account.threads.find((x) => x.regularId === regularId)
-  if (!t) throw new ContentError('Conversation not found')
-  return t
-}
-
-function updateRegular(account: Account, regular: Regular): Account {
-  return { ...account, regulars: account.regulars.map((r) => (r.id === regular.id ? regular : r)) }
-}
-
-export function withThread(account: Account, thread: Thread): Account {
-  return { ...account, threads: account.threads.map((t) => (t.regularId === thread.regularId ? thread : t)) }
-}
-
-/** A fan message the model still has to write. */
-export function pendingMessage(id: string, day: number, intent: Intent, tip?: number): Message {
-  return { id, day, from: 'fan', text: '', state: 'pending', intent, ...(tip ? { tipCents: tip } : {}) }
-}
-
-function newRegular(rng: Rng, id: string, segment: Segment, day: number, settings: Settings): Regular {
+function newRegular(rng: Rng, id: string, segment: Segment, day: number, settings: Settings, traitFactors: Record<string, number>): Regular {
   const language = pickLanguage(rng, settings.fanLanguage)
   const pref = preset.segments[segment].preferredIntensity
   const near = tags.filter((t) => Math.abs(t.intensity - pref) <= 1)
@@ -85,7 +63,7 @@ function newRegular(rng: Rng, id: string, segment: Segment, day: number, setting
   return {
     id,
     segment,
-    ...makePersona(rng, segment, language),
+    ...makePersona(rng, segment, language, traitFactors),
     language,
     likes,
     since: day,
@@ -148,14 +126,15 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
   // (after giving you a few days), new ones write less often.
   const rng = rngFor(seed, day, 'regulars:new')
   const weights = Object.fromEntries(SEGMENTS.map((s) => [s, subscriberCount(audience, s) * preset.segments[s].reachOut])) as Record<Segment, number>
-  const lambda = Object.values(weights).reduce((x, y) => x + y, 0)
+  // A little traffic from outside on top of your subscribers, so the first regulars do not wait for a big audience.
+  const lambda = R.baseDaily + Object.values(weights).reduce((x, y) => x + y, 0)
   const recent = a.regulars.filter((r) => r.since <= day - 3).slice(-R.cap)
   const answered = recent.length ? recent.filter((r) => threadOf(a, r.id).messages.some((m) => m.from === 'me')).length / recent.length : 1
   const chance = Math.min(R.maxNewDaily, 1 - Math.exp(-lambda)) * (R.ignoredFactor + (1 - R.ignoredFactor) * answered)
   if (a.regulars.filter((r) => r.status === 'active').length < R.cap && rng() < chance) {
     const segment = pickWeighted(rng, weights)
     const id = `r${day}-${a.regulars.length}`
-    const regular = newRegular(rng, id, segment, day, settings)
+    const regular = newRegular(rng, id, segment, day, settings, directionEffects(a).traits)
     const topic = pickWeighted(rng, openerTopics(regular))
     const tip = topic === 'tip' ? tipCents(rng, segment) : undefined
     a = {
@@ -207,41 +186,6 @@ function checkPpv(account: Account, ppv: DmInput['ppv']) {
   if (!Number.isInteger(p) || p < economy.minPostPriceCents || p > economy.maxPostPriceCents) {
     throw new ContentError(`Price must be $${economy.minPostPriceCents / 100}–$${economy.maxPostPriceCents / 100}`)
   }
-}
-
-/** Fan messages since your last one. */
-export function unanswered(thread: Thread): number {
-  return thread.messages.length - 1 - thread.messages.findLastIndex((m) => m.from === 'me')
-}
-
-/** Messages you wrote to this fan yourself in the last 14 days (mass messages don't count). */
-export function recentMine(thread: Thread, day: number): number {
-  return thread.messages.filter((m) => m.from === 'me' && !m.massId && m.day > day - R.closeness.days).length
-}
-
-/**
- * How warm this fan is: the more you wrote to them yourself lately, the likelier
- * they buy (and ask for customs or meetups). 0.7 cold … 1.3 after 10 messages in 14 days.
- */
-export function closeness(thread: Thread, day: number): number {
-  const C = R.closeness
-  return C.base + C.perMessage * Math.min(C.maxMessages, recentMine(thread, day))
-}
-
-/**
- * Ends the thread with a fan reply still to be written. A reply that is already
- * waiting is reused, so several things you do before the fan answers become one
- * reply that reacts to all of them.
- */
-export function withReply(thread: Thread, mine: Message, change: (intent: Intent) => Intent, tip?: number): Thread {
-  const last = thread.messages.at(-1)
-  const folded = last?.state === 'pending' && last.intent?.kind === 'reply' ? last : undefined
-  const messages = folded ? thread.messages.slice(0, -1) : [...thread.messages]
-  const tipped = folded?.tipCents ?? tip
-  const intent = change({ ...folded?.intent, kind: 'reply' })
-  messages.push(mine, pendingMessage(`${mine.id}-reply`, mine.day, { ...intent, ...(tipped ? { tip: tipped } : {}) }, tipped))
-  // You have seen everything up to your own message; the reply is new.
-  return { ...thread, messages, read: messages.length - 1 }
 }
 
 /** Would this fan buy this PPV? Decided by the engine only (plan.md §4.4, 2026-10-14). */
@@ -310,14 +254,20 @@ export function sendDm(
     events.push({ day, type: 'dm-tip', regularId, gross: tip })
   }
 
+  // You brought up a custom or a meetup: he says yes or no, rolled now (deals.ts).
+  const kind = massId ? null : askedFor(input.text)
+  const answer = kind ? answerDeal(account, regular, kind, seed, `${myId}-reply`) : undefined
+  events.push(...(answer?.events ?? []))
+
   const mine: Message = { id: myId, day, from: 'me', text: input.text.trim(), state: 'sent', ...(ppv ? { ppv } : {}), ...(massId ? { massId } : {}) }
-  const next = withReply(thread, mine, (i) => (decision ? { ...i, ppv: [...(i.ppv ?? []), decision] } : i), tip)
+  const next = withReply(thread, mine, (i) => ({ ...i, ...(decision ? { ppv: [...(i.ppv ?? []), decision] } : {}), ...(answer ? { deal: answer.deal } : {}) }), tip)
+  const after = answer?.account ?? account
 
   return {
     account: {
-      ...withThread(account, next),
-      regulars: account.regulars.map((r) => (r.id === regularId ? { ...r, spent: r.spent + spent, status: 'active' } : r)),
-      ledger: [...account.ledger, ...ledger],
+      ...withThread(after, next),
+      regulars: after.regulars.map((r) => (r.id === regularId ? { ...r, spent: r.spent + spent, status: 'active' } : r)),
+      ledger: [...after.ledger, ...ledger],
     },
     events,
   }
@@ -340,21 +290,18 @@ const money = (cents: number) => `$${Math.round(cents / 100)}`
 /** Template lines for customs and meetups (plan.md §5: "失败时：模板句"). */
 function templateText(rng: Rng, account: Account, regular: Regular, intent: Intent): string | null {
   const t = templates[regular.language]
-  const sep = regular.language === 'zh' ? '、' : ' and '
-  if (intent.request) {
-    const q = account.requests.find((x) => x.id === intent.request!.requestId)
-    if (!q) return null
-    if (intent.request.phase === 'late') return pick(rng, t.requestLate)
-    if (intent.request.phase !== 'ask') return null
-    const names = q.tags.map((id) => tags.find((x) => x.id === id)?.[regular.language] ?? id).join(sep)
-    return pick(rng, t.requestAsk).replace('{tags}', names).replace('{money}', money(q.offerCents))
+  const d = intent.deal
+  if (d?.kind === 'custom' && d.step === 'late') return pick(rng, t.requestLate)
+  if (d?.kind === 'meetup' && d.step === 'met') return pick(rng, t.meetupAfter)
+  if (d?.step !== 'ask') return null
+  if (d.kind === 'meetup') {
+    const m = account.meetups.find((x) => x.id === d.id)
+    return m ? pick(rng, t.meetupInvite).replace('{money}', money(m.offerCents)) : null
   }
-  if (intent.meetup) {
-    const m = account.meetups.find((x) => x.id === intent.meetup!.meetupId)
-    if (!m) return null
-    return intent.meetup.phase === 'after' ? pick(rng, t.meetupAfter) : pick(rng, t.meetupInvite).replace('{money}', money(m.offerCents))
-  }
-  return null
+  const q = account.requests.find((x) => x.id === d.id)
+  if (!q) return null
+  const names = q.tags.map((id) => tags.find((x) => x.id === id)?.[regular.language] ?? id).join(regular.language === 'zh' ? '、' : ' and ')
+  return pick(rng, t.requestAsk).replace('{tags}', names).replace('{money}', money(q.offerCents))
 }
 
 /** Words for a fan message when the model is not available: a template or corpus line (plan.md §5). */

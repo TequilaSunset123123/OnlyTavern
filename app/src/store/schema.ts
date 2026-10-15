@@ -3,10 +3,14 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 6
+export const SCHEMA_VERSION = 8
 
 export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
 export const SegmentSchema = z.enum(SEGMENTS)
+
+/** What kind of creator you are building (presets/directions.json; 2026-10-15). */
+export const DIRECTIONS = ['girl_next_door', 'porn_star', 'egirl', 'escort', 'couple'] as const
+export const DirectionIdSchema = z.enum(DIRECTIONS)
 
 /** All money is integer cents. */
 const Cents = z.number().int()
@@ -78,10 +82,13 @@ export const IntentSchema = z.object({
   /** Outcome for each PPV you sent since the fan's last message. */
   ppv: z.array(z.object({ messageId: z.string(), bought: z.boolean(), reason: z.enum(['liked', 'price', 'taste', 'mood']) })).optional(),
   tip: Cents.optional(),
-  /** A custom request: the fan asks for one, reacts to what you delivered, or you were late. */
-  request: z.object({ requestId: z.string(), phase: z.enum(['ask', 'delivered', 'late']) }).optional(),
-  /** An offline meetup: the fan invites you, or writes the day after. */
-  meetup: z.object({ meetupId: z.string(), phase: z.enum(['invite', 'after']) }).optional(),
+  /**
+   * A deal the engine decided (plan.md §2 rule 3; 2026-10-15): a custom piece or a meetup.
+   * ask: he asks for one (on his own, or saying yes to yours); no: he turns yours down;
+   * delivered: he reacts to your custom; late: you missed its deadline; met: after meeting.
+   * `id` is the Request or Meetup it is about (none for "no").
+   */
+  deal: z.object({ kind: z.enum(['custom', 'meetup']), step: z.enum(['ask', 'no', 'delivered', 'late', 'met']), id: z.string().optional() }).optional(),
 })
 
 export const MessageSchema = z.object({
@@ -208,6 +215,8 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
   z.object({ day: z.number().int(), type: z.literal('meetup-expired'), regularId: z.string() }),
   z.object({ day: z.number().int(), type: z.literal('regular-turned'), regularId: z.string() }),
   z.object({ day: z.number().int(), type: z.literal('regular-back'), regularId: z.string() }),
+  z.object({ day: z.number().int(), type: z.literal('direction'), direction: DirectionIdSchema, lost: Count }),
+  z.object({ day: z.number().int(), type: z.literal('level-up'), direction: DirectionIdSchema, level: z.number().int() }),
 ])
 
 export const MemberSchema = z.object({
@@ -235,6 +244,11 @@ export const AccountSchema = z.object({
     createdAt: z.number(),
   }),
   profile: ProfileSchema,
+  /**
+   * The direction you are building, whether you picked it yourself (the first pick is
+   * free; switching later costs subscribers), and points earned toward every direction.
+   */
+  direction: z.object({ id: DirectionIdSchema, chosen: z.boolean(), points: z.record(DirectionIdSchema, z.number().nonnegative()) }),
   members: z.array(MemberSchema),
   clock: z.object({ day: z.number().int().nonnegative() }),
   vault: z.array(VaultItemSchema),
@@ -258,6 +272,7 @@ export type Member = z.infer<typeof MemberSchema>
 export type Profile = z.infer<typeof ProfileSchema>
 export type Account = z.infer<typeof AccountSchema>
 export type Segment = z.infer<typeof SegmentSchema>
+export type DirectionId = z.infer<typeof DirectionIdSchema>
 export type Mood = (typeof MOODS)[number]
 export type VaultItem = z.infer<typeof VaultItemSchema>
 export type Post = z.infer<typeof PostSchema>

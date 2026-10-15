@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router'
 import type { FeedPost } from '../../api'
 import { useActiveAccount, useDispatch } from '../../hooks/useAccounts'
 import { useComments, useFeed } from '../../hooks/useContent'
+import { DirectionStrip } from '../DirectionCard'
 import { count, money } from '../format'
 import { MediaTile } from '../MediaTile'
 import { ClockControl } from '../shell/ClockControl'
@@ -39,6 +40,7 @@ export function HomePage() {
           <ClockControl />
         </div>
       </div>
+      <DirectionStrip accountId={active.id} />
       {feed && feed.posts.length === 0 && (
         <EmptyState
           title="No posts yet"

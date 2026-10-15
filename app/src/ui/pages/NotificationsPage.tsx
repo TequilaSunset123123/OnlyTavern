@@ -1,6 +1,6 @@
 import { BellIcon, Card, CardContent, EmptyState, Tabs, TabsList, TabsTrigger } from '@fanvue/ui'
 import { useState } from 'react'
-import type { EngineEvent } from '../../api'
+import type { DirectionId, EngineEvent } from '../../api'
 import { useActiveAccount } from '../../hooks/useAccounts'
 import { useFeed, useNotifications } from '../../hooks/useContent'
 import { useInbox } from '../../hooks/useMessages'
@@ -8,6 +8,13 @@ import { count, money } from '../format'
 import { ClockControl } from '../shell/ClockControl'
 
 const s = (n: number) => (n === 1 ? '' : 's')
+const DIRECTION_LABEL: Record<DirectionId, string> = {
+  girl_next_door: 'a girl next door',
+  porn_star: 'a porn star',
+  egirl: 'an anime e-girl',
+  escort: 'a high-end escort',
+  couple: 'a couple account',
+}
 
 // Notification texts are templates over engine events (plan.md §4.5); no model involved.
 function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: string) => string): string {
@@ -54,6 +61,10 @@ function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: st
       return `${fan(e.regularId)} got tired of being ignored and turned on you`
     case 'regular-back':
       return `${fan(e.regularId)} has warmed up to you again`
+    case 'direction':
+      return `You changed direction: ${count(e.lost)} subscriber${s(e.lost)} left`
+    case 'level-up':
+      return `Level up! You reached level ${e.level} as ${DIRECTION_LABEL[e.direction]} 🎉`
   }
 }
 
@@ -80,8 +91,10 @@ const FILTERS: Record<string, EngineEvent['type'][]> = {
     'meetup-expired',
     'regular-turned',
     'regular-back',
+    'direction',
+    'level-up',
   ],
-  subscriptions: ['subscribers', 'churn', 'milestone'],
+  subscriptions: ['subscribers', 'churn', 'milestone', 'direction', 'level-up'],
   tips: ['tips', 'dm-tip'],
   messages: ['regular', 'dm', 'dm-purchase', 'mass', 'regular-turned', 'regular-back'],
   posts: ['post', 'purchases'],
