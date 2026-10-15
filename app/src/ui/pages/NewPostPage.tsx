@@ -1,12 +1,23 @@
-import { AddIcon, Alert, Button, Card, CardContent, EmptyState, SegmentedControl, TextArea, TextField } from '@fanvue/ui'
+import { AddIcon, Alert, Button, Card, CardContent, Chip, EmptyState, SegmentedControl, TextArea, TextField } from '@fanvue/ui'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import type { PostInput } from '../../api'
+import type { CaptionKind, PostInput, Settings } from '../../api'
 import { useActiveAccount, useDispatch } from '../../hooks/useAccounts'
-import { useFeed, useVault } from '../../hooks/useContent'
+import { useCaptions, useFeed, useSettings, useVault } from '../../hooks/useContent'
 import { errorText } from '../format'
 import { MediaTile } from '../MediaTile'
 import { VaultPickerDialog } from '../VaultPickerDialog'
+
+const IDEAS: { kind: CaptionKind; label: string }[] = [
+  { kind: 'tease', label: 'Tease' },
+  { kind: 'newSet', label: 'New set' },
+  { kind: 'locked', label: 'Locked' },
+  { kind: 'chat', label: 'Chatty' },
+]
+
+/** Caption ideas are a typing shortcut, not game logic: plain randomness is fine here. */
+const randomItem = <T,>(list: T[]): T => list[Math.floor(Math.random() * list.length)]
+const chineseCaption = (language: Settings['fanLanguage'] | undefined) => language === 'zh' || (language === 'mix' && Math.random() < 0.3)
 
 const ACCESS = [
   { value: 'free', label: 'Free for subscribers' },
@@ -19,6 +30,8 @@ export function NewPostPage() {
   const { data: active } = useActiveAccount()
   const { data: vault = [] } = useVault(active?.id)
   const { data: feed } = useFeed(active?.id)
+  const { data: captions } = useCaptions()
+  const { data: settings } = useSettings()
   const dispatch = useDispatch()
   const [text, setText] = useState('')
   const [vaultIds, setVaultIds] = useState<string[]>([])
@@ -33,6 +46,13 @@ export function NewPostPage() {
   // A paid page can only post for subscribers (the engine refuses locked posts there).
   const postAccess = canLock ? access : 'free'
   const chosen = vaultIds.map((id) => vault.find((v) => v.id === id) ?? null)
+
+  // Ready-made captions in your fans' language (mixed: mostly English), so you don't have to type.
+  const suggest = (kind: CaptionKind) => {
+    if (!captions) return
+    const list = captions[chineseCaption(settings?.fanLanguage) ? 'zh' : 'en'][kind].filter((c) => c !== text)
+    setText(randomItem(list))
+  }
 
   const publish = () => {
     setError(null)
@@ -52,6 +72,14 @@ export function NewPostPage() {
       <Card>
         <CardContent className="flex flex-col gap-4">
           <TextArea label="Caption" placeholder="Say something to your fans" minRows={3} fullWidth value={text} onChange={(e) => setText(e.target.value)} />
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-content-tertiary">Caption ideas</span>
+            {IDEAS.filter((i) => i.kind !== 'locked' || postAccess === 'locked').map((i) => (
+              <Chip key={i.kind} size="32" onClick={() => suggest(i.kind)}>
+                {i.label}
+              </Chip>
+            ))}
+          </div>
           <div className="grid grid-cols-3 gap-2">
             {chosen.map((item, i) => (
               <MediaTile key={vaultIds[i]} item={item} onClick={() => setVaultIds(vaultIds.filter((_, j) => j !== i))} />

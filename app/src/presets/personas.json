@@ -1,0 +1,1380 @@
+{
+ "en": {
+  "firstNames": [
+   "James",
+   "John",
+   "Robert",
+   "Michael",
+   "William",
+   "David",
+   "Richard",
+   "Joseph",
+   "Thomas",
+   "Charles",
+   "Chris",
+   "Daniel",
+   "Matthew",
+   "Anthony",
+   "Mark",
+   "Steven",
+   "Paul",
+   "Andrew",
+   "Josh",
+   "Kevin",
+   "Brian",
+   "George",
+   "Tim",
+   "Ron",
+   "Jason",
+   "Ryan",
+   "Jacob",
+   "Gary",
+   "Nick",
+   "Eric",
+   "Jon",
+   "Stephen",
+   "Larry",
+   "Justin",
+   "Scott",
+   "Brandon",
+   "Ben",
+   "Sam",
+   "Greg",
+   "Frank",
+   "Alex",
+   "Ray",
+   "Patrick",
+   "Jack",
+   "Dennis",
+   "Jerry",
+   "Tyler",
+   "Aaron",
+   "Jose",
+   "Adam",
+   "Nathan",
+   "Henry",
+   "Doug",
+   "Zach",
+   "Peter",
+   "Kyle",
+   "Noah",
+   "Ethan",
+   "Jeremy",
+   "Walter",
+   "Keith",
+   "Roger",
+   "Terry",
+   "Austin",
+   "Sean",
+   "Carl",
+   "Harold",
+   "Dylan",
+   "Arthur",
+   "Jordan",
+   "Jesse",
+   "Bryan",
+   "Billy",
+   "Bruce",
+   "Gabriel",
+   "Joe",
+   "Logan",
+   "Alan",
+   "Juan",
+   "Albert",
+   "Wayne",
+   "Randy",
+   "Vince",
+   "Mason",
+   "Roy",
+   "Ralph",
+   "Bobby",
+   "Russell",
+   "Bradley",
+   "Phil",
+   "Eugene",
+   "Hank",
+   "Travis",
+   "Derek",
+   "Luke",
+   "Marcus",
+   "Dustin",
+   "Chad",
+   "Brett",
+   "Cody",
+   "Trent",
+   "Darren",
+   "Shane",
+   "Rick",
+   "Todd",
+   "Troy",
+   "Dale",
+   "Kurt",
+   "Lance",
+   "Wes",
+   "Mike",
+   "Dave",
+   "Tony",
+   "Rob",
+   "Jake",
+   "Max",
+   "Leo",
+   "Omar",
+   "Raj",
+   "Ahmed",
+   "Carlos",
+   "Diego",
+   "Luis",
+   "Kenji",
+   "Sven",
+   "Lars",
+   "Hans",
+   "Pierre",
+   "Marco",
+   "Luca",
+   "Ivan",
+   "Dmitri",
+   "Hector",
+   "Rocco",
+   "Duke",
+   "Buck",
+   "Clint",
+   "Earl",
+   "Floyd",
+   "Gus",
+   "Lou",
+   "Mitch",
+   "Norm",
+   "Stan",
+   "Vinny"
+  ],
+  "lastNames": [
+   "smith",
+   "johnson",
+   "brown",
+   "miller",
+   "davis",
+   "wilson",
+   "moore",
+   "taylor",
+   "anderson",
+   "thomas",
+   "jackson",
+   "white",
+   "harris",
+   "martin",
+   "thompson",
+   "garcia",
+   "clark",
+   "lewis",
+   "walker",
+   "hall",
+   "allen",
+   "young",
+   "king",
+   "wright",
+   "scott",
+   "green",
+   "baker",
+   "adams",
+   "nelson",
+   "hill",
+   "campbell",
+   "mitchell",
+   "roberts",
+   "carter",
+   "phillips",
+   "evans",
+   "turner",
+   "parker",
+   "collins",
+   "edwards",
+   "stewart",
+   "morris",
+   "murphy",
+   "cook",
+   "rogers",
+   "reed",
+   "bell",
+   "cooper"
+  ],
+  "places": [
+   {
+    "city": "Houston",
+    "region": "Texas",
+    "country": "USA"
+   },
+   {
+    "city": "Dallas",
+    "region": "Texas",
+    "country": "USA"
+   },
+   {
+    "city": "Austin",
+    "region": "Texas",
+    "country": "USA"
+   },
+   {
+    "city": "Phoenix",
+    "region": "Arizona",
+    "country": "USA"
+   },
+   {
+    "city": "Chicago",
+    "region": "Illinois",
+    "country": "USA"
+   },
+   {
+    "city": "Atlanta",
+    "region": "Georgia",
+    "country": "USA"
+   },
+   {
+    "city": "Miami",
+    "region": "Florida",
+    "country": "USA"
+   },
+   {
+    "city": "Tampa",
+    "region": "Florida",
+    "country": "USA"
+   },
+   {
+    "city": "Orlando",
+    "region": "Florida",
+    "country": "USA"
+   },
+   {
+    "city": "Las Vegas",
+    "region": "Nevada",
+    "country": "USA"
+   },
+   {
+    "city": "Denver",
+    "region": "Colorado",
+    "country": "USA"
+   },
+   {
+    "city": "Seattle",
+    "region": "Washington",
+    "country": "USA"
+   },
+   {
+    "city": "Detroit",
+    "region": "Michigan",
+    "country": "USA"
+   },
+   {
+    "city": "Columbus",
+    "region": "Ohio",
+    "country": "USA"
+   },
+   {
+    "city": "Nashville",
+    "region": "Tennessee",
+    "country": "USA"
+   },
+   {
+    "city": "San Diego",
+    "region": "California",
+    "country": "USA"
+   },
+   {
+    "city": "Los Angeles",
+    "region": "California",
+    "country": "USA"
+   },
+   {
+    "city": "New York",
+    "region": "New York",
+    "country": "USA"
+   },
+   {
+    "city": "Boston",
+    "region": "Massachusetts",
+    "country": "USA"
+   },
+   {
+    "city": "Philadelphia",
+    "region": "Pennsylvania",
+    "country": "USA"
+   },
+   {
+    "city": "Charlotte",
+    "region": "North Carolina",
+    "country": "USA"
+   },
+   {
+    "city": "Salt Lake City",
+    "region": "Utah",
+    "country": "USA"
+   },
+   {
+    "city": "Kansas City",
+    "region": "Missouri",
+    "country": "USA"
+   },
+   {
+    "city": "Omaha",
+    "region": "Nebraska",
+    "country": "USA"
+   },
+   {
+    "city": "Tulsa",
+    "region": "Oklahoma",
+    "country": "USA"
+   },
+   {
+    "city": "Boise",
+    "region": "Idaho",
+    "country": "USA"
+   },
+   {
+    "city": "Anchorage",
+    "region": "Alaska",
+    "country": "USA"
+   },
+   {
+    "city": "New Orleans",
+    "region": "Louisiana",
+    "country": "USA"
+   },
+   {
+    "city": "London",
+    "region": "UK",
+    "country": "UK"
+   },
+   {
+    "city": "Manchester",
+    "region": "UK",
+    "country": "UK"
+   },
+   {
+    "city": "Birmingham",
+    "region": "UK",
+    "country": "UK"
+   },
+   {
+    "city": "Leeds",
+    "region": "UK",
+    "country": "UK"
+   },
+   {
+    "city": "Glasgow",
+    "region": "UK",
+    "country": "UK"
+   },
+   {
+    "city": "Dublin",
+    "region": "Ireland",
+    "country": "Ireland"
+   },
+   {
+    "city": "Toronto",
+    "region": "Canada",
+    "country": "Canada"
+   },
+   {
+    "city": "Calgary",
+    "region": "Canada",
+    "country": "Canada"
+   },
+   {
+    "city": "Vancouver",
+    "region": "Canada",
+    "country": "Canada"
+   },
+   {
+    "city": "Sydney",
+    "region": "Australia",
+    "country": "Australia"
+   },
+   {
+    "city": "Melbourne",
+    "region": "Australia",
+    "country": "Australia"
+   },
+   {
+    "city": "Perth",
+    "region": "Australia",
+    "country": "Australia"
+   },
+   {
+    "city": "Berlin",
+    "region": "Germany",
+    "country": "Germany"
+   },
+   {
+    "city": "Munich",
+    "region": "Germany",
+    "country": "Germany"
+   },
+   {
+    "city": "Amsterdam",
+    "region": "Netherlands",
+    "country": "Netherlands"
+   },
+   {
+    "city": "Stockholm",
+    "region": "Sweden",
+    "country": "Sweden"
+   },
+   {
+    "city": "Dubai",
+    "region": "UAE",
+    "country": "UAE"
+   },
+   {
+    "city": "Singapore",
+    "region": "Singapore",
+    "country": "Singapore"
+   },
+   {
+    "city": "Zurich",
+    "region": "Switzerland",
+    "country": "Switzerland"
+   },
+   {
+    "city": "Monaco",
+    "region": "Monaco",
+    "country": "Monaco"
+   }
+  ],
+  "handleAdjectives": [
+   "big",
+   "lonely",
+   "gym",
+   "hungry",
+   "thirsty",
+   "horny",
+   "naughty",
+   "real",
+   "mr",
+   "sir",
+   "dark",
+   "silent",
+   "loyal",
+   "dirty",
+   "lucky",
+   "bad",
+   "hard",
+   "wild",
+   "rich",
+   "tall",
+   "sweet"
+  ],
+  "handleNouns": [
+   "daddy",
+   "king",
+   "wolf",
+   "rider",
+   "lover",
+   "fan",
+   "boss",
+   "trucker",
+   "vet",
+   "dom",
+   "bull",
+   "stud",
+   "papi",
+   "captain",
+   "chief",
+   "sugardaddy",
+   "gentleman"
+  ]
+ },
+ "zh": {
+  "surnames": [
+   {
+    "zh": "王",
+    "py": "wang"
+   },
+   {
+    "zh": "李",
+    "py": "li"
+   },
+   {
+    "zh": "张",
+    "py": "zhang"
+   },
+   {
+    "zh": "刘",
+    "py": "liu"
+   },
+   {
+    "zh": "陈",
+    "py": "chen"
+   },
+   {
+    "zh": "杨",
+    "py": "yang"
+   },
+   {
+    "zh": "黄",
+    "py": "huang"
+   },
+   {
+    "zh": "赵",
+    "py": "zhao"
+   },
+   {
+    "zh": "吴",
+    "py": "wu"
+   },
+   {
+    "zh": "周",
+    "py": "zhou"
+   },
+   {
+    "zh": "徐",
+    "py": "xu"
+   },
+   {
+    "zh": "孙",
+    "py": "sun"
+   },
+   {
+    "zh": "马",
+    "py": "ma"
+   },
+   {
+    "zh": "朱",
+    "py": "zhu"
+   },
+   {
+    "zh": "胡",
+    "py": "hu"
+   },
+   {
+    "zh": "郭",
+    "py": "guo"
+   },
+   {
+    "zh": "何",
+    "py": "he"
+   },
+   {
+    "zh": "林",
+    "py": "lin"
+   },
+   {
+    "zh": "高",
+    "py": "gao"
+   },
+   {
+    "zh": "罗",
+    "py": "luo"
+   },
+   {
+    "zh": "郑",
+    "py": "zheng"
+   },
+   {
+    "zh": "梁",
+    "py": "liang"
+   },
+   {
+    "zh": "谢",
+    "py": "xie"
+   },
+   {
+    "zh": "宋",
+    "py": "song"
+   },
+   {
+    "zh": "唐",
+    "py": "tang"
+   },
+   {
+    "zh": "韩",
+    "py": "han"
+   },
+   {
+    "zh": "冯",
+    "py": "feng"
+   },
+   {
+    "zh": "邓",
+    "py": "deng"
+   },
+   {
+    "zh": "曹",
+    "py": "cao"
+   },
+   {
+    "zh": "彭",
+    "py": "peng"
+   },
+   {
+    "zh": "曾",
+    "py": "zeng"
+   },
+   {
+    "zh": "肖",
+    "py": "xiao"
+   },
+   {
+    "zh": "田",
+    "py": "tian"
+   },
+   {
+    "zh": "董",
+    "py": "dong"
+   },
+   {
+    "zh": "潘",
+    "py": "pan"
+   },
+   {
+    "zh": "袁",
+    "py": "yuan"
+   },
+   {
+    "zh": "蒋",
+    "py": "jiang"
+   },
+   {
+    "zh": "蔡",
+    "py": "cai"
+   },
+   {
+    "zh": "余",
+    "py": "yu"
+   },
+   {
+    "zh": "杜",
+    "py": "du"
+   },
+   {
+    "zh": "叶",
+    "py": "ye"
+   },
+   {
+    "zh": "程",
+    "py": "cheng"
+   },
+   {
+    "zh": "魏",
+    "py": "wei"
+   },
+   {
+    "zh": "苏",
+    "py": "su"
+   },
+   {
+    "zh": "丁",
+    "py": "ding"
+   },
+   {
+    "zh": "沈",
+    "py": "shen"
+   },
+   {
+    "zh": "姚",
+    "py": "yao"
+   },
+   {
+    "zh": "卢",
+    "py": "lu"
+   }
+  ],
+  "givenNames": [
+   {
+    "zh": "伟",
+    "py": "wei"
+   },
+   {
+    "zh": "强",
+    "py": "qiang"
+   },
+   {
+    "zh": "磊",
+    "py": "lei"
+   },
+   {
+    "zh": "军",
+    "py": "jun"
+   },
+   {
+    "zh": "勇",
+    "py": "yong"
+   },
+   {
+    "zh": "杰",
+    "py": "jie"
+   },
+   {
+    "zh": "涛",
+    "py": "tao"
+   },
+   {
+    "zh": "斌",
+    "py": "bin"
+   },
+   {
+    "zh": "超",
+    "py": "chao"
+   },
+   {
+    "zh": "明",
+    "py": "ming"
+   },
+   {
+    "zh": "刚",
+    "py": "gang"
+   },
+   {
+    "zh": "辉",
+    "py": "hui"
+   },
+   {
+    "zh": "鹏",
+    "py": "peng"
+   },
+   {
+    "zh": "飞",
+    "py": "fei"
+   },
+   {
+    "zh": "鑫",
+    "py": "xin"
+   },
+   {
+    "zh": "波",
+    "py": "bo"
+   },
+   {
+    "zh": "宇",
+    "py": "yu"
+   },
+   {
+    "zh": "浩",
+    "py": "hao"
+   },
+   {
+    "zh": "凯",
+    "py": "kai"
+   },
+   {
+    "zh": "健",
+    "py": "jian"
+   },
+   {
+    "zh": "帅",
+    "py": "shuai"
+   },
+   {
+    "zh": "旭",
+    "py": "xu"
+   },
+   {
+    "zh": "龙",
+    "py": "long"
+   },
+   {
+    "zh": "阳",
+    "py": "yang"
+   },
+   {
+    "zh": "建国",
+    "py": "jianguo"
+   },
+   {
+    "zh": "志强",
+    "py": "zhiqiang"
+   },
+   {
+    "zh": "海涛",
+    "py": "haitao"
+   },
+   {
+    "zh": "晓东",
+    "py": "xiaodong"
+   },
+   {
+    "zh": "文博",
+    "py": "wenbo"
+   },
+   {
+    "zh": "子豪",
+    "py": "zihao"
+   },
+   {
+    "zh": "浩然",
+    "py": "haoran"
+   },
+   {
+    "zh": "宇轩",
+    "py": "yuxuan"
+   },
+   {
+    "zh": "俊杰",
+    "py": "junjie"
+   },
+   {
+    "zh": "天宇",
+    "py": "tianyu"
+   },
+   {
+    "zh": "志伟",
+    "py": "zhiwei"
+   },
+   {
+    "zh": "家豪",
+    "py": "jiahao"
+   },
+   {
+    "zh": "明辉",
+    "py": "minghui"
+   },
+   {
+    "zh": "国栋",
+    "py": "guodong"
+   },
+   {
+    "zh": "立新",
+    "py": "lixin"
+   },
+   {
+    "zh": "永强",
+    "py": "yongqiang"
+   },
+   {
+    "zh": "大鹏",
+    "py": "dapeng"
+   },
+   {
+    "zh": "建华",
+    "py": "jianhua"
+   },
+   {
+    "zh": "金龙",
+    "py": "jinlong"
+   },
+   {
+    "zh": "嘉诚",
+    "py": "jiacheng"
+   },
+   {
+    "zh": "铁柱",
+    "py": "tiezhu"
+   },
+   {
+    "zh": "德胜",
+    "py": "desheng"
+   },
+   {
+    "zh": "振华",
+    "py": "zhenhua"
+   },
+   {
+    "zh": "少东",
+    "py": "shaodong"
+   }
+  ],
+  "cities": [
+   {
+    "city": "北京",
+    "country": "中国"
+   },
+   {
+    "city": "上海",
+    "country": "中国"
+   },
+   {
+    "city": "广州",
+    "country": "中国"
+   },
+   {
+    "city": "深圳",
+    "country": "中国"
+   },
+   {
+    "city": "杭州",
+    "country": "中国"
+   },
+   {
+    "city": "成都",
+    "country": "中国"
+   },
+   {
+    "city": "重庆",
+    "country": "中国"
+   },
+   {
+    "city": "武汉",
+    "country": "中国"
+   },
+   {
+    "city": "西安",
+    "country": "中国"
+   },
+   {
+    "city": "南京",
+    "country": "中国"
+   },
+   {
+    "city": "天津",
+    "country": "中国"
+   },
+   {
+    "city": "苏州",
+    "country": "中国"
+   },
+   {
+    "city": "长沙",
+    "country": "中国"
+   },
+   {
+    "city": "郑州",
+    "country": "中国"
+   },
+   {
+    "city": "东莞",
+    "country": "中国"
+   },
+   {
+    "city": "沈阳",
+    "country": "中国"
+   },
+   {
+    "city": "青岛",
+    "country": "中国"
+   },
+   {
+    "city": "合肥",
+    "country": "中国"
+   },
+   {
+    "city": "佛山",
+    "country": "中国"
+   },
+   {
+    "city": "宁波",
+    "country": "中国"
+   },
+   {
+    "city": "昆明",
+    "country": "中国"
+   },
+   {
+    "city": "大连",
+    "country": "中国"
+   },
+   {
+    "city": "厦门",
+    "country": "中国"
+   },
+   {
+    "city": "哈尔滨",
+    "country": "中国"
+   },
+   {
+    "city": "温州",
+    "country": "中国"
+   },
+   {
+    "city": "石家庄",
+    "country": "中国"
+   },
+   {
+    "city": "南宁",
+    "country": "中国"
+   },
+   {
+    "city": "贵阳",
+    "country": "中国"
+   },
+   {
+    "city": "鄂尔多斯",
+    "country": "中国"
+   },
+   {
+    "city": "温哥华",
+    "country": "加拿大"
+   },
+   {
+    "city": "悉尼",
+    "country": "澳大利亚"
+   },
+   {
+    "city": "新加坡",
+    "country": "新加坡"
+   }
+  ],
+  "handleWords": [
+   "dage",
+   "laoban",
+   "xiaoge",
+   "laowang",
+   "dashu",
+   "gege",
+   "diaosi",
+   "tuhao"
+  ]
+ },
+ "relationships": {
+  "single": {
+   "en": "single",
+   "zh": "单身"
+  },
+  "married": {
+   "en": "married, his wife doesn't know",
+   "zh": "已婚，老婆不知道"
+  },
+  "girlfriend": {
+   "en": "has a girlfriend who doesn't know",
+   "zh": "有女朋友，她不知道"
+  },
+  "divorced": {
+   "en": "divorced",
+   "zh": "离异"
+  },
+  "dumped": {
+   "en": "just got dumped",
+   "zh": "刚被甩"
+  },
+  "mom": {
+   "en": "lives with his mom",
+   "zh": "和爸妈住"
+  }
+ },
+ "styles": {
+  "horny_direct": {
+   "label": "Horny",
+   "prompt": "always horny and blunt: says exactly what he wants to see her do or do to her, uses crude sexual words, skips small talk"
+  },
+  "creepy_compliments": {
+   "label": "Creepy",
+   "prompt": "sleazy compliments that get too personal and too physical (her body, her mouth, how she would smell or taste), suggestive emojis"
+  },
+  "pet_names": {
+   "label": "Clingy",
+   "prompt": "calls her baby, princess or good girl, acts like she is already his girlfriend and gets a little possessive"
+  },
+  "lowercase": {
+   "label": "Sloppy",
+   "prompt": "types in all lowercase with typos and almost no punctuation, piles on drooling and sweating emojis"
+  },
+  "dominant": {
+   "label": "Bossy",
+   "prompt": "bossy and demanding, gives her orders about what to wear and do, expects to be obeyed"
+  },
+  "shy": {
+   "label": "Awkward",
+   "prompt": "awkward and nervous, over-apologizes, then suddenly blurts out something dirty"
+  },
+  "older_gentleman": {
+   "label": "Old money",
+   "prompt": "older man trying to sound classy and generous, long-winded and formal, but every message turns pervy"
+  },
+  "negging": {
+   "label": "Negging",
+   "prompt": "backhanded compliments, acts like she has to earn his attention and his money"
+  },
+  "minimal": {
+   "label": "Quiet",
+   "prompt": "writes very little, one-liners and single words, unsettling in his silence"
+  },
+  "cheapskate": {
+   "label": "Cheapskate",
+   "prompt": "always haggling and asking for freebies, guilt-trips her about her prices, still horny"
+  },
+  "obsessive": {
+   "label": "Obsessed",
+   "prompt": "obsessively infatuated: thinks about her all day, believes they are meant to be together, gets jealous of her other fans, sulks and gets clingy when she does not answer quickly",
+   "dm": {
+    "dmFactor": 1.6,
+    "maxUnanswered": 4,
+    "ignoredFactor": 1
+   }
+  },
+  "stalker": {
+   "label": "Stalker",
+   "prompt": "a stalker: brings up things about her real life he should not know, hints he has been near where she lives or followed her other accounts, tracks when she is online; unsettling and possessive",
+   "dm": {
+    "dmFactor": 1.6,
+    "maxUnanswered": 4,
+    "ignoredFactor": 1
+   }
+  },
+  "misogynist": {
+   "label": "Misogynist",
+   "prompt": "openly misogynistic and aggressive: insults and degrades her and women in general, calls her worthless and a whore, says she will regret this career, hostile and contemptuous",
+   "dm": {
+    "dmFactor": 1.3,
+    "maxUnanswered": 3,
+    "ignoredFactor": 0.8
+   }
+  },
+  "troll": {
+   "label": "Troll",
+   "prompt": "a sarcastic troll who mocks her looks, her prices and her content and tries to provoke a reaction",
+   "dm": {
+    "dmFactor": 1,
+    "maxUnanswered": 3,
+    "ignoredFactor": 0.6
+   }
+  }
+ },
+ "segments": {
+  "regular": {
+   "age": [
+    22,
+    48
+   ],
+   "jobs": {
+    "en": [
+     "IT guy",
+     "warehouse supervisor",
+     "truck driver",
+     "electrician",
+     "sales rep",
+     "accountant",
+     "high school teacher",
+     "plumber",
+     "bartender",
+     "mechanic",
+     "office manager",
+     "delivery driver",
+     "contractor",
+     "software developer",
+     "firefighter",
+     "cop",
+     "army vet",
+     "real estate agent",
+     "insurance agent",
+     "HVAC tech"
+    ],
+    "zh": [
+     "程序员",
+     "销售",
+     "公务员",
+     "工程师",
+     "网约车司机",
+     "健身教练",
+     "会计",
+     "中学老师",
+     "装修师傅",
+     "保险经纪人",
+     "银行职员",
+     "包工头",
+     "厨师",
+     "退伍军人",
+     "房产中介"
+    ]
+   },
+   "relationships": {
+    "single": 4,
+    "married": 3,
+    "girlfriend": 2,
+    "divorced": 2,
+    "dumped": 1
+   },
+   "styles": {
+    "horny_direct": 3,
+    "creepy_compliments": 3,
+    "pet_names": 2,
+    "lowercase": 2,
+    "dominant": 1,
+    "shy": 1
+   }
+  },
+  "lurker": {
+   "age": [
+    21,
+    45
+   ],
+   "jobs": {
+    "en": [
+     "night-shift security guard",
+     "data entry clerk",
+     "grad student",
+     "IT support",
+     "lab tech",
+     "postal worker",
+     "forklift operator",
+     "call center worker",
+     "remote QA tester"
+    ],
+    "zh": [
+     "夜班保安",
+     "仓库管理员",
+     "研究生",
+     "网管",
+     "快递员",
+     "客服",
+     "实验室技术员",
+     "质检员"
+    ]
+   },
+   "relationships": {
+    "single": 6,
+    "mom": 3,
+    "married": 1
+   },
+   "styles": {
+    "minimal": 4,
+    "shy": 3,
+    "creepy_compliments": 1
+   }
+  },
+  "simp": {
+   "age": [
+    21,
+    35
+   ],
+   "jobs": {
+    "en": [
+     "gas station clerk",
+     "college student",
+     "warehouse worker",
+     "junior developer",
+     "barista",
+     "line cook",
+     "unemployed gamer",
+     "retail worker",
+     "community college student",
+     "rideshare driver"
+    ],
+    "zh": [
+     "大学生",
+     "外卖小哥",
+     "流水线工人",
+     "网吧网管",
+     "便利店店员",
+     "待业青年",
+     "游戏代练",
+     "奶茶店店员"
+    ]
+   },
+   "relationships": {
+    "single": 6,
+    "mom": 3,
+    "dumped": 2
+   },
+   "styles": {
+    "pet_names": 3,
+    "creepy_compliments": 2,
+    "lowercase": 2,
+    "shy": 1
+   },
+   "traits": {
+    "obsessive": 0.45,
+    "stalker": 0.2
+   }
+  },
+  "whale": {
+   "age": [
+    34,
+    64
+   ],
+   "jobs": {
+    "en": [
+     "hedge fund manager",
+     "surgeon",
+     "crypto trader",
+     "startup founder",
+     "oil executive",
+     "car dealership owner",
+     "real estate developer",
+     "dentist with his own practice",
+     "corporate lawyer",
+     "retired investment banker",
+     "nightclub owner",
+     "plastic surgeon"
+    ],
+    "zh": [
+     "煤老板",
+     "房地产老板",
+     "外企高管",
+     "投行董事",
+     "拆二代",
+     "医院主任",
+     "币圈大佬",
+     "4S店老板",
+     "工厂老板",
+     "上市公司副总"
+    ]
+   },
+   "relationships": {
+    "married": 6,
+    "divorced": 3,
+    "single": 1
+   },
+   "styles": {
+    "older_gentleman": 3,
+    "dominant": 3,
+    "horny_direct": 2,
+    "negging": 1
+   }
+  },
+  "hater": {
+   "age": [
+    21,
+    40
+   ],
+   "jobs": {
+    "en": [
+     "unemployed",
+     "failed streamer",
+     "mall security guard",
+     "burned-out crypto bro",
+     "forum moderator",
+     "pickup artist coach",
+     "conspiracy podcaster",
+     "gym bro"
+    ],
+    "zh": [
+     "无业游民",
+     "过气主播",
+     "小区保安",
+     "币圈韭菜",
+     "贴吧吧主",
+     "PUA讲师",
+     "键盘侠",
+     "健身房会籍顾问"
+    ]
+   },
+   "relationships": {
+    "single": 6,
+    "dumped": 3,
+    "mom": 2
+   },
+   "styles": {
+    "misogynist": 3,
+    "troll": 2
+   }
+  },
+  "freeloader": {
+   "age": [
+    21,
+    30
+   ],
+   "jobs": {
+    "en": [
+     "college student",
+     "between jobs",
+     "part-time pizza delivery",
+     "intern",
+     "unemployed"
+    ],
+    "zh": [
+     "大学生",
+     "待业",
+     "兼职送外卖",
+     "实习生",
+     "啃老族"
+    ]
+   },
+   "relationships": {
+    "single": 5,
+    "mom": 4,
+    "girlfriend": 1
+   },
+   "styles": {
+    "cheapskate": 4,
+    "lowercase": 1
+   }
+  }
+ }
+}

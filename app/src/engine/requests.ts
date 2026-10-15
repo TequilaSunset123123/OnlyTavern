@@ -51,7 +51,7 @@ export function simulateRequestsDay(account: Account, seed: string, day: number)
     if (!p.requestDaily) continue
     const t = threadOf(a, r.id)
     // Only fans you have been talking to lately, one request at a time, and a pause after the last one.
-    if (recentMine(t, day) === 0 || unanswered(t) >= 2) continue
+    if (recentMine(t, day) === 0 || unanswered(t) >= Q.maxUnanswered) continue
     const mine = a.requests.filter((x) => x.regularId === r.id)
     if (mine.some(isOpen)) continue
     const last = mine.at(-1)

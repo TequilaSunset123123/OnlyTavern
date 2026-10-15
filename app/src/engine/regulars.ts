@@ -24,7 +24,7 @@ import { subscriberCount } from './audience'
 import { CORPUS, pick, pickWeighted } from './comments'
 import { ContentError } from './content'
 import { PLATFORM_FEE } from './economy'
-import { fanBackground, fanIdentity, pickLanguage } from './fans'
+import { dmBehaviour, makePersona, pickLanguage } from './personas'
 import { intensityMatch } from './posts'
 import { logNormal, type Rng, rngFor } from './rng'
 
@@ -32,12 +32,19 @@ const R = preset.regulars
 
 type Topic = NonNullable<Intent['topic']>
 const OPENER_TOPICS: Record<Segment, Record<Topic, number>> = {
-  regular: { chat: 4, compliment: 3, wants_content: 2, tip: 1 },
-  lurker: { chat: 3, compliment: 3, wants_content: 1, tip: 0.5 },
-  simp: { chat: 2, compliment: 4, wants_content: 2, tip: 3 },
-  whale: { chat: 2, compliment: 2, wants_content: 4, tip: 4 },
-  hater: { chat: 5, compliment: 0.5, wants_content: 1, tip: 0 },
-  freeloader: { chat: 2, compliment: 1, wants_content: 5, tip: 0.2 },
+  regular: { chat: 4, compliment: 3, wants_content: 2, tip: 1, harass: 0, obsess: 0 },
+  lurker: { chat: 3, compliment: 3, wants_content: 1, tip: 0.5, harass: 0, obsess: 0 },
+  simp: { chat: 2, compliment: 4, wants_content: 2, tip: 3, harass: 0, obsess: 0 },
+  whale: { chat: 2, compliment: 2, wants_content: 4, tip: 4, harass: 0, obsess: 0 },
+  hater: { chat: 1, compliment: 0, wants_content: 0.5, tip: 0, harass: 6, obsess: 0 },
+  freeloader: { chat: 2, compliment: 1, wants_content: 5, tip: 0.2, harass: 0, obsess: 0 },
+}
+
+/** What a fan writes to you about on his own: his type, then his traits (obsessed fans mostly obsess). */
+function openerTopics(r: Regular): Record<Topic, number> {
+  const t = { ...OPENER_TOPICS[r.segment] }
+  if (r.traits.includes('obsessive') || r.traits.includes('stalker')) t.obsess = 6
+  return t
 }
 
 /** One payment from one regular. Cash from meetups ('offline') pays no platform fee. */
@@ -74,9 +81,8 @@ function newRegular(rng: Rng, id: string, segment: Segment, day: number, setting
   return {
     id,
     segment,
-    ...fanIdentity(rng, language),
+    ...makePersona(rng, segment, language),
     language,
-    ...fanBackground(rng, language),
     likes,
     since: day,
     spent: 0,
@@ -117,7 +123,7 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     const segment = pickWeighted(rng, weights)
     const id = `r${day}-${a.regulars.length}`
     const regular = newRegular(rng, id, segment, day, settings)
-    const topic = pickWeighted(rng, OPENER_TOPICS[segment])
+    const topic = pickWeighted(rng, openerTopics(regular))
     const tip = topic === 'tip' ? tipCents(rng, segment) : undefined
     a = {
       ...a,
@@ -135,14 +141,15 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
   for (const r of a.regulars) {
     if (r.status !== 'active' || r.since === day) continue
     const t = threadOf(a, r.id)
-    // Unanswered messages in a row: at most two, and less likely after the first.
+    // Unanswered messages in a row: at most two (obsessed fans and haters keep going),
+    // and less likely once he is waiting for you.
+    const b = dmBehaviour(r.traits)
     const tail = unanswered(t)
-    if (tail >= 2) continue
-    const waiting = tail === 1
+    if (tail >= b.maxUnanswered) continue
     const p = preset.segments[r.segment]
     const rr = rngFor(seed, day, `regulars:dm:${r.id}`)
-    if (rr() >= p.dmDaily * (waiting ? 0.3 : 1)) continue
-    const topic = pickWeighted(rr, OPENER_TOPICS[r.segment])
+    if (rr() >= p.dmDaily * b.dmFactor * (tail > 0 ? b.ignoredFactor : 1)) continue
+    const topic = pickWeighted(rr, openerTopics(r))
     const tip = topic === 'tip' && rr() < Math.max(p.dmTipChance, 0.5) ? tipCents(rr, r.segment) : undefined
     const id = `${r.id}-m${t.messages.length}`
     a = withThread(a, { ...t, messages: [...t.messages, pendingMessage(id, day, { kind: 'opener', topic: tip ? 'tip' : topic === 'tip' ? 'chat' : topic, ...(tip ? { tip } : {}) }, tip)] })
@@ -293,7 +300,7 @@ export function fillMessage(account: Account, regularId: string, messageId: stri
   })
 }
 
-const TOPIC_MOOD: Record<Topic, Mood> = { chat: 'casual', compliment: 'praise', wants_content: 'request', tip: 'praise' }
+const TOPIC_MOOD: Record<Topic, Mood> = { chat: 'casual', compliment: 'praise', wants_content: 'request', tip: 'praise', harass: 'negative', obsess: 'flirty' }
 
 const money = (cents: number) => `$${Math.round(cents / 100)}`
 

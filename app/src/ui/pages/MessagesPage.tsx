@@ -42,6 +42,8 @@ import { VaultPickerDialog } from '../VaultPickerDialog'
 
 const SEGMENT_BADGE: Record<string, string> = { whale: 'VIP', simp: 'Superfan', hater: 'Hater', freeloader: 'Freebie hunter' }
 const FILTERS = ['All', 'Unread', 'Tipped', 'Dormant'] as const
+/** Traits worth a warning colour on the fan's profile. */
+const RED_FLAGS = ['stalker', 'misogynist', 'obsessive', 'troll']
 const WHY_NOT = { price: 'too pricey for them', taste: 'not their taste', mood: 'not in the mood', liked: '' }
 
 /** The engine decides on the spot; the fan's reply carries the reason. */
@@ -383,6 +385,13 @@ function FanDetails({ view }: { view: ThreadView }) {
     <div className="flex flex-col gap-4">
       {SEGMENT_BADGE[r.segment] && <Badge className="self-center">{SEGMENT_BADGE[r.segment]}</Badge>}
       <p className="text-sm text-content-secondary">{r.bio}</p>
+      <div className="flex flex-wrap gap-1">
+        {view.traits.map((t) => (
+          <Badge key={t.id} variant={RED_FLAGS.includes(t.id) ? 'errorColour' : 'default'}>
+            {t.label}
+          </Badge>
+        ))}
+      </div>
       <dl className="grid grid-cols-2 gap-y-2 text-sm">
         <dt className="text-content-tertiary">Spent</dt>
         <dd className="text-right font-semibold">{money(r.spent)}</dd>

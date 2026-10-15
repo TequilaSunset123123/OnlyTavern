@@ -145,6 +145,7 @@ describe('fan message prompt and parsing', () => {
       items: { v0: acc.vault[0] },
       creator: { name: 'Mia', handle: 'mia', accountType: 'free' as const, priceCents: 0, subscribers: 100 },
       closeness: 1,
+      traits: [{ id: 'creepy_compliments', label: 'Creepy', prompt: 'sleazy compliments' }],
       requests: [],
       meetups: [],
     }
@@ -152,7 +153,8 @@ describe('fan message prompt and parsing', () => {
     expect(system.content).toContain('<message>')
     expect(user.content).toMatch(/You (bought|did NOT buy) the paid message \[paid message, \$5.00: Red lace set\]/)
     expect(user.content).toContain('[Creator] look')
-    expect(system.content).toMatch(/do not send, offer or promise a tip/)
+    expect(system.content).toMatch(/Mention a tip, a payment, a purchase, a custom request or meeting in person only when/)
+    expect(user.content).toContain('How you write: sleazy compliments')
     expect(user.content).not.toMatch(/You are sending a \$/)
   })
 

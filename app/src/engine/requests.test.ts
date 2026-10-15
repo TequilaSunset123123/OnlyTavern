@@ -106,6 +106,7 @@ describe('custom requests', () => {
       items: {},
       creator: { name: 'Mia', handle: 'mia', accountType: 'free' as const, priceCents: 0, subscribers: 100 },
       closeness: 1,
+      traits: [],
       requests: a.requests,
       meetups: [],
     }

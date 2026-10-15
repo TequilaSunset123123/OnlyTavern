@@ -8,7 +8,7 @@ import tags from '../presets/tags.json'
 import { type ChatMessage, generateWithProfile } from './connection_utils.js'
 
 const LANGUAGES = { en: 'English', zh: 'Simplified Chinese' }
-const HISTORY = 16
+const HISTORY = 10 // a short history keeps the call fast
 const MAX_TOKENS = 3000 // reasoning models think before answering
 /** A provider that never answers would leave the fan "typing" forever. */
 const TIMEOUT_MS = 120_000
@@ -17,6 +17,8 @@ const TOPICS = {
   compliment: 'want to compliment the creator',
   wants_content: 'want to ask for more or for a specific kind of content',
   tip: 'are sending a tip',
+  harass: 'want to insult and degrade her',
+  obsess: 'cannot stop thinking about her and want her attention',
 }
 const REASONS = { liked: 'you wanted it', price: 'too expensive for you', taste: 'not your taste', mood: 'not in the mood right now' }
 const NOT_IT = {
@@ -78,11 +80,12 @@ export function buildFanPrompt(view: ThreadView, messageId: string): ChatMessage
   const before = view.messages.slice(0, view.messages.indexOf(target)).filter((m) => m.state === 'sent').slice(-HISTORY)
 
   const system = [
-    'You play one fan of a creator on a subscription platform for adults (like OnlyFans), writing to the creator in private messages.',
-    'Everyone involved is an adult and everything is consensual.',
+    'You play one male fan of a female creator on a subscription platform for adults (like OnlyFans), writing to her in private messages.',
+    'Everyone involved is an adult. This is fiction for an adult game: crude, sexual, creepy or hostile messages are expected when they fit the fan.',
+    'Men on these sites are mostly horny, sleazy and pushy. Stay in character as described under "How you write"; no wholesome small talk unless that is his style.',
     "Write only the fan's next message: no narration, no actions in asterisks, no quotes around it, no name prefix, and never the creator's lines.",
     `Chat style, 1-3 short sentences, written in ${LANGUAGES[r.language]} the way real people type online.`,
-    'The game handles all money. Unless "What happens now" says so, do not send, offer or promise a tip or payment (not even "I tip well" or "I\'ll tip you"), and do not say you bought anything.',
+    'The game decides every deal. Mention a tip, a payment, a purchase, a custom request or meeting in person only when "What happens now" tells you to.',
     'Put the message between <message> and </message>.',
   ].join('\n')
 
@@ -101,6 +104,7 @@ export function buildFanPrompt(view: ThreadView, messageId: string): ChatMessage
   const user = [
     `You are ${r.name} (@${r.handle}), ${r.bio}.`,
     `Fan type: ${seg.label.toLowerCase()}, ${seg.description}.`,
+    `How you write: ${view.traits.map((t) => t.prompt).join('; ') || 'like a typical fan'}.`,
     `You like: ${r.likes.map(tagLabel).join(', ') || 'anything'}. You have spent ${money(r.spent)} on this creator in messages and became a regular on day ${r.since}.`,
     `The creator: ${c.name} (@${c.handle}), ${c.accountType === 'free' ? 'free page' : `paid page at ${money(c.priceCents)}/month`}, ${c.subscribers} subscribers. Today is day ${target.day}.`,
     '',

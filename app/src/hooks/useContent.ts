@@ -27,6 +27,10 @@ export function useTags() {
   return useQuery({ queryKey: ['tags'], queryFn: () => api.getTags() })
 }
 
+export function useCaptions() {
+  return useQuery({ queryKey: ['captions'], queryFn: () => api.getCaptions(), staleTime: Infinity })
+}
+
 export function useSettings() {
   return useQuery({ queryKey: ['settings'], queryFn: () => api.getSettings() })
 }

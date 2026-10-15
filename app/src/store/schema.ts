@@ -3,7 +3,7 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 5
+export const SCHEMA_VERSION = 6
 
 export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
 export const SegmentSchema = z.enum(SEGMENTS)
@@ -56,8 +56,10 @@ export const RegularSchema = z.object({
   language: z.enum(['en', 'zh']),
   country: z.string(),
   age: z.number().int(),
-  /** One-line background, built from templates (no model). */
+  /** One-line background: age, job, where he lives, relationship (presets/personas.json, no model). */
   bio: z.string(),
+  /** How he writes and behaves (style ids in presets/personas.json): e.g. creepy, obsessed, stalker, misogynist. */
+  traits: z.array(z.string()),
   /** Tag ids this fan likes. */
   likes: z.array(z.string()),
   since: z.number().int(),
@@ -70,7 +72,7 @@ export const RegularSchema = z.object({
 export const IntentSchema = z.object({
   /** opener: fan starts a chat on their own; reply: answering you. */
   kind: z.enum(['opener', 'reply']),
-  topic: z.enum(['chat', 'compliment', 'wants_content', 'tip']).optional(),
+  topic: z.enum(['chat', 'compliment', 'wants_content', 'tip', 'harass', 'obsess']).optional(),
   /** Outcome for each PPV you sent since the fan's last message. */
   ppv: z.array(z.object({ messageId: z.string(), bought: z.boolean(), reason: z.enum(['liked', 'price', 'taste', 'mood']) })).optional(),
   tip: Cents.optional(),

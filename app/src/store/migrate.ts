@@ -1,5 +1,7 @@
+import { makePersona } from '../engine/personas'
+import { rngFor } from '../engine/rng'
 import { initialAudience } from './account'
-import { type Account, AccountSchema, SCHEMA_VERSION } from './schema'
+import { type Account, AccountSchema, SCHEMA_VERSION, type Segment } from './schema'
 
 type Doc = Record<string, unknown>
 
@@ -43,6 +45,16 @@ export const MIGRATIONS: Record<number, Migration> = {
     meetups: [],
     history: (doc.history as { net: object }[]).map((d) => ({ ...d, net: { ...d.net, custom: 0, offline: 0 } })),
   }),
+  // Fan personas (2026-10-14): regulars get a new identity from our own parts (men only)
+  // and traits for how they write. Everything else about them stays.
+  5: (doc) => {
+    const seed = (doc.meta as { seed: string }).seed
+    type Old = { id: string; since: number; segment: Segment; language: 'en' | 'zh' }
+    return {
+      ...doc,
+      regulars: (doc.regulars as Old[]).map((r) => ({ ...r, ...makePersona(rngFor(seed, r.since, `persona:${r.id}`), r.segment, r.language) })),
+    }
+  },
 }
 
 export class SaveError extends Error {}

@@ -3,10 +3,12 @@
 // deterministic and store/ never calls Date.now() or Math.random() itself.
 import { subscriberCount } from '../engine/audience'
 import { addVaultItem, canLockPosts, deletePost, deleteVaultItem, publishPost, updateVaultItem } from '../engine/content'
+import { traitLabel, traitPrompt } from '../engine/personas'
 import { postIntensity, postTags } from '../engine/posts'
 import { balances, requestPayout } from '../engine/economy'
 import audiencePreset from '../presets/audience.json'
 import economy from '../presets/economy.json'
+import captions from '../presets/captions.json'
 import tags from '../presets/tags.json'
 import { createAccount, summarize } from '../store/account'
 import { migrate, SaveError, versionOf } from '../store/migrate'
@@ -15,7 +17,7 @@ import type { AccountStorage } from '../store/storage'
 import { exportAccount, exportFileName, importAccount } from '../store/transfer'
 import type { Action, Api, DispatchResult, InboxThread, ProfilePatch, Statements } from './types'
 
-// Loaded on demand: these pull in faker's name data and the comment corpus.
+// Loaded on demand: these pull in the comment corpus and the fan persona parts.
 const engine = () => import('../engine/simulate')
 const dms = () => import('../engine/regulars')
 const mass = () => import('../engine/massMessages')
@@ -294,7 +296,7 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       const account = await mustLoad(id)
       const post = account.posts.find((p) => p.id === postId)
       if (!post) throw new SaveError('Post not found')
-      // Loaded on demand: faker's name data and the corpus are large and only needed here.
+      // Loaded on demand: the comment corpus is large and only needed here.
       const { generateComments } = await import('../engine/comments')
       return generateComments(account, post, await storage.loadSettings())
     },
@@ -303,6 +305,9 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
     },
     async getTags() {
       return tags
+    },
+    async getCaptions() {
+      return captions
     },
     getSettings: () => storage.loadSettings(),
     async getInbox(id) {
@@ -341,6 +346,7 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
         items,
         creator: { name: p.name, handle: p.handle, accountType: p.accountType, priceCents: p.priceCents, subscribers: subscriberCount(account.audience) },
         closeness: (await dms()).closeness(thread, account.clock.day),
+        traits: regular.traits.map((id) => ({ id, label: traitLabel(id), prompt: traitPrompt(id) })),
         requests: account.requests.filter((q) => q.regularId === regularId),
         meetups: account.meetups.filter((m) => m.regularId === regularId),
       }

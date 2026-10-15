@@ -115,6 +115,10 @@ export type Statistics = {
 
 export type Tag = { id: string; en: string; zh: string; intensity: number }
 
+/** Ready-made post captions by kind, in English and Chinese (presets/captions.json). */
+export type CaptionKind = 'tease' | 'newSet' | 'locked' | 'chat'
+export type Captions = Record<'en' | 'zh', Record<CaptionKind, string[]>>
+
 /** A post with what the UI needs to show it. */
 export type FeedPost = Post & {
   /** Vault items in order; null where an item was deleted from the vault. */
@@ -149,6 +153,8 @@ export type ThreadView = {
   creator: { name: string; handle: string; accountType: Profile['accountType']; priceCents: number; subscribers: number }
   /** How warm the fan is (multiplies their chance to buy a PPV): 0.7 cold … 1.3. */
   closeness: number
+  /** How this fan writes and behaves: a short label for the UI, the description for the model. */
+  traits: { id: string; label: string; prompt: string }[]
   /** This fan's custom requests and meetup invitations. */
   requests: Request[]
   meetups: Meetup[]
@@ -180,6 +186,7 @@ export interface Api {
   /** Recent engine events, newest first. */
   getNotifications(id: string): Promise<EngineEvent[]>
   getTags(): Promise<Tag[]>
+  getCaptions(): Promise<Captions>
   getSettings(): Promise<Settings>
   getInbox(id: string): Promise<Inbox>
   getThread(id: string, regularId: string): Promise<ThreadView>

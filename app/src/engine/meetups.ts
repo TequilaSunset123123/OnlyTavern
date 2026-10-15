@@ -52,7 +52,7 @@ export function simulateMeetupsDay(account: Account, seed: string, day: number):
     if (!p.meetupDaily) continue
     const t = threadOf(a, r.id)
     // Only fans you write to a lot, one invitation at a time, and a long pause after the last one.
-    if (recentMine(t, day) < M.minMessages || unanswered(t) >= 2) continue
+    if (recentMine(t, day) < M.minMessages || unanswered(t) >= M.maxUnanswered) continue
     const mine = a.meetups.filter((x) => x.regularId === r.id)
     if (mine.some(isOpen)) continue
     const last = mine.at(-1)

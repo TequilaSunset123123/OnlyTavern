@@ -5,7 +5,7 @@ import preset from '../presets/audience.json'
 import enCorpus from '../presets/corpus/en.json'
 import zhCorpus from '../presets/corpus/zh.json'
 import { type Account, MOODS, type Mood, type Post, SEGMENTS, type Segment, type Settings } from '../store/schema'
-import { fanIdentity, type Language, pickLanguage } from './fans'
+import { fanIdentity, type Language, pickLanguage } from './personas'
 import { postTags } from './posts'
 import { type Rng, rngFor } from './rng'
 

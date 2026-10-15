@@ -17,6 +17,21 @@ function parse(name) {
   return JSON.parse(jsonrepair(text))
 }
 
+// Tag lines when the model broke the JSON (it sometimes drops a "["): take every quoted
+// string after each tag id, up to the next tag id.
+function parseTagLines(name, ids) {
+  try {
+    return parse(name)
+  } catch {
+    const text = readFileSync(join(dir, `onlytavern-gen-${name}.txt`), 'utf8')
+    const marks = [...text.matchAll(new RegExp(`"(${ids.join('|')})"\\s*:`, 'g'))]
+    console.warn(`  ${name}: broken JSON, reading it line by line`)
+    return Object.fromEntries(
+      marks.map((m, i) => [m[1], [...text.slice(m.index + m[0].length, marks[i + 1]?.index ?? text.length).matchAll(/"((?:[^"\\]|\\.)*)"/g)].map((x) => x[1])]),
+    )
+  }
+}
+
 // Lenient cleanup: strings only, trimmed, no @mentions, no duplicates.
 function clean(lines) {
   return [...new Set((Array.isArray(lines) ? lines : []).filter((l) => typeof l === 'string').map((l) => l.replace(/@\w+/g, '').trim()).filter(Boolean))]
@@ -37,7 +52,7 @@ for (const lang of ['en', 'zh']) {
     const short = MOODS.filter((m) => segments[s][m].length < 5)
     if (short.length) console.warn(`  ${lang}/${s}: few lines for ${short.join(', ')}`)
   }
-  const rawTags = parse(`tagcomments-${lang}`)
+  const rawTags = parseTagLines(`tagcomments-${lang}`, tags.map((t) => t.id))
   const tagLines = Object.fromEntries(tags.map((t) => [t.id, clean(rawTags[t.id])]).filter(([, l]) => l.length))
   writeFileSync(new URL(`corpus/${lang}.json`, out), JSON.stringify({ segments, tags: tagLines }, null, 1) + '\n')
   const n = Object.values(segments).flatMap((m) => Object.values(m)).flat().length
