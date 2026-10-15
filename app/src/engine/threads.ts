@@ -3,7 +3,7 @@ import preset from '../presets/audience.json'
 import type { Account, Intent, Message, Regular, Thread } from '../store/schema'
 import { ContentError } from './content'
 
-const C = preset.regulars.closeness
+const RECENT_DAYS = preset.regulars.recentDays
 
 export function threadOf(account: Account, regularId: string): Thread {
   const t = account.threads.find((x) => x.regularId === regularId)
@@ -37,15 +37,7 @@ export function unanswered(thread: Thread): number {
 
 /** Messages you wrote to this fan yourself in the last 14 days (mass messages don't count). */
 export function recentMine(thread: Thread, day: number): number {
-  return thread.messages.filter((m) => m.from === 'me' && !m.massId && m.day > day - C.days).length
-}
-
-/**
- * How warm this fan is: the more you wrote to them yourself lately, the likelier
- * they buy (and ask for customs or meetups). 0.7 cold … 1.3 after 10 messages in 14 days.
- */
-export function closeness(thread: Thread, day: number): number {
-  return C.base + C.perMessage * Math.min(C.maxMessages, recentMine(thread, day))
+  return thread.messages.filter((m) => m.from === 'me' && !m.massId && m.day > day - RECENT_DAYS).length
 }
 
 /**

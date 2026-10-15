@@ -6,7 +6,7 @@ import { addVaultItem, canLockPosts, deletePost, deleteVaultItem, publishPost, u
 import { directionInfo, directionPrompt, setDirection, SPECS, SWITCH_LOSS } from '../engine/directions'
 import { traitLabel, traitPrompt } from '../engine/personas'
 import { postIntensity, postTags } from '../engine/posts'
-import { closeness } from '../engine/threads'
+import { awayNow, loyaltyInfo } from '../engine/fans'
 import { balances, requestPayout } from '../engine/economy'
 import audiencePreset from '../presets/audience.json'
 import economy from '../presets/economy.json'
@@ -329,6 +329,7 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
         const written = t.messages.filter((m) => m.state === 'sent')
         return {
           regular,
+          loyalty: loyaltyInfo(regular),
           last: written.at(-1) ?? null,
           unread: t.messages.slice(t.read).filter((m) => m.from === 'fan').length,
           pending: t.messages.some((m) => m.state === 'pending'),
@@ -364,7 +365,8 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
           subscribers: subscriberCount(account.audience),
           direction: directionPrompt(account),
         },
-        closeness: closeness(thread, account.clock.day),
+        loyalty: loyaltyInfo(regular),
+        away: !awayNow(regular, account.clock.day) ? null : regular.away?.until === undefined ? 'gone' : 'lyingLow',
         traits: regular.traits.map((id) => ({ id, label: traitLabel(id), prompt: traitPrompt(id) })),
         requests: account.requests.filter((q) => q.regularId === regularId),
         meetups: account.meetups.filter((m) => m.regularId === regularId),

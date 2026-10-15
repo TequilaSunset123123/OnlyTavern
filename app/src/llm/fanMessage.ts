@@ -18,7 +18,7 @@ const TIMEOUT_MS = 120_000
 const TOPICS = {
   chat: 'just want to chat',
   compliment: 'want to compliment her',
-  wants_content: 'want her to post more of what you like',
+  wants_content: 'tell her what you like seeing on her page',
   tip: 'are sending a tip',
   harass: 'want to insult and degrade her',
   obsess: 'cannot stop thinking about her and want her attention',
@@ -47,7 +47,17 @@ function dealLine(view: ThreadView, d: NonNullable<Intent['deal']>): string {
   if (d.kind === 'meetup') {
     const m = view.meetups.find((x) => x.id === d.id)
     if (d.step === 'no') return 'She brought up meeting in person; you turn it down.'
-    if (d.step === 'met') return `You met her in person today and paid ${money(m?.offerCents ?? 0)} in cash; write to her afterwards.`
+    if (d.step === 'back') return 'Weeks ago your wife caught you meeting her and you went quiet; things have calmed down and you are writing to her again.'
+    if (d.step === 'met') {
+      const paid = money(m?.paidCents ?? m?.offerCents ?? 0)
+      return {
+        smooth: `You met her in person today and paid ${paid} in cash; write to her afterwards.`,
+        bonus: `You met her in person today and loved it so much you paid ${paid} instead of ${money(m?.offerCents ?? 0)}; write to her afterwards.`,
+        noShow: 'You were supposed to meet her today but did not show up; write to her.',
+        creep: `You met her today but got too pushy, so she left early and you only paid ${paid}; write to her afterwards.`,
+        wife: 'Your wife found out about your meeting with her today; it blew up and you paid nothing. Write to her.',
+      }[m?.outcome ?? 'smooth']
+    }
     return `You ask her to meet you in person for a night; you offer ${money(m?.offerCents ?? 0)} in cash.`
   }
   const q = view.requests.find((x) => x.id === d.id)
@@ -97,7 +107,7 @@ export function buildFanPrompt(view: ThreadView, messageId: string): ChatMessage
     `Fan type: ${seg.label.toLowerCase()}, ${seg.description}.`,
     ...(r.turned ? [`You used to be one of her ${preset.segments[r.turned.from].label.toLowerCase()} fans, but she ignored you, so now you resent her.`] : []),
     `How you write: ${view.traits.map((t) => t.prompt).join('; ') || 'like a typical fan'}.`,
-    `You like: ${r.likes.map(tagLabel).join(', ') || 'anything'}. You have spent ${money(r.spent)} on her and became a regular on day ${r.since}.`,
+    `You like: ${r.likes.map(tagLabel).join(', ') || 'anything'}. You have spent ${money(r.spent)} on her and became a regular on day ${r.since}; your loyalty to her: ${view.loyalty.name} (${view.loyalty.level} of 5).`,
     `She is ${c.name} (@${c.handle}), ${c.direction}; ${c.accountType === 'free' ? 'free page' : `paid page at ${money(c.priceCents)}/month`}, ${c.subscribers} subscribers. Today is day ${target.day}.`,
     '',
     before.length ? 'Conversation so far (oldest first):' : 'This is the first message in the conversation.',

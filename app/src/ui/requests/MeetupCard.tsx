@@ -38,6 +38,10 @@ const STATUS: Record<Meetup['status'], [string, BadgeVariant]> = {
   cancelled: ['Cancelled', 'default'],
 }
 
+/** Where he is since the scandal (only on the Requests page; the chat says it under the conversation). */
+const afterScandal = (r: Regular | undefined, day: number) =>
+  !r?.away ? '' : r.away.until === undefined ? ' He blocked you.' : r.away.until > day ? ' He is lying low for a while.' : ` He came back on day ${r.away.until}.`
+
 const inDays = (target: number, day: number) => (target - day === 1 ? 'tomorrow' : `in ${target - day} days`)
 
 export function MeetupCard({
@@ -88,7 +92,19 @@ export function MeetupCard({
             Meeting on day {m.meetDay} ({inDays(m.meetDay, day)})
           </div>
         )}
-        {m.status === 'done' && <div className="text-sm text-content-secondary">Met on day {m.meetDay}: {money(m.offerCents)} cash.</div>}
+        {m.status === 'done' && (
+          <div className="text-sm text-content-secondary">
+            {
+              {
+                smooth: `Met on day ${m.meetDay}: ${money(m.paidCents ?? m.offerCents)} cash.`,
+                bonus: `Met on day ${m.meetDay}: he paid extra, ${money(m.paidCents ?? 0)} cash.`,
+                noShow: `Day ${m.meetDay}: he did not show up. No money.`,
+                creep: `Day ${m.meetDay}: he got creepy and you left early with ${money(m.paidCents ?? 0)}. He may fixate on you now.`,
+                wife: `Day ${m.meetDay}: his wife caught you. No money, and the scandal cost you subscribers.${afterScandal(regular, day)}`,
+              }[m.outcome ?? 'smooth']
+            }
+          </div>
+        )}
         {m.status === 'cancelled' && <div className="text-sm text-content-tertiary">You cancelled.</div>}
         {m.status === 'expired' && <div className="text-sm text-content-tertiary">You did not answer in time.</div>}
 

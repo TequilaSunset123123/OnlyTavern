@@ -49,7 +49,7 @@ export function fanIdentity(rng: Rng, language: Language): { name: string; handl
   return { name, handle }
 }
 
-export type Persona = { name: string; handle: string; age: number; country: string; bio: string; traits: TraitId[] }
+export type Persona = { name: string; handle: string; age: number; country: string; bio: string; traits: TraitId[]; relationship: string }
 
 /**
  * A whole regular: identity, age, job, where he lives, relationship and how he writes.
@@ -60,17 +60,18 @@ export function makePersona(rng: Rng, segment: Segment, language: Language, trai
   const S = personas.segments[segment]
   const age = S.age[0] + Math.floor(rng() * (S.age[1] - S.age[0] + 1))
   const job = at(S.jobs[language], rng())
-  const relationship = personas.relationships[weighted(rng, S.relationships)][language]
+  const status = weighted(rng, S.relationships)
+  const relationship = personas.relationships[status][language]
   const f = (t: string) => traitFactors[t] ?? 1
   const styles = Object.fromEntries(Object.entries(S.styles).map(([t, w]) => [t, w * f(t)])) as Partial<Record<TraitId, number>>
   const extra = 'traits' in S ? (Object.entries(S.traits) as [TraitId, number][]) : []
   const traits = [weighted(rng, styles), ...extra.filter(([t, p]) => rng() < Math.min(0.9, p * f(t))).map(([t]) => t)]
   if (language === 'zh') {
     const place = at(personas.zh.cities, rng())
-    return { name, handle, age, country: place.country, bio: `${age}岁，${place.city}，${job}，${relationship}`, traits }
+    return { name, handle, age, country: place.country, bio: `${age}岁，${place.city}，${job}，${relationship}`, traits, relationship: status }
   }
   const place = at(personas.en.places, rng())
-  return { name, handle, age, country: place.country, bio: `${age}, ${job} from ${place.city}, ${place.region}, ${relationship}`, traits }
+  return { name, handle, age, country: place.country, bio: `${age}, ${job} from ${place.city}, ${place.region}, ${relationship}`, traits, relationship: status }
 }
 
 type Behaviour = {
@@ -78,6 +79,10 @@ type Behaviour = {
   maxUnanswered?: number
   ignoredFactor?: number
   meetupFactor?: number
+  /** Asks to meet from this loyalty level on (lower than his type's). */
+  meetupMinLoyalty?: number
+  /** Multiplies the chances of what happens at a meetup (presets/personas.json fan.meetup.events). */
+  events?: Record<string, number>
   turnsHater?: { afterDays: number; daily: number }
 }
 const STYLES = personas.styles as Record<string, { label: string; prompt: string; behaviour?: Behaviour }>
@@ -102,6 +107,12 @@ export function behaviour(traits: string[]) {
     maxUnanswered: Math.max(2, ...own.map((x) => x.maxUnanswered ?? 2)),
     ignoredFactor: Math.max(0.3, ...own.map((x) => x.ignoredFactor ?? 0.3)),
     meetupFactor: Math.max(1, ...own.map((x) => x.meetupFactor ?? 1)),
+    meetupMinLoyalty: Math.min(5, ...own.map((x) => x.meetupMinLoyalty ?? 5)),
+    /** Product of all his traits' meetup event factors. */
+    events: own.reduce<Record<string, number>>((acc, x) => {
+      for (const [k, v] of Object.entries(x.events ?? {})) acc[k] = (acc[k] ?? 1) * v
+      return acc
+    }, {}),
     /** The quickest way he turns, if any of his traits can. */
     turnsHater: turns.sort((a, b) => a.afterDays - b.afterDays || b.daily - a.daily)[0] ?? null,
   }

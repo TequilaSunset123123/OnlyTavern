@@ -17,7 +17,6 @@ import type {
   Regular,
   Segment,
   Settings,
-  Thread,
 } from '../store/schema'
 import { SEGMENTS } from '../store/schema'
 import { subscriberCount } from './audience'
@@ -29,7 +28,8 @@ import { directionEffects } from './directions'
 import { behaviour, makePersona, pickLanguage, WIN_BACK } from './personas'
 import { intensityMatch } from './posts'
 import { logNormal, type Rng, rngFor } from './rng'
-import { closeness, pendingMessage, recentMine, threadOf, unanswered, updateRegular, withReply, withThread } from './threads'
+import { addLoyalty, awayNow, fanProfile, loyaltyEffects } from './fans'
+import { addFanMessage, pendingMessage, recentMine, threadOf, unanswered, updateRegular, withReply, withThread } from './threads'
 
 const R = preset.regulars
 
@@ -50,10 +50,13 @@ function openerTopics(r: Regular): Record<Topic, number> {
   return t
 }
 
-export function tipCents(rng: Rng, segment: Segment): number {
-  const p = preset.segments[segment]
-  return Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(rng, p.dmTipMedian, 0.6)))) * 100
+/** A tip from one regular: around his type's median (presets/personas.json). */
+export function tipCents(rng: Rng, r: Regular): number {
+  return Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(rng, fanProfile(r).tip.median, 0.6)))) * 100
 }
+
+/** His chance to tip: his type's, scaled by his loyalty. */
+const tipChance = (r: Regular) => Math.min(0.9, fanProfile(r).tip.chance * loyaltyEffects(r).tip)
 
 function newRegular(rng: Rng, id: string, segment: Segment, day: number, settings: Settings, traitFactors: Record<string, number>): Regular {
   const language = pickLanguage(rng, settings.fanLanguage)
@@ -69,6 +72,7 @@ function newRegular(rng: Rng, id: string, segment: Segment, day: number, setting
     since: day,
     spent: 0,
     status: 'active',
+    loyalty: 0,
   }
 }
 
@@ -82,6 +86,15 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
   let a = account
   const events: EngineEvent[] = []
   const ledger: LedgerEntry[] = []
+
+  // Back after lying low since his wife caught you two (meetups.ts).
+  for (const r of a.regulars) {
+    if (r.away?.until !== day) continue
+    a = updateRegular(a, { ...r, status: 'active' })
+    const caught = a.meetups.findLast((m) => m.regularId === r.id && m.outcome === 'wife')
+    a = addFanMessage(a, r.id, day, { kind: 'opener', deal: { kind: 'meetup', step: 'back', ...(caught ? { id: caught.id } : {}) } })
+    events.push({ day, type: 'regular-back', regularId: r.id, reason: 'wife' })
+  }
 
   // Creepy and obsessed fans you ignore for long enough turn on you; talk to them
   // again and they may come round.
@@ -112,12 +125,12 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     events.push({ day, type: 'regular-turned', regularId: r.id })
   }
 
-  // Dormant: you have not written to them for a long time.
+  // Dormant: you have not written to them for a long time (since he came back, if he was away).
   a = {
     ...a,
     regulars: a.regulars.map((r) => {
       const t = a.threads.find((x) => x.regularId === r.id)
-      const lastMine = Math.max(r.since, ...(t?.messages.filter((m) => m.from === 'me').map((m) => m.day) ?? []))
+      const lastMine = Math.max(r.since, r.away?.until ?? r.since, ...(t?.messages.filter((m) => m.from === 'me').map((m) => m.day) ?? []))
       return r.status === 'active' && day - lastMine > R.dormantAfterDays ? { ...r, status: 'dormant' as const } : r
     }),
   }
@@ -136,7 +149,7 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     const id = `r${day}-${a.regulars.length}`
     const regular = newRegular(rng, id, segment, day, settings, directionEffects(a).traits)
     const topic = pickWeighted(rng, openerTopics(regular))
-    const tip = topic === 'tip' ? tipCents(rng, segment) : undefined
+    const tip = topic === 'tip' ? tipCents(rng, regular) : undefined
     a = {
       ...a,
       regulars: [...a.regulars, { ...regular, spent: tip ?? 0 }],
@@ -146,6 +159,7 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     if (tip) {
       ledger.push(line(day, 'tip', `${id}-m0`, tip))
       events.push({ day, type: 'dm-tip', regularId: id, gross: tip })
+      a = addLoyalty(a, id, 'tip')
     }
   }
 
@@ -158,17 +172,16 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     const b = behaviour(r.traits)
     const tail = unanswered(t)
     if (tail >= b.maxUnanswered) continue
-    const p = preset.segments[r.segment]
     const rr = rngFor(seed, day, `regulars:dm:${r.id}`)
-    if (rr() >= p.dmDaily * b.dmFactor * (tail > 0 ? b.ignoredFactor : 1)) continue
+    if (rr() >= fanProfile(r).dmDaily * b.dmFactor * (tail > 0 ? b.ignoredFactor : 1)) continue
     const topic = pickWeighted(rr, openerTopics(r))
-    const tip = topic === 'tip' && rr() < Math.max(p.dmTipChance, 0.5) ? tipCents(rr, r.segment) : undefined
+    const tip = topic === 'tip' && rr() < Math.max(tipChance(r), 0.5) ? tipCents(rr, r) : undefined
     const id = `${r.id}-m${t.messages.length}`
     a = withThread(a, { ...t, messages: [...t.messages, pendingMessage(id, day, { kind: 'opener', topic: tip ? 'tip' : topic === 'tip' ? 'chat' : topic, ...(tip ? { tip } : {}) }, tip)] })
     events.push({ day, type: 'dm', regularId: r.id })
     if (tip) {
       ledger.push(line(day, 'tip', id, tip))
-      a = { ...a, regulars: a.regulars.map((x) => (x.id === r.id ? { ...x, spent: x.spent + tip } : x)) }
+      a = addLoyalty({ ...a, regulars: a.regulars.map((x) => (x.id === r.id ? { ...x, spent: x.spent + tip } : x)) }, r.id, 'tip')
       events.push({ day, type: 'dm-tip', regularId: r.id, gross: tip })
     }
   }
@@ -188,8 +201,14 @@ function checkPpv(account: Account, ppv: DmInput['ppv']) {
   }
 }
 
-/** Would this fan buy this PPV? Decided by the engine only (plan.md §4.4, 2026-10-14). */
-function decidePpv(rng: Rng, account: Account, regular: Regular, thread: Thread, ppv: NonNullable<DmInput['ppv']>, mass: boolean) {
+/**
+ * Would this fan buy this PPV? Decided by the engine only (plan.md §4.4): his type's
+ * rate × his loyalty × taste × price × whether it has something he likes. A fanatic
+ * (top loyalty) buys anything.
+ */
+function decidePpv(rng: Rng, account: Account, regular: Regular, ppv: NonNullable<DmInput['ppv']>, mass: boolean) {
+  const loyal = loyaltyEffects(regular)
+  if (loyal.buysAnything && !mass) return { bought: true, reason: 'liked' as const }
   const p = preset.segments[regular.segment]
   const items = ppv.vaultIds.map((id) => account.vault.find((v) => v.id === id)!)
   const intensity = Math.max(...items.map((i) => i.intensity))
@@ -197,8 +216,7 @@ function decidePpv(rng: Rng, account: Account, regular: Regular, thread: Thread,
   // Personal offers: prices hurt less than on the wall (per $25 instead of per $10).
   const priceFactor = Math.exp((-p.priceSensitivity * ppv.priceCents) / R.dmPriceScaleCents)
   const likesBonus = items.some((i) => i.tags.some((t) => regular.likes.includes(t))) ? 1.5 : 1
-  const warm = closeness(thread, account.clock.day) * (mass ? R.massPpvFactor : 1)
-  const chance = Math.min(0.95, p.dmPpvRate * warm * match * priceFactor * likesBonus)
+  const chance = Math.min(0.95, fanProfile(regular).ppv * loyal.buy * (mass ? R.massPpvFactor : 1) * match * priceFactor * likesBonus)
   if (rng() < chance) return { bought: true, reason: 'liked' as const }
   const reason = priceFactor < 0.5 ? ('price' as const) : match < 0.5 ? ('taste' as const) : ('mood' as const)
   return { bought: false, reason }
@@ -221,6 +239,7 @@ export function sendDm(
   const regular = account.regulars.find((r) => r.id === regularId)
   if (!regular) throw new ContentError('Conversation not found')
   const day = account.clock.day
+  if (awayNow(regular, day)) throw new ContentError(regular.away?.until === undefined ? 'He blocked you after his wife found out' : 'He is lying low since his wife found out')
   const thread = threadOf(account, regularId)
   const myId = `${regularId}-m${thread.messages.length}`
   const rng = rngFor(seed, day, `dm:${myId}`)
@@ -235,7 +254,7 @@ export function sendDm(
   let decision: NonNullable<Intent['ppv']>[number] | undefined
   let spent = 0
   if (input.ppv) {
-    const d = decidePpv(rng, account, regular, thread, input.ppv, !!massId)
+    const d = decidePpv(rng, account, regular, input.ppv, !!massId)
     ppv = { ...input.ppv, paid: d.bought }
     decision = { messageId: myId, ...d }
     if (d.bought) {
@@ -245,10 +264,9 @@ export function sendDm(
     }
   }
 
-  const p = preset.segments[regular.segment]
   let tip = folded?.tipCents
-  if (!tip && rng() < p.dmTipChance) {
-    tip = tipCents(rng, regular.segment)
+  if (!tip && rng() < tipChance(regular)) {
+    tip = tipCents(rng, regular)
     ledger.push(line(day, 'tip', `${myId}-reply`, tip))
     spent += tip
     events.push({ day, type: 'dm-tip', regularId, gross: tip })
@@ -261,7 +279,11 @@ export function sendDm(
 
   const mine: Message = { id: myId, day, from: 'me', text: input.text.trim(), state: 'sent', ...(ppv ? { ppv } : {}), ...(massId ? { massId } : {}) }
   const next = withReply(thread, mine, (i) => ({ ...i, ...(decision ? { ppv: [...(i.ppv ?? []), decision] } : {}), ...(answer ? { deal: answer.deal } : {}) }), tip)
-  const after = answer?.account ?? account
+  let after = answer?.account ?? account
+  // Loyalty: your message (not a mass one), his purchase and his tip all count.
+  if (!massId) after = addLoyalty(after, regularId, 'message')
+  if (decision?.bought) after = addLoyalty(after, regularId, 'purchase')
+  if (tip && !folded?.tipCents) after = addLoyalty(after, regularId, 'tip')
 
   return {
     account: {
@@ -292,7 +314,11 @@ function templateText(rng: Rng, account: Account, regular: Regular, intent: Inte
   const t = templates[regular.language]
   const d = intent.deal
   if (d?.kind === 'custom' && d.step === 'late') return pick(rng, t.requestLate)
-  if (d?.kind === 'meetup' && d.step === 'met') return pick(rng, t.meetupAfter)
+  if (d?.kind === 'meetup' && d.step === 'back') return pick(rng, t.meetupBack)
+  if (d?.kind === 'meetup' && d.step === 'met') {
+    const outcome = account.meetups.find((x) => x.id === d.id)?.outcome
+    return pick(rng, outcome === 'noShow' ? t.meetupNoShow : outcome === 'creep' ? t.meetupCreep : outcome === 'wife' ? t.meetupWife : t.meetupAfter)
+  }
   if (d?.step !== 'ask') return null
   if (d.kind === 'meetup') {
     const m = account.meetups.find((x) => x.id === d.id)

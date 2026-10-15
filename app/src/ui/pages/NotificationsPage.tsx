@@ -54,13 +54,21 @@ function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: st
     case 'meetup':
       return `${fan(e.regularId)} invited you to meet in person`
     case 'meetup-done':
-      return `You met ${fan(e.regularId)}: ${money(e.gross)} in cash`
+      return {
+        smooth: `You met ${fan(e.regularId)}: ${money(e.gross)} in cash`,
+        bonus: `You met ${fan(e.regularId)} and he paid extra: ${money(e.gross)} in cash`,
+        noShow: `${fan(e.regularId)} did not show up to your meeting`,
+        creep: `${fan(e.regularId)} got creepy, you left early with ${money(e.gross)}`,
+        wife: `${fan(e.regularId)}'s wife caught you: no money, ${count(e.lost ?? 0)} subscriber${s(e.lost ?? 0)} left over the scandal. ${e.returns ? 'He is lying low for now' : 'He blocked you'}`,
+      }[e.outcome ?? 'smooth']
+    case 'loyalty-up':
+      return `${fan(e.regularId)} is now a level ${e.level} fan`
     case 'meetup-expired':
       return `${fan(e.regularId)}'s invitation expired`
     case 'regular-turned':
       return `${fan(e.regularId)} got tired of being ignored and turned on you`
     case 'regular-back':
-      return `${fan(e.regularId)} has warmed up to you again`
+      return e.reason === 'wife' ? `${fan(e.regularId)} is back after lying low` : `${fan(e.regularId)} has warmed up to you again`
     case 'direction':
       return `You changed direction: ${count(e.lost)} subscriber${s(e.lost)} left`
     case 'level-up':
@@ -91,12 +99,13 @@ const FILTERS: Record<string, EngineEvent['type'][]> = {
     'meetup-expired',
     'regular-turned',
     'regular-back',
+    'loyalty-up',
     'direction',
     'level-up',
   ],
   subscriptions: ['subscribers', 'churn', 'milestone', 'direction', 'level-up'],
   tips: ['tips', 'dm-tip'],
-  messages: ['regular', 'dm', 'dm-purchase', 'mass', 'regular-turned', 'regular-back'],
+  messages: ['regular', 'dm', 'dm-purchase', 'mass', 'regular-turned', 'regular-back', 'loyalty-up'],
   posts: ['post', 'purchases'],
   requests: ['request', 'request-paid', 'request-unpaid', 'request-expired', 'meetup', 'meetup-done', 'meetup-expired'],
 }

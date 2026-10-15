@@ -40,7 +40,7 @@ describe('fan personas', () => {
   })
 
   it('obsessed fans and haters keep writing when ignored; obsessed fans and stalkers want to meet', () => {
-    expect(behaviour(['pet_names'])).toEqual({ dmFactor: 1, maxUnanswered: 2, ignoredFactor: 0.3, meetupFactor: 1, turnsHater: null })
+    expect(behaviour(['pet_names'])).toEqual({ dmFactor: 1, maxUnanswered: 2, ignoredFactor: 0.3, meetupFactor: 1, meetupMinLoyalty: 5, events: {}, turnsHater: null })
     expect(behaviour(['pet_names', 'stalker'])).toMatchObject({ maxUnanswered: 4, meetupFactor: 2.5 })
     expect(behaviour(['obsessive']).meetupFactor).toBe(2)
     expect(behaviour(['misogynist']).maxUnanswered).toBe(3)
@@ -114,7 +114,9 @@ describe('schema 6', () => {
     for (const [i, r] of up.regulars.entries()) {
       expect(r.name).not.toBe('Stephanie')
       expect(r.traits.length).toBeGreaterThan(0)
-      expect({ ...r, name: '', handle: '', bio: '', age: 0, country: '', traits: [] }).toEqual({ ...a.regulars[i], name: '', handle: '', bio: '', age: 0, country: '', traits: [] })
+      // Identity is new; loyalty is rebuilt from what you two did, so it matches what was earned.
+      const blank = { name: '', handle: '', bio: '', age: 0, country: '', traits: [], relationship: '' }
+      expect({ ...r, ...blank }).toEqual({ ...a.regulars[i], ...blank })
     }
     expect(up.threads).toEqual(a.threads)
   })

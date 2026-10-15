@@ -219,7 +219,13 @@ function Conversation({ accountId, regularId, onBack }: { accountId: string; reg
             ))}
           </div>
         </div>
-        <Composer accountId={accountId} regularId={regularId} />
+        {view.away ? (
+          <div className="border-t border-border-primary p-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)]">
+            <Alert variant="warning">{AWAY[view.away]}</Alert>
+          </div>
+        ) : (
+          <Composer accountId={accountId} regularId={regularId} />
+        )}
       </div>
       <FanPanel view={view} />
     </div>
@@ -302,6 +308,11 @@ function Extras({ accountId, view, message: m }: { accountId: string; view: Thre
   return null
 }
 
+const AWAY = {
+  gone: 'He blocked you after his wife found out. He will not be back.',
+  lyingLow: 'He is lying low since his wife found out. He was devoted enough to come back once things calm down.',
+}
+
 function Composer({ accountId, regularId }: { accountId: string; regularId: string }) {
   const dispatch = useDispatch()
   const { data: vault = [] } = useVault(accountId)
@@ -380,7 +391,8 @@ function FanDetails({ view }: { view: ThreadView }) {
   const { data: tags = [] } = useTags()
   const r = view.regular
   const purchases = view.messages.filter((m) => m.ppv?.paid)
-  const warmth = Math.round(((view.closeness - 0.7) / 0.6) * 100)
+  const l = view.loyalty
+  const progress = l.next === null ? 100 : Math.round(((l.points - l.from) / (l.next - l.from)) * 100)
   return (
     <div className="flex flex-col gap-4">
       {SEGMENT_BADGE[r.segment] && <Badge className="self-center">{SEGMENT_BADGE[r.segment]}</Badge>}
@@ -403,7 +415,7 @@ function FanDetails({ view }: { view: ThreadView }) {
         <dt className="text-content-tertiary">Regular since</dt>
         <dd className="text-right">Day {r.since}</dd>
         <dt className="text-content-tertiary">Status</dt>
-        <dd className="text-right">{r.status === 'active' ? 'Active' : 'Dormant'}</dd>
+        <dd className="text-right">{view.away === 'gone' ? 'Blocked you' : view.away === 'lyingLow' ? 'Lying low' : r.status === 'active' ? 'Active' : 'Dormant'}</dd>
       </dl>
       <div className="flex flex-col gap-2">
         <span className="typography-body-small-14px-semibold">Likes</span>
@@ -417,10 +429,10 @@ function FanDetails({ view }: { view: ThreadView }) {
       </div>
       <ProgressBar
         variant="brand"
-        value={warmth}
-        title="Warmth"
-        helperRight={`×${view.closeness.toFixed(2)}`}
-        helperLeft="Chat with them first: warmer fans buy more often. Content they like sells better."
+        value={progress}
+        title={`Loyalty · Lv ${l.level} “${l.name}”`}
+        helperRight={l.next === null ? (l.level < 5 ? `Lv ${l.cap} is his limit` : 'Max level') : `${l.next - l.points} to Lv ${l.level + 1}`}
+        helperLeft="Every message, purchase, tip, custom and meetup builds loyalty. Loyal fans tip, order customs and ask to meet more, and buy more readily; a Fanatic buys anything."
       />
     </div>
   )

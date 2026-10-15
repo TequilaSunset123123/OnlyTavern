@@ -54,7 +54,7 @@ export function simulate(
     // Regulars come last: they react to today's crowd. Then their customs and meetups.
     const rd = simulateRegularsDay(acc, acc.audience, seed, day, settings)
     const qd = simulateRequestsDay(rd.account, day)
-    const od = simulateMeetupsDay(qd.account, day)
+    const od = simulateMeetupsDay(qd.account, seed, day)
     const dd = simulateDealsDay(od.account, seed, day)
     acc = dd.account
 
@@ -89,7 +89,8 @@ export function simulate(
   const today = account.clock.day + days
   const keepFrom = today - economy.eventDays
   return {
-    account: { ...acc, clock: { day: today }, events: [...account.events, ...events].filter((e) => e.day > keepFrom) },
+    // acc.events already holds the events engine steps noted on the account (level-ups).
+    account: { ...acc, clock: { day: today }, events: [...acc.events, ...events].filter((e) => e.day > keepFrom) },
     events,
   }
 }

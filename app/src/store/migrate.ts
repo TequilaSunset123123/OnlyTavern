@@ -1,4 +1,6 @@
+import { LOYALTY_GAIN } from '../engine/fans'
 import { makePersona } from '../engine/personas'
+import personas from '../presets/personas.json'
 import { rngFor } from '../engine/rng'
 import { initialAudience, noPoints } from './account'
 import { type Account, AccountSchema, SCHEMA_VERSION, type Segment } from './schema'
@@ -70,6 +72,35 @@ export const MIGRATIONS: Record<number, Migration> = {
     return {
       ...doc,
       threads: (doc.threads as OldThread[]).map((t) => ({ ...t, messages: t.messages.map((m) => (m.intent ? { ...m, intent: deal(m.intent) } : m)) })),
+    }
+  },
+  // Loyalty and outcomes (2026-10-15): each regular's loyalty from what you two already
+  // did; whether he is married, read from his bio; past meetups went smoothly.
+  8: (doc) => {
+    type Msg = { from: string; massId?: string; ppv?: { paid: boolean }; tipCents?: number }
+    const threads = doc.threads as { regularId: string; messages: Msg[] }[]
+    const requests = doc.requests as { regularId: string; delivery?: { paid: boolean } }[]
+    const meetups = doc.meetups as { regularId: string; status: string; offerCents: number }[]
+    const labels = Object.entries(personas.relationships)
+    const G = LOYALTY_GAIN
+    const loyaltyOf = (id: string) => {
+      const msgs = threads.find((t) => t.regularId === id)?.messages ?? []
+      return (
+        msgs.filter((m) => m.from === 'me' && !m.massId).length * G.message +
+        msgs.filter((m) => m.from === 'me' && m.ppv?.paid).length * G.purchase +
+        msgs.filter((m) => m.from === 'fan' && m.tipCents).length * G.tip +
+        requests.filter((q) => q.regularId === id && q.delivery?.paid).length * G.custom +
+        meetups.filter((m) => m.regularId === id && m.status === 'done').length * G.meetup
+      )
+    }
+    return {
+      ...doc,
+      regulars: (doc.regulars as { id: string; bio: string }[]).map((r) => ({
+        ...r,
+        loyalty: loyaltyOf(r.id),
+        relationship: labels.find(([, l]) => r.bio.includes(l.en) || r.bio.includes(l.zh))?.[0] ?? 'single',
+      })),
+      meetups: meetups.map((m) => (m.status === 'done' ? { ...m, outcome: 'smooth', paidCents: m.offerCents } : m)),
     }
   },
 }

@@ -1050,6 +1050,9 @@
     "turnsHater": {
      "afterDays": 14,
      "daily": 0.08
+    },
+    "events": {
+     "creep": 1.5
     }
    }
   },
@@ -1071,7 +1074,12 @@
   },
   "older_gentleman": {
    "label": "Old money",
-   "prompt": "older man trying to sound classy and generous, long-winded and formal, but every message turns pervy"
+   "prompt": "older man trying to sound classy and generous, long-winded and formal, but every message turns pervy",
+   "behaviour": {
+    "events": {
+     "bonus": 1.5
+    }
+   }
   },
   "negging": {
    "label": "Negging",
@@ -1096,6 +1104,10 @@
     "turnsHater": {
      "afterDays": 10,
      "daily": 0.12
+    },
+    "meetupMinLoyalty": 1,
+    "events": {
+     "creep": 2
     }
    }
   },
@@ -1110,6 +1122,10 @@
     "turnsHater": {
      "afterDays": 10,
      "daily": 0.15
+    },
+    "meetupMinLoyalty": 1,
+    "events": {
+     "creep": 3
     }
    }
   },
@@ -1193,6 +1209,34 @@
     "lowercase": 2,
     "dominant": 1,
     "shy": 1
+   },
+   "fan": {
+    "loyaltyCap": 4,
+    "dmDaily": 0.15,
+    "ppv": 0.4,
+    "tip": {
+     "chance": 0.05,
+     "median": 10
+    },
+    "custom": {
+     "daily": 0.08,
+     "accept": 0.5,
+     "median": 40,
+     "minLoyalty": 2
+    },
+    "meetup": {
+     "daily": 0.03,
+     "accept": 0.3,
+     "median": 300,
+     "minLoyalty": 3,
+     "events": {
+      "smooth": 70,
+      "bonus": 5,
+      "noShow": 15,
+      "creep": 8,
+      "wife": 10
+     }
+    }
    }
   },
   "lurker": {
@@ -1232,6 +1276,34 @@
     "minimal": 4,
     "shy": 3,
     "creepy_compliments": 1
+   },
+   "fan": {
+    "loyaltyCap": 3,
+    "dmDaily": 0.05,
+    "ppv": 0.2,
+    "tip": {
+     "chance": 0.02,
+     "median": 5
+    },
+    "custom": {
+     "daily": 0.03,
+     "accept": 0.3,
+     "median": 25,
+     "minLoyalty": 2
+    },
+    "meetup": {
+     "daily": 0.01,
+     "accept": 0.15,
+     "median": 200,
+     "minLoyalty": 3,
+     "events": {
+      "smooth": 55,
+      "bonus": 0,
+      "noShow": 35,
+      "creep": 10,
+      "wife": 5
+     }
+    }
    }
   },
   "simp": {
@@ -1277,6 +1349,34 @@
    "traits": {
     "obsessive": 0.45,
     "stalker": 0.2
+   },
+   "fan": {
+    "loyaltyCap": 5,
+    "dmDaily": 0.45,
+    "ppv": 0.75,
+    "tip": {
+     "chance": 0.25,
+     "median": 15
+    },
+    "custom": {
+     "daily": 0.15,
+     "accept": 0.8,
+     "median": 60,
+     "minLoyalty": 1
+    },
+    "meetup": {
+     "daily": 0.06,
+     "accept": 0.6,
+     "median": 400,
+     "minLoyalty": 2,
+     "events": {
+      "smooth": 60,
+      "bonus": 10,
+      "noShow": 10,
+      "creep": 15,
+      "wife": 5
+     }
+    }
    }
   },
   "whale": {
@@ -1322,6 +1422,34 @@
     "dominant": 3,
     "horny_direct": 2,
     "negging": 1
+   },
+   "fan": {
+    "loyaltyCap": 5,
+    "dmDaily": 0.3,
+    "ppv": 0.9,
+    "tip": {
+     "chance": 0.3,
+     "median": 60
+    },
+    "custom": {
+     "daily": 0.2,
+     "accept": 0.8,
+     "median": 200,
+     "minLoyalty": 1
+    },
+    "meetup": {
+     "daily": 0.1,
+     "accept": 0.7,
+     "median": 1500,
+     "minLoyalty": 2,
+     "events": {
+      "smooth": 60,
+      "bonus": 25,
+      "noShow": 5,
+      "creep": 5,
+      "wife": 15
+     }
+    }
    }
   },
   "hater": {
@@ -1359,6 +1487,28 @@
    "styles": {
     "misogynist": 3,
     "troll": 2
+   },
+   "fan": {
+    "loyaltyCap": 1,
+    "dmDaily": 0.35,
+    "ppv": 0.05,
+    "tip": {
+     "chance": 0,
+     "median": 1
+    },
+    "custom": {
+     "daily": 0,
+     "accept": 0,
+     "median": 20,
+     "minLoyalty": 5
+    },
+    "meetup": {
+     "daily": 0,
+     "accept": 0,
+     "median": 0,
+     "minLoyalty": 5,
+     "events": {}
+    }
    }
   },
   "freeloader": {
@@ -1390,6 +1540,28 @@
    "styles": {
     "cheapskate": 4,
     "lowercase": 1
+   },
+   "fan": {
+    "loyaltyCap": 1,
+    "dmDaily": 0.2,
+    "ppv": 0.1,
+    "tip": {
+     "chance": 0.01,
+     "median": 3
+    },
+    "custom": {
+     "daily": 0.1,
+     "accept": 0.4,
+     "median": 10,
+     "minLoyalty": 1
+    },
+    "meetup": {
+     "daily": 0,
+     "accept": 0,
+     "median": 0,
+     "minLoyalty": 5,
+     "events": {}
+    }
    }
   }
  },
@@ -1397,5 +1569,51 @@
   "messages": 3,
   "afterDays": 3,
   "daily": 0.25
+ },
+ "loyalty": {
+  "points": [
+   0,
+   5,
+   15,
+   35,
+   70
+  ],
+  "names": [
+   "Curious",
+   "Regular",
+   "Loyal",
+   "Devoted",
+   "Fanatic"
+  ],
+  "buy": [
+   0.7,
+   1,
+   1.3,
+   1.7,
+   2.2
+  ],
+  "tip": [
+   0.6,
+   1,
+   1.4,
+   1.9,
+   2.5
+  ],
+  "deal": [
+   0.6,
+   1,
+   1.5,
+   2,
+   3
+  ],
+  "buysAnythingAt": 5,
+  "gain": {
+   "message": 1,
+   "purchase": 2,
+   "tip": 1,
+   "custom": 3,
+   "meetup": 4,
+   "creepMeetup": 1
+  }
  }
 }

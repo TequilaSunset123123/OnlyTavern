@@ -3,7 +3,7 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 8
+export const SCHEMA_VERSION = 9
 
 export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
 export const SegmentSchema = z.enum(SEGMENTS)
@@ -64,6 +64,10 @@ export const RegularSchema = z.object({
   bio: z.string(),
   /** How he writes and behaves (style ids in presets/personas.json): e.g. creepy, obsessed, stalker, misogynist. */
   traits: z.array(z.string()),
+  /** Relationship key in presets/personas.json (married men can get caught at a meetup). */
+  relationship: z.string(),
+  /** Loyalty points, built by everything you two do together (engine/fans.ts). */
+  loyalty: z.number().nonnegative(),
   /** Tag ids this fan likes. */
   likes: z.array(z.string()),
   since: z.number().int(),
@@ -72,6 +76,11 @@ export const RegularSchema = z.object({
   status: z.enum(['active', 'dormant']),
   /** He turned into a hater because you ignored him: what he was, since when, and the trait that came with it. */
   turned: z.object({ from: SegmentSchema, day: z.number().int(), trait: z.string().optional() }).optional(),
+  /**
+   * Gone quiet after a scandal (his wife caught you two): since `day`, back on `until`,
+   * never if it is missing. You cannot write to him until then (engine/meetups.ts).
+   */
+  away: z.object({ reason: z.enum(['wife']), day: z.number().int(), until: z.number().int().optional() }).optional(),
 })
 
 /** Engine decisions the model has to act out in a fan message (plan.md §2.3). */
@@ -85,10 +94,11 @@ export const IntentSchema = z.object({
   /**
    * A deal the engine decided (plan.md §2 rule 3; 2026-10-15): a custom piece or a meetup.
    * ask: he asks for one (on his own, or saying yes to yours); no: he turns yours down;
-   * delivered: he reacts to your custom; late: you missed its deadline; met: after meeting.
+   * delivered: he reacts to your custom; late: you missed its deadline; met: after meeting;
+   * back: he is back after lying low since his wife caught you two.
    * `id` is the Request or Meetup it is about (none for "no").
    */
-  deal: z.object({ kind: z.enum(['custom', 'meetup']), step: z.enum(['ask', 'no', 'delivered', 'late', 'met']), id: z.string().optional() }).optional(),
+  deal: z.object({ kind: z.enum(['custom', 'meetup']), step: z.enum(['ask', 'no', 'delivered', 'late', 'met', 'back']), id: z.string().optional() }).optional(),
 })
 
 export const MessageSchema = z.object({
@@ -164,6 +174,9 @@ export const MeetupSchema = z.object({
   meetDay: z.number().int().optional(),
   /** Kept from co-creators: their prompts and views leave it out (takes effect with step 6). */
   hidden: z.boolean(),
+  /** What happened on the day (rolled then) and the cash you actually got. */
+  outcome: z.enum(['smooth', 'bonus', 'noShow', 'creep', 'wife']).optional(),
+  paidCents: Cents.nonnegative().optional(),
   closedDay: z.number().int().optional(),
   /** The fan's invitation message. */
   messageId: z.string(),
@@ -211,10 +224,22 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
   z.object({ day: z.number().int(), type: z.literal('request-unpaid'), regularId: z.string() }),
   z.object({ day: z.number().int(), type: z.literal('request-expired'), regularId: z.string(), accepted: z.boolean() }),
   z.object({ day: z.number().int(), type: z.literal('meetup'), regularId: z.string(), meetupId: z.string() }),
-  z.object({ day: z.number().int(), type: z.literal('meetup-done'), regularId: z.string(), gross: Cents }),
+  z.object({
+    day: z.number().int(),
+    type: z.literal('meetup-done'),
+    regularId: z.string(),
+    gross: Cents,
+    outcome: z.enum(['smooth', 'bonus', 'noShow', 'creep', 'wife']).optional(),
+    /** Subscribers lost when it turned into a scandal. */
+    lost: Count.optional(),
+    /** After a scandal: whether he will be back one day (loyal enough) or is gone for good. */
+    returns: z.boolean().optional(),
+  }),
+  z.object({ day: z.number().int(), type: z.literal('loyalty-up'), regularId: z.string(), level: z.number().int() }),
   z.object({ day: z.number().int(), type: z.literal('meetup-expired'), regularId: z.string() }),
   z.object({ day: z.number().int(), type: z.literal('regular-turned'), regularId: z.string() }),
-  z.object({ day: z.number().int(), type: z.literal('regular-back'), regularId: z.string() }),
+  /** He came round after turning on you, or (wife) is back after lying low. */
+  z.object({ day: z.number().int(), type: z.literal('regular-back'), regularId: z.string(), reason: z.enum(['wife']).optional() }),
   z.object({ day: z.number().int(), type: z.literal('direction'), direction: DirectionIdSchema, lost: Count }),
   z.object({ day: z.number().int(), type: z.literal('level-up'), direction: DirectionIdSchema, level: z.number().int() }),
 ])

@@ -16,6 +16,23 @@
     "meetupAfter": [
       "That was unforgettable. Thank you for meeting me.",
       "Still thinking about tonight. Thank you."
+    ],
+    "meetupNoShow": [
+      "Sorry I couldn't make it today, something came up.",
+      "My bad about today. Rain check?"
+    ],
+    "meetupCreep": [
+      "You left way too early. I wasn't done with you.",
+      "Why'd you run off? I thought we had something."
+    ],
+    "meetupWife": [
+      "My wife found out. Don't message me for a while.",
+      "Everything blew up at home. I can't talk right now."
+    ],
+    "meetupBack": [
+      "Things finally calmed down at home. I missed you so fucking much.",
+      "I'm back. Couldn't stop thinking about you the whole time.",
+      "Sorry I vanished. She's off my back now, I need to see you again."
     ]
   },
   "zh": {
@@ -35,6 +52,23 @@
     "meetupAfter": [
       "今晚真的忘不了，谢谢你。",
       "还在回味今晚，谢谢你愿意见我。"
+    ],
+    "meetupNoShow": [
+      "今天没能去，临时有事，抱歉。",
+      "今天放你鸽子了，改天吧？"
+    ],
+    "meetupCreep": [
+      "你走得太早了，我还没玩够。",
+      "你跑什么？我以为我们之间有点什么。"
+    ],
+    "meetupWife": [
+      "我老婆发现了，这阵子别联系我。",
+      "家里炸了，现在没法说话。"
+    ],
+    "meetupBack": [
+      "家里总算消停了，想死你了。",
+      "我回来了，这段时间满脑子都是你。",
+      "抱歉消失了这么久，她不盯着我了，我还想见你。"
     ]
   }
 }

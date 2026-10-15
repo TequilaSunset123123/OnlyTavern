@@ -1,16 +1,28 @@
 // Meetups after the invitation (plan.md §4.3, step 5): you say yes (and pick the day)
-// or no; on the day it happens and he pays cash, off the platform: no fee, not in the
-// platform balance. Only the result is recorded; the meeting itself is not played out.
-// How an invitation starts is deals.ts.
+// or no. On the day the engine rolls what happens (2026-10-15), from his type, his
+// traits, whether he is married, and your direction (engine/fans.ts):
+//   smooth   he pays the cash he offered;
+//   bonus    he pays half as much again;
+//   noShow   he does not turn up: nothing;
+//   creep    he gets too pushy and you leave early with half; he may fixate on you (stalker);
+//   wife     his wife catches him: nothing, a scandal costs you subscribers. He goes quiet:
+//            for good up to Loyal (level 3); a Devoted or Fanatic fan is back in 2–4 weeks.
+// Cash is off the platform: no fee, not in the platform balance. How an invitation
+// starts is deals.ts.
 import preset from '../presets/audience.json'
-import type { Account, EngineEvent, LedgerEntry, Meetup } from '../store/schema'
+import type { Account, EngineEvent, LedgerEntry, Meetup, Regular } from '../store/schema'
+import { SEGMENTS } from '../store/schema'
+import { pickWeighted } from './comments'
 import { ContentError } from './content'
 import { meetupOpen as isOpen } from './deals'
-import { addPoints, meetupPoints } from './directions'
+import { addPoints, directionEffects, meetupPoints } from './directions'
 import { paymentLine as line } from './economy'
-import { addFanMessage } from './threads'
+import { addLoyalty, fanProfile, loyaltyLevel, type MeetupOutcome } from './fans'
+import { binomial, type Rng, rngFor } from './rng'
+import { addFanMessage, updateRegular } from './threads'
 
 const M = preset.meetups
+const O = M.outcomes
 
 function update(account: Account, id: string, change: (m: Meetup) => Meetup): Account {
   return { ...account, meetups: account.meetups.map((m) => (m.id === id ? change(m) : m)) }
@@ -22,19 +34,74 @@ function mustFind(account: Account, id: string): Meetup {
   return m
 }
 
-/** One simulated day: meetings that are due happen and unanswered invitations lapse. */
-export function simulateMeetupsDay(account: Account, day: number): { account: Account; events: EngineEvent[] } {
+/** The chances of each outcome for this client: his type's × his traits' × your direction's. */
+export function meetupOdds(account: Account, r: Regular): Partial<Record<MeetupOutcome, number>> {
+  const dir = directionEffects(account).meetupEvents
+  const odds = fanProfile(r).events
+  return Object.fromEntries(Object.entries(odds).map(([k, w]) => [k, w * (dir[k] ?? 1)]))
+}
+
+const roundCash = (cents: number) => Math.round(cents / M.roundCents) * M.roundCents
+
+/** The day of the meeting: roll what happens and settle it. */
+function meet(rng: Rng, account: Account, m: Meetup, day: number): { account: Account; events: EngineEvent[]; ledger: LedgerEntry[] } {
+  const r = account.regulars.find((x) => x.id === m.regularId)!
+  const odds = meetupOdds(account, r)
+  const outcome: MeetupOutcome = Object.values(odds).some((w) => (w ?? 0) > 0) ? pickWeighted(rng, odds as Record<MeetupOutcome, number>) : 'smooth'
+  const paid = { smooth: m.offerCents, bonus: roundCash(m.offerCents * O.bonusFactor), creep: roundCash(m.offerCents * O.creepPaid), noShow: 0, wife: 0 }[outcome]
+
+  let a = update(account, m.id, (x) => ({ ...x, status: 'done', closedDay: day, outcome, paidCents: paid }))
+  const ledger = paid ? [line(day, 'offline', m.id, paid)] : []
+  a = updateRegular(a, { ...a.regulars.find((x) => x.id === r.id)!, spent: r.spent + paid })
+  let lost: number | undefined
+  let returns: boolean | undefined
+
+  if (outcome === 'smooth' || outcome === 'bonus') a = addLoyalty(addPoints(a, meetupPoints()), r.id, 'meetup')
+  if (outcome === 'creep') {
+    // He gets fixated on you.
+    const cur = a.regulars.find((x) => x.id === r.id)!
+    a = addLoyalty(updateRegular(a, { ...cur, traits: cur.traits.includes('stalker') ? cur.traits : [...cur.traits, 'stalker'] }), r.id, 'creepMeetup')
+  }
+  if (outcome === 'wife') {
+    // A scandal: some subscribers leave, and he goes quiet (and drops whatever else he had going with you).
+    lost = 0
+    const cohorts = Object.fromEntries(
+      SEGMENTS.map((s) => [
+        s,
+        a.audience.cohorts[s].map((n) => {
+          const leave = binomial(rng, n, O.wifeLoss)
+          lost! += leave
+          return n - leave
+        }),
+      ]),
+    ) as Account['audience']['cohorts']
+    const cur = a.regulars.find((x) => x.id === r.id)!
+    returns = loyaltyLevel(cur) >= O.wifeBackFromLevel
+    const [lo, hi] = O.wifeQuietDays
+    const until = returns ? day + lo + Math.floor(rng() * (hi - lo + 1)) : undefined
+    a = updateRegular({ ...a, audience: { cohorts } }, { ...cur, status: 'dormant', away: { reason: 'wife', day, ...(until !== undefined ? { until } : {}) } })
+    a = {
+      ...a,
+      requests: a.requests.map((q) => (q.regularId === r.id && (q.status === 'open' || q.status === 'accepted') ? { ...q, status: 'expired' as const, closedDay: day } : q)),
+      meetups: a.meetups.map((x) => (x.regularId === r.id && x.id !== m.id && isOpen(x) ? { ...x, status: 'cancelled' as const, closedDay: day } : x)),
+    }
+  }
+  a = addFanMessage(a, r.id, day, { kind: 'opener', deal: { kind: 'meetup', step: 'met', id: m.id } })
+  const extra = { ...(lost !== undefined ? { lost } : {}), ...(returns !== undefined ? { returns } : {}) }
+  return { account: a, events: [{ day, type: 'meetup-done', regularId: r.id, gross: paid, outcome, ...extra }], ledger }
+}
+
+/** One simulated day: meetings that are due happen (and something happens at them); unanswered invitations lapse. */
+export function simulateMeetupsDay(account: Account, seed: string, day: number): { account: Account; events: EngineEvent[] } {
   let a = account
   const events: EngineEvent[] = []
   const ledger: LedgerEntry[] = []
 
   for (const m of a.meetups.filter((x) => x.status === 'accepted' && x.meetDay !== undefined && x.meetDay <= day)) {
-    a = update(a, m.id, (x) => ({ ...x, status: 'done', closedDay: day }))
-    a = { ...a, regulars: a.regulars.map((r) => (r.id === m.regularId ? { ...r, spent: r.spent + m.offerCents } : r)) }
-    ledger.push(line(day, 'offline', m.id, m.offerCents))
-    events.push({ day, type: 'meetup-done', regularId: m.regularId, gross: m.offerCents })
-    a = addFanMessage(a, m.regularId, day, { kind: 'opener', deal: { kind: 'meetup', step: 'met', id: m.id } })
-    a = addPoints(a, meetupPoints())
+    const r = meet(rngFor(seed, day, `meetup:${m.id}`), a, m, day)
+    a = r.account
+    events.push(...r.events)
+    ledger.push(...r.ledger)
   }
 
   for (const m of a.meetups.filter((x) => x.status === 'open' && day > x.replyBy)) {

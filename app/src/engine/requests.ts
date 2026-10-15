@@ -7,6 +7,7 @@ import { ContentError } from './content'
 import { requestOpen as isOpen } from './deals'
 import { addPoints, customPoints } from './directions'
 import { paymentLine as line } from './economy'
+import { addLoyalty, fanProfile, loyaltyEffects } from './fans'
 import { intensityMatch } from './posts'
 import { tipCents } from './regulars'
 import { rngFor } from './rng'
@@ -104,9 +105,10 @@ export function deliverRequest(account: Account, id: string, vaultIds: string[],
   if (check.paid) {
     ledger.push(line(day, 'custom', id, q.offerCents))
     events.push({ day, type: 'request-paid', regularId: q.regularId, gross: q.offerCents })
-    const chance = Math.min(0.9, preset.segments[regular.segment].dmTipChance * Q.tipFactor)
+    // A perfect one may earn a tip on top: his tip chance (type × loyalty) × 2.
+    const chance = Math.min(0.9, fanProfile(regular).tip.chance * loyaltyEffects(regular).tip * Q.tipFactor)
     if (check.score >= Q.perfectScore && rng() < chance) {
-      tip = tipCents(rng, regular.segment)
+      tip = tipCents(rng, regular)
       ledger.push(line(day, 'tip', `${id}-tip`, tip))
       events.push({ day, type: 'dm-tip', regularId: q.regularId, gross: tip })
     }
@@ -117,7 +119,7 @@ export function deliverRequest(account: Account, id: string, vaultIds: string[],
   const mine: Message = { id: myId, day, from: 'me', text: text.trim(), state: 'sent', delivery: { requestId: id, vaultIds } }
   const next = withReply(thread, mine, (i) => ({ ...i, deal: { kind: 'custom', step: 'delivered', id } }), tip)
   const spent = (check.paid ? q.offerCents : 0) + (tip ?? 0)
-  const credited = check.paid ? addPoints(account, customPoints(q.tags)) : account
+  const credited = check.paid ? addLoyalty(addPoints(account, customPoints(q.tags)), q.regularId, 'custom') : account
   const delivered = update(withThread(credited, next), id, (x) => ({
     ...x,
     status: 'delivered',

@@ -58,7 +58,8 @@
     "rate": 1,
     "offer": 1
    },
-   "meetupPoints": 0
+   "meetupPoints": 0,
+   "meetupEvents": {}
   },
   "porn_star": {
    "label": "Porn star",
@@ -104,7 +105,8 @@
     "rate": 0.6,
     "offer": 1
    },
-   "meetupPoints": 0
+   "meetupPoints": 0,
+   "meetupEvents": {}
   },
   "egirl": {
    "label": "Anime e-girl",
@@ -148,7 +150,8 @@
     "rate": 0.5,
     "offer": 0.9
    },
-   "meetupPoints": 0
+   "meetupPoints": 0,
+   "meetupEvents": {}
   },
   "escort": {
    "label": "High-end escort",
@@ -191,7 +194,11 @@
     "rate": 3,
     "offer": 2
    },
-   "meetupPoints": 5
+   "meetupPoints": 5,
+   "meetupEvents": {
+    "creep": 0.5,
+    "bonus": 1.5
+   }
   },
   "couple": {
    "label": "Couple account",
@@ -232,7 +239,8 @@
     "offer": 1
    },
    "meetupPoints": 0,
-   "partnerContent": true
+   "partnerContent": true,
+   "meetupEvents": {}
   }
  }
 }

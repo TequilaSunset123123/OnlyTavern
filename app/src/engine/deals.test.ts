@@ -24,7 +24,8 @@ function view(a: Account, r: Regular) {
     read: 0,
     items: {},
     creator: { name: 'TestCreator', handle: 'test', accountType: 'paid' as const, priceCents: 999, subscribers: 100, direction: 'an amateur creator' },
-    closeness: 1,
+    loyalty: { points: 0, level: 1, cap: 5, name: 'Curious', from: 0, next: 5 },
+    away: null,
     traits: [],
     requests: a.requests,
     meetups: a.meetups,
@@ -65,7 +66,7 @@ describe('deals: one way in, decided by the engine', () => {
         expect(sent.requests.length).toBe(a.requests.length)
       }
       // The chance is a plain number: his type × warmth × direction, capped at 95%.
-      const p = dealChance(a, r, 'custom', a.clock.day, true)
+      const p = dealChance(a, r, 'custom', true)
       expect(p).toBeGreaterThan(0.4)
       expect(p).toBeLessThanOrEqual(0.95)
     }
@@ -77,14 +78,14 @@ describe('deals: one way in, decided by the engine', () => {
     const a = grown('a')
     const r = a.regulars[0]
     const hater = as(a, r, 'hater')
-    expect(dealChance(hater, hater.regulars.find((x) => x.id === r.id)!, 'custom', a.clock.day, true)).toBe(0)
+    expect(dealChance(hater, hater.regulars.find((x) => x.id === r.id)!, 'custom', true)).toBe(0)
     const sent = sendDm(hater, r.id, { text: 'want a custom?' }, 's').account
     expect(threadOf(sent, r.id).messages.at(-1)!.intent?.deal).toEqual({ kind: 'custom', step: 'no' })
 
     const whaleHere = as(a, r, 'whale')
     const escort = { ...whaleHere, direction: { ...whaleHere.direction, id: 'escort' as const, points: { ...whaleHere.direction.points, escort: 200 } } }
     const w = (acc: Account) => acc.regulars.find((x) => x.id === r.id)!
-    expect(dealChance(escort, w(escort), 'meetup', a.clock.day, true)).toBeGreaterThan(dealChance(whaleHere, w(whaleHere), 'meetup', a.clock.day, true) * 1.5)
+    expect(dealChance(escort, w(escort), 'meetup', true)).toBeGreaterThan(dealChance(whaleHere, w(whaleHere), 'meetup', true) * 1.5)
   })
 
   it('the prompt gets one line for what happens, and nothing about deals that are not happening', () => {

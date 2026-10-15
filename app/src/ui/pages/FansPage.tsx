@@ -60,11 +60,12 @@ export function FansPage() {
                   <TableHead>Type</TableHead>
                   <TableHead className="text-right">Spent</TableHead>
                   <TableHead>Since</TableHead>
+                  <TableHead>Loyalty</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {regulars.map(({ regular: r }) => (
+                {regulars.map(({ regular: r, loyalty: l }) => (
                   <TableRow key={r.id} className="cursor-pointer" onClick={() => navigate(`/messages/${r.id}`)}>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -75,6 +76,10 @@ export function FansPage() {
                     <TableCell>{stats?.segments.find((s) => s.id === r.segment)?.label ?? r.segment}</TableCell>
                     <TableCell className="text-right font-semibold">{money(r.spent)}</TableCell>
                     <TableCell>Day {r.since}</TableCell>
+                    <TableCell>
+                      Lv {l.level} {l.name}
+                      {l.cap < 5 ? <span className="text-content-tertiary"> (max {l.cap})</span> : null}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={r.status === 'active' ? 'success' : 'default'}>{r.status === 'active' ? 'Active' : 'Dormant'}</Badge>
                     </TableCell>

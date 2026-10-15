@@ -30,9 +30,11 @@ export type { PostInput, VaultInput } from '../engine/content'
 export type { DmInput } from '../engine/regulars'
 export type { MassInput } from '../engine/massMessages'
 export type { DirectionInfo } from '../engine/directions'
+export type { LoyaltyInfo, MeetupOutcome } from '../engine/fans'
 import type { Comment } from '../engine/comments'
 import type { PostInput, VaultInput } from '../engine/content'
 import type { DirectionInfo } from '../engine/directions'
+import type { LoyaltyInfo } from '../engine/fans'
 import type { MassInput } from '../engine/massMessages'
 import type { DmInput } from '../engine/regulars'
 import type {
@@ -137,6 +139,7 @@ export type Feed = { day: number; canLockPosts: boolean; posts: FeedPost[] }
 
 export type InboxThread = {
   regular: Regular
+  loyalty: LoyaltyInfo
   last: Message | null
   unread: number
   /** A fan message is waiting for the model to write it. */
@@ -157,8 +160,10 @@ export type ThreadView = {
   /** Vault items referenced by PPV messages (null = deleted). */
   items: Record<string, VaultItem | null>
   creator: { name: string; handle: string; accountType: Profile['accountType']; priceCents: number; subscribers: number; direction: string }
-  /** How warm the fan is (multiplies their chance to buy a PPV): 0.7 cold … 1.3. */
-  closeness: number
+  /** How loyal he is (engine/fans.ts): level 1–5, his type's ceiling, and points toward the next level. */
+  loyalty: LoyaltyInfo
+  /** Since his wife caught you two: gone for good, lying low for a while, or neither. You cannot write to him meanwhile. */
+  away: 'gone' | 'lyingLow' | null
   /** How this fan writes and behaves: a short label for the UI, the description for the model. */
   traits: { id: string; label: string; prompt: string }[]
   /** This fan's custom requests and meetup invitations. */

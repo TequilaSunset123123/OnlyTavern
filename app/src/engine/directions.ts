@@ -21,6 +21,8 @@ type Spec = {
   requests: { rate: number; offer: number }
   meetups: { rate: number; offer: number }
   meetupPoints: number
+  /** Multiplies the chances of what happens at a meetup (escorts screen clients: less creepy, more generous). */
+  meetupEvents: Record<string, number>
   partnerContent?: boolean
 }
 
@@ -47,6 +49,7 @@ export type Effects = {
   traits: Record<string, number>
   requests: { rate: number; offer: number }
   meetups: { rate: number; offer: number }
+  meetupEvents: Record<string, number>
 }
 
 /** What the current direction does right now (scaled by its level). */
@@ -60,6 +63,7 @@ export function directionEffects(account: Account): Effects {
     traits: Object.fromEntries(Object.entries(spec.traits).map(([t, m]) => [t, scale(m)])),
     requests: { rate: scale(spec.requests.rate), offer: scale(spec.requests.offer) },
     meetups: { rate: scale(spec.meetups.rate), offer: scale(spec.meetups.offer) },
+    meetupEvents: Object.fromEntries(Object.entries(spec.meetupEvents).map(([e, m]) => [e, scale(m)])),
   }
 }
 
