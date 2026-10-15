@@ -145,6 +145,8 @@ describe('fan message prompt and parsing', () => {
       items: { v0: acc.vault[0] },
       creator: { name: 'Mia', handle: 'mia', accountType: 'free' as const, priceCents: 0, subscribers: 100 },
       closeness: 1,
+      requests: [],
+      meetups: [],
     }
     const [system, user] = buildFanPrompt(view, t.messages.at(-1)!.id)
     expect(system.content).toContain('<message>')

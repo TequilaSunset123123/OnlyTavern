@@ -3,7 +3,7 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
 export const SegmentSchema = z.enum(SEGMENTS)
@@ -61,7 +61,7 @@ export const RegularSchema = z.object({
   /** Tag ids this fan likes. */
   likes: z.array(z.string()),
   since: z.number().int(),
-  /** Total cents spent on you in DMs (PPV + tips). */
+  /** Total cents spent on you: paid messages, tips, custom requests and meetups. */
   spent: Cents.nonnegative(),
   status: z.enum(['active', 'dormant']),
 })
@@ -74,6 +74,10 @@ export const IntentSchema = z.object({
   /** Outcome for each PPV you sent since the fan's last message. */
   ppv: z.array(z.object({ messageId: z.string(), bought: z.boolean(), reason: z.enum(['liked', 'price', 'taste', 'mood']) })).optional(),
   tip: Cents.optional(),
+  /** A custom request: the fan asks for one, reacts to what you delivered, or you were late. */
+  request: z.object({ requestId: z.string(), phase: z.enum(['ask', 'delivered', 'late']) }).optional(),
+  /** An offline meetup: the fan invites you, or writes the day after. */
+  meetup: z.object({ meetupId: z.string(), phase: z.enum(['invite', 'after']) }).optional(),
 })
 
 export const MessageSchema = z.object({
@@ -89,6 +93,8 @@ export const MessageSchema = z.object({
   intent: IntentSchema.optional(),
   /** Set by a mass message. */
   massId: z.string().optional(),
+  /** What you delivered for a custom request. */
+  delivery: z.object({ requestId: z.string(), vaultIds: z.array(z.string()) }).optional(),
   /** Who put a fan message into words: the model, or a corpus line when it was unavailable. */
   writtenBy: z.enum(['model', 'corpus']).optional(),
 })
@@ -109,7 +115,51 @@ export const MassMessageSchema = z.object({
   stats: z.object({ sent: Count, views: Count, purchases: Count, earned: Cents }),
 })
 
-export const LedgerKindSchema = z.enum(['subscription', 'renewal', 'tip', 'post', 'message', 'payout'])
+/** Why a delivered custom was (not) paid for: liked, or what was wrong with it. */
+export const DeliveryReasonSchema = z.enum(['liked', 'tags', 'tame', 'explicit', 'reused'])
+
+/** A custom request from a regular (plan.md §4.3; step 5). The engine decides what they want and pay. */
+export const RequestSchema = z.object({
+  id: z.string(),
+  regularId: z.string(),
+  day: z.number().int(),
+  /** Tag ids the fan wants (from their likes). */
+  tags: z.array(z.string()),
+  intensity: z.number().int().min(1).max(5),
+  /** Paid on delivery, if it matches. */
+  offerCents: Cents.nonnegative(),
+  /** Last day to deliver; unanswered or undelivered requests expire after it. */
+  dueDay: z.number().int(),
+  status: z.enum(['open', 'accepted', 'declined', 'delivered', 'expired']),
+  acceptedDay: z.number().int().optional(),
+  closedDay: z.number().int().optional(),
+  /** The fan's message asking for it. */
+  messageId: z.string(),
+  delivery: z
+    .object({ day: z.number().int(), vaultIds: z.array(z.string()), paid: z.boolean(), reason: DeliveryReasonSchema, tipCents: Cents.nonnegative().optional() })
+    .optional(),
+})
+
+/** An offline job: a regular pays you cash to meet in person (plan.md §4.3; step 5). Off the platform. */
+export const MeetupSchema = z.object({
+  id: z.string(),
+  regularId: z.string(),
+  day: z.number().int(),
+  /** Cash, no platform fee. */
+  offerCents: Cents.nonnegative(),
+  /** Last day to answer the invitation. */
+  replyBy: z.number().int(),
+  status: z.enum(['open', 'accepted', 'declined', 'done', 'expired', 'cancelled']),
+  meetDay: z.number().int().optional(),
+  /** Kept from co-creators: their prompts and views leave it out (takes effect with step 6). */
+  hidden: z.boolean(),
+  closedDay: z.number().int().optional(),
+  /** The fan's invitation message. */
+  messageId: z.string(),
+})
+
+/** 'offline' is cash from meetups: no fee, never part of the platform balance. */
+export const LedgerKindSchema = z.enum(['subscription', 'renewal', 'tip', 'post', 'message', 'custom', 'offline', 'payout'])
 
 /** One line per day and kind (the crowd's payments are aggregated, not stored per fan). */
 export const LedgerEntrySchema = z.object({
@@ -145,6 +195,13 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
   z.object({ day: z.number().int(), type: z.literal('dm-purchase'), regularId: z.string(), gross: Cents }),
   z.object({ day: z.number().int(), type: z.literal('dm-tip'), regularId: z.string(), gross: Cents }),
   z.object({ day: z.number().int(), type: z.literal('mass'), massId: z.string(), views: Count, purchases: Count, gross: Cents }),
+  z.object({ day: z.number().int(), type: z.literal('request'), regularId: z.string(), requestId: z.string() }),
+  z.object({ day: z.number().int(), type: z.literal('request-paid'), regularId: z.string(), gross: Cents }),
+  z.object({ day: z.number().int(), type: z.literal('request-unpaid'), regularId: z.string() }),
+  z.object({ day: z.number().int(), type: z.literal('request-expired'), regularId: z.string(), accepted: z.boolean() }),
+  z.object({ day: z.number().int(), type: z.literal('meetup'), regularId: z.string(), meetupId: z.string() }),
+  z.object({ day: z.number().int(), type: z.literal('meetup-done'), regularId: z.string(), gross: Cents }),
+  z.object({ day: z.number().int(), type: z.literal('meetup-expired'), regularId: z.string() }),
 ])
 
 export const MemberSchema = z.object({
@@ -181,7 +238,8 @@ export const AccountSchema = z.object({
   regulars: z.array(RegularSchema),
   threads: z.array(ThreadSchema),
   massMessages: z.array(MassMessageSchema),
-  requests: z.array(z.unknown()),
+  requests: z.array(RequestSchema),
+  meetups: z.array(MeetupSchema),
   ledger: z.array(LedgerEntrySchema),
   /** Recent engine events (the last `eventDays` days), for notifications. */
   events: z.array(EngineEventSchema),
@@ -202,6 +260,9 @@ export type Message = z.infer<typeof MessageSchema>
 export type Intent = z.infer<typeof IntentSchema>
 export type Thread = z.infer<typeof ThreadSchema>
 export type MassMessage = z.infer<typeof MassMessageSchema>
+export type Request = z.infer<typeof RequestSchema>
+export type Meetup = z.infer<typeof MeetupSchema>
+export type DeliveryReason = z.infer<typeof DeliveryReasonSchema>
 export type Audience = z.infer<typeof AudienceSchema>
 export type LedgerKind = z.infer<typeof LedgerKindSchema>
 export type LedgerEntry = z.infer<typeof LedgerEntrySchema>

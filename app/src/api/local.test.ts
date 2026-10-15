@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { sendDm } from '../engine/regulars'
+import { simulate } from '../engine/simulate'
+import { createAccount } from '../store/account'
+import type { Account } from '../store/schema'
 import { createMemoryStorage } from '../store/storage'
+import { exportAccount } from '../store/transfer'
 import { createLocalApi } from './local'
 
 function setup() {
@@ -158,5 +163,44 @@ describe('local api: writes', () => {
     const account = await api.getAccount(id!)
     expect(account?.vault).toHaveLength(2)
     expect(account?.profile.bio).toBe('hi')
+  })
+})
+
+describe('local api: requests and meetups', () => {
+  /** An account where you chatted with your regulars until one asked for a custom and one invited you. */
+  function busy(): Account {
+    const settings = { fanLanguage: 'en' as const, connectionProfile: null }
+    let a = simulate(createAccount({ id: 'x', seed: 'd', now: 0, name: 'Mia', handle: 'mia' }), 30, 'd', settings).account
+    for (let i = 0; i < 120 && !(a.requests.some((q) => q.status === 'open') && a.meetups.some((m) => m.status === 'open')); i++) {
+      for (const r of a.regulars.filter((x) => x.status === 'active')) a = sendDm(a, r.id, { text: 'hi' }, 'd').account
+      a = simulate(a, 1, 'd', settings).account
+    }
+    return a
+  }
+
+  it('accept and deliver a custom, accept a meetup and get the cash on the day', async () => {
+    const api = setup()
+    const { id } = await api.dispatch({ type: 'account.import', json: exportAccount(busy()) })
+    const accountId = id!
+    const list = await api.getRequests(accountId)
+    const q = list.requests.find((r) => r.request.status === 'open')!.request
+    const m = list.meetups.find((r) => r.meetup.status === 'open')!.meetup
+
+    await api.dispatch({ type: 'request.accept', id: accountId, requestId: q.id })
+    const item = await api.dispatch({ type: 'vault.add', id: accountId, item: { description: 'for you', tags: q.tags, intensity: q.intensity, cast: 'me' } })
+    const r = await api.dispatch({ type: 'request.deliver', id: accountId, requestId: q.id, vaultIds: [item.id!], text: 'here' })
+    expect(r.events.some((e) => e.type === 'request-paid')).toBe(true)
+    const thread = await api.getThread(accountId, q.regularId)
+    expect(thread.requests.find((x) => x.id === q.id)).toMatchObject({ status: 'delivered', delivery: { paid: true } })
+    expect(thread.items[item.id!]?.description).toBe('for you')
+    expect((await api.getStatements(accountId)).totals.custom.gross).toBe(q.offerCents)
+
+    const day = list.day + 1
+    await api.dispatch({ type: 'meetup.accept', id: accountId, meetupId: m.id, day, hidden: false })
+    await api.dispatch({ type: 'clock.advance', id: accountId, days: 1 })
+    const after = await api.getRequests(accountId)
+    expect(after.meetups.find((x) => x.meetup.id === m.id)!.meetup.status).toBe('done')
+    expect((await api.getStatements(accountId)).balances.cash).toBe(m.offerCents)
+    await expect(api.dispatch({ type: 'meetup.cancel', id: accountId, meetupId: m.id })).rejects.toThrow(/accepted/)
   })
 })

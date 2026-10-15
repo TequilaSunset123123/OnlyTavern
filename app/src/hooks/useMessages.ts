@@ -70,3 +70,7 @@ export function useFanWriter(accountId: string, view: ThreadView | undefined) {
 
   return { ...state, retry }
 }
+
+export function useRequests(id: string | null | undefined) {
+  return useQuery({ queryKey: ['account', id, 'requests'], queryFn: () => api.getRequests(id!), enabled: !!id })
+}

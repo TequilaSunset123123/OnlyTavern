@@ -36,6 +36,13 @@ export const MIGRATIONS: Record<number, Migration> = {
     massMessages: [],
     history: (doc.history as { net: object }[]).map((d) => ({ ...d, net: { ...d.net, message: 0 } })),
   }),
+  // Step 5 (custom requests, meetups): typed requests, meetups, 'custom' and 'offline' (cash) earnings.
+  4: (doc) => ({
+    ...doc,
+    requests: [],
+    meetups: [],
+    history: (doc.history as { net: object }[]).map((d) => ({ ...d, net: { ...d.net, custom: 0, offline: 0 } })),
+  }),
 }
 
 export class SaveError extends Error {}

@@ -10,7 +10,7 @@ import economy from '../presets/economy.json'
 import tags from '../presets/tags.json'
 import { createAccount, summarize } from '../store/account'
 import { migrate, SaveError, versionOf } from '../store/migrate'
-import { type Account, type AccountIndex, LedgerKindSchema, SCHEMA_VERSION, SEGMENTS, SettingsSchema } from '../store/schema'
+import { type Account, type AccountIndex, LedgerKindSchema, type Message, SCHEMA_VERSION, SEGMENTS, SettingsSchema } from '../store/schema'
 import type { AccountStorage } from '../store/storage'
 import { exportAccount, exportFileName, importAccount } from '../store/transfer'
 import type { Action, Api, DispatchResult, InboxThread, ProfilePatch, Statements } from './types'
@@ -19,6 +19,8 @@ import type { Action, Api, DispatchResult, InboxThread, ProfilePatch, Statements
 const engine = () => import('../engine/simulate')
 const dms = () => import('../engine/regulars')
 const mass = () => import('../engine/massMessages')
+const requests = () => import('../engine/requests')
+const meetups = () => import('../engine/meetups')
 
 export type Env = {
   now(): number
@@ -184,6 +186,53 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       return { delta: [`account:${id}`], events, id: massId }
     },
 
+    async 'request.accept'({ id, requestId }) {
+      const { acceptRequest } = await requests()
+      await update(id, (a) => acceptRequest(a, requestId))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
+    async 'request.decline'({ id, requestId }) {
+      const { declineRequest } = await requests()
+      await update(id, (a) => declineRequest(a, requestId))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
+    async 'request.deliver'({ id, requestId, vaultIds, text }) {
+      const { deliverRequest } = await requests()
+      let events: DispatchResult['events'] = []
+      await update(id, (a) => {
+        const r = deliverRequest(a, requestId, vaultIds, text, a.meta.seed)
+        events = r.events
+        return r.account
+      })
+      return { delta: [`account:${id}`], events }
+    },
+
+    async 'meetup.accept'({ id, meetupId, day, hidden }) {
+      const { acceptMeetup } = await meetups()
+      await update(id, (a) => acceptMeetup(a, meetupId, day, hidden))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
+    async 'meetup.decline'({ id, meetupId }) {
+      const { declineMeetup } = await meetups()
+      await update(id, (a) => declineMeetup(a, meetupId))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
+    async 'meetup.cancel'({ id, meetupId }) {
+      const { cancelMeetup } = await meetups()
+      await update(id, (a) => cancelMeetup(a, meetupId))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
+    async 'meetup.hide'({ id, meetupId, hidden }) {
+      const { hideMeetup } = await meetups()
+      await update(id, (a) => hideMeetup(a, meetupId, hidden))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
     async 'settings.update'({ patch }) {
       const next = SettingsSchema.parse({ ...(await storage.loadSettings()), ...patch })
       await storage.saveSettings(next)
@@ -221,7 +270,7 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       const net = new Map<number, Record<string, number>>()
       for (const e of account.ledger) {
         if (e.kind === 'payout') continue
-        const d = net.get(e.day) ?? { subscription: 0, renewal: 0, tip: 0, post: 0, message: 0, payout: 0 }
+        const d = net.get(e.day) ?? Object.fromEntries(LedgerKindSchema.options.map((k) => [k, 0]))
         d[e.kind] += e.net
         net.set(e.day, d)
       }
@@ -279,7 +328,9 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       const thread = account.threads.find((t) => t.regularId === regularId)
       if (!regular || !thread) throw new SaveError('Conversation not found')
       const items = Object.fromEntries(
-        thread.messages.flatMap((m) => m.ppv?.vaultIds ?? []).map((v) => [v, account.vault.find((i) => i.id === v) ?? null]),
+        thread.messages
+          .flatMap((m) => [...(m.ppv?.vaultIds ?? []), ...(m.delivery?.vaultIds ?? [])])
+          .map((v) => [v, account.vault.find((i) => i.id === v) ?? null]),
       )
       const p = account.profile
       return {
@@ -290,10 +341,34 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
         items,
         creator: { name: p.name, handle: p.handle, accountType: p.accountType, priceCents: p.priceCents, subscribers: subscriberCount(account.audience) },
         closeness: (await dms()).closeness(thread, account.clock.day),
+        requests: account.requests.filter((q) => q.regularId === regularId),
+        meetups: account.meetups.filter((m) => m.regularId === regularId),
       }
     },
     async getMassMessages(id) {
       return (await mustLoad(id)).massMessages
+    },
+    async getRequests(id) {
+      const account = await mustLoad(id)
+      const regular = (regularId: string) => account.regulars.find((r) => r.id === regularId)!
+      const message = (regularId: string, messageId: string): Message | null => {
+        const m = account.threads.find((t) => t.regularId === regularId)?.messages.find((x) => x.id === messageId)
+        return m?.state === 'sent' ? m : null
+      }
+      return {
+        day: account.clock.day,
+        requests: [...account.requests].reverse().map((request) => ({
+          request,
+          regular: regular(request.regularId),
+          message: message(request.regularId, request.messageId),
+          items: (request.delivery?.vaultIds ?? []).map((v) => account.vault.find((i) => i.id === v) ?? null),
+        })),
+        meetups: [...account.meetups].reverse().map((meetup) => ({
+          meetup,
+          regular: regular(meetup.regularId),
+          message: message(meetup.regularId, meetup.messageId),
+        })),
+      }
     },
     // One write at a time: each action loads, changes and saves the whole account,
     // so two at once would overwrite each other (e.g. the model's reply and "mark read").

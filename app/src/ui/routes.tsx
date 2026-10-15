@@ -7,6 +7,7 @@ import { MorePage } from './pages/MorePage'
 import { NewPostPage } from './pages/NewPostPage'
 import { NotificationsPage } from './pages/NotificationsPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { RequestsPage } from './pages/RequestsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { VaultPage } from './pages/VaultPage'
 import { AppShell } from './shell/AppShell'
@@ -21,6 +22,7 @@ export const routes: RouteObject[] = [
       { path: '/notifications', element: <NotificationsPage /> },
       { path: '/messages', element: <MessagesPage /> },
       { path: '/messages/:regularId', element: <MessagesPage /> },
+      { path: '/requests', element: <RequestsPage /> },
       { path: '/vault', element: <VaultPage /> },
       // Pages with charts load on first visit, so recharts stays out of the startup bundle.
       { path: '/statements', lazy: () => import('./pages/StatementsPage').then((m) => ({ Component: m.StatementsPage })) },

@@ -11,11 +11,14 @@ export type {
   LedgerKind,
   Intent,
   MassMessage,
+  Meetup,
   Member,
   Message,
   Mood,
   Post,
   Regular,
+  Request,
+  DeliveryReason,
   Profile,
   Segment,
   Settings,
@@ -37,10 +40,12 @@ import type {
   LedgerEntry,
   LedgerKind,
   MassMessage,
+  Meetup,
   Message,
   Post,
   Profile,
   Regular,
+  Request,
   Segment,
   Settings,
   VaultItem,
@@ -70,6 +75,16 @@ export type Action =
   | { type: 'dm.fallback'; id: string; regularId: string; messageId: string }
   | { type: 'dm.read'; id: string; regularId: string }
   | { type: 'mass.send'; id: string; message: MassInput }
+  | { type: 'request.accept'; id: string; requestId: string }
+  /** Say no, or back out of one you accepted. */
+  | { type: 'request.decline'; id: string; requestId: string }
+  | { type: 'request.deliver'; id: string; requestId: string; vaultIds: string[]; text: string }
+  /** Say yes to a meetup and pick the game day. */
+  | { type: 'meetup.accept'; id: string; meetupId: string; day: number; hidden: boolean }
+  | { type: 'meetup.decline'; id: string; meetupId: string }
+  | { type: 'meetup.cancel'; id: string; meetupId: string }
+  /** Keep a meetup from co-creators (or not). */
+  | { type: 'meetup.hide'; id: string; meetupId: string; hidden: boolean }
 
 /** What changed, so the UI knows which queries to refetch. */
 export type Topic = 'accounts' | 'settings' | `account:${string}`
@@ -85,7 +100,8 @@ export type DispatchResult = {
 /** All amounts in cents. */
 export type Statements = {
   day: number
-  balances: { available: number; pending: number; earned: number; paidOut: number; minPayout: number }
+  /** `cash` is meetup money: off the platform, not part of the other balances. */
+  balances: { available: number; pending: number; earned: number; paidOut: number; minPayout: number; cash: number }
   /** Newest first. */
   entries: LedgerEntry[]
   totals: Record<LedgerKind, { count: number; gross: number; net: number }>
@@ -133,7 +149,24 @@ export type ThreadView = {
   creator: { name: string; handle: string; accountType: Profile['accountType']; priceCents: number; subscribers: number }
   /** How warm the fan is (multiplies their chance to buy a PPV): 0.7 cold … 1.3. */
   closeness: number
+  /** This fan's custom requests and meetup invitations. */
+  requests: Request[]
+  meetups: Meetup[]
 }
+
+export type RequestRow = {
+  request: Request
+  regular: Regular
+  /** The fan's message asking for it (null while the model has not written it). */
+  message: Message | null
+  /** What you delivered (null = removed from the vault). */
+  items: (VaultItem | null)[]
+}
+
+export type MeetupRow = { meetup: Meetup; regular: Regular; message: Message | null }
+
+/** Newest first. */
+export type Requests = { day: number; requests: RequestRow[]; meetups: MeetupRow[] }
 
 export interface Api {
   listAccounts(): Promise<AccountIndex>
@@ -151,5 +184,6 @@ export interface Api {
   getInbox(id: string): Promise<Inbox>
   getThread(id: string, regularId: string): Promise<ThreadView>
   getMassMessages(id: string): Promise<MassMessage[]>
+  getRequests(id: string): Promise<Requests>
   dispatch(action: Action): Promise<DispatchResult>
 }

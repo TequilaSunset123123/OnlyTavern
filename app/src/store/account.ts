@@ -32,6 +32,7 @@ export function createAccount({ id, seed, now, name, handle }: NewAccountInput):
     threads: [],
     massMessages: [],
     requests: [],
+    meetups: [],
     ledger: [],
     events: [],
     history: [],

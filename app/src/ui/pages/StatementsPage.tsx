@@ -39,15 +39,19 @@ const describe = (e: LedgerEntry) =>
     tip: `Tips from ${e.count} fan${e.count === 1 ? '' : 's'}`,
     post: `Locked post bought by ${e.count} fan${e.count === 1 ? '' : 's'}`,
     message: `Paid message${e.count === 1 ? '' : 's'} unlocked by ${e.count} fan${e.count === 1 ? '' : 's'}`,
+    custom: 'Custom request paid',
+    offline: 'Cash from a meetup (off the platform, not in your balance)',
     payout: 'Payout request',
   })[e.kind]
 
 const FILTERS: Record<string, LedgerKind[]> = {
-  all: ['subscription', 'renewal', 'tip', 'post', 'message', 'payout'],
+  all: ['subscription', 'renewal', 'tip', 'post', 'message', 'custom', 'offline', 'payout'],
   subscriptions: ['subscription', 'renewal'],
   tips: ['tip'],
   posts: ['post'],
   messages: ['message'],
+  customs: ['custom'],
+  cash: ['offline'],
   payouts: ['payout'],
 }
 
@@ -75,12 +79,14 @@ export function StatementsPage() {
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="flex min-w-0 flex-col gap-3">
           <Tabs value={filter} onValueChange={setFilter}>
-            <TabsList>
+            <TabsList scrollable>
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
               <TabsTrigger value="tips">Tips</TabsTrigger>
               <TabsTrigger value="posts">Posts</TabsTrigger>
               <TabsTrigger value="messages">Messages</TabsTrigger>
+              <TabsTrigger value="customs">Customs</TabsTrigger>
+              <TabsTrigger value="cash">Cash</TabsTrigger>
               <TabsTrigger value="payouts">Payouts</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -143,6 +149,8 @@ export function StatementsPage() {
             <ChartCard title="Tips" subtitle={money(totals.tip.net)} />
             <ChartCard title="Posts" subtitle={money(totals.post.net)} />
             <ChartCard title="Messages" subtitle={money(totals.message.net)} />
+            <ChartCard title="Customs" subtitle={money(totals.custom.net)} />
+            <ChartCard title="Cash (off platform)" subtitle={money(b.cash)} />
             <ChartCard title="Total earned" subtitle={money(b.earned)} />
             <ChartCard title="Paid out" subtitle={money(b.paidOut)} />
           </div>

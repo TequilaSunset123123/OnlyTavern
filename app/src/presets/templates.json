@@ -1,0 +1,40 @@
+{
+  "en": {
+    "requestAsk": [
+      "Could you make a custom just for me? I'm thinking {tags}. I'd pay {money} when it's done.",
+      "I've got a custom request for you: {tags}. {money} for it, if you're up for it?",
+      "Would you do a custom for me? Something with {tags}. I can pay {money}."
+    ],
+    "requestLate": [
+      "You said you'd make my custom... guess not.",
+      "Still waiting on that custom. Kind of disappointed tbh."
+    ],
+    "meetupInvite": [
+      "I know this is off the app, but could we meet in person? I'd pay {money} for a night with you.",
+      "No pressure at all, but I'd love to meet you for real. {money} for one night, cash."
+    ],
+    "meetupAfter": [
+      "That was unforgettable. Thank you for meeting me.",
+      "Still thinking about tonight. Thank you."
+    ]
+  },
+  "zh": {
+    "requestAsk": [
+      "能给我拍一个专属定制吗？想要{tags}，拍好了我付{money}。",
+      "想找你定制一个：{tags}。{money}，可以吗？",
+      "可以帮我做个定制吗？要{tags}的，我出{money}。"
+    ],
+    "requestLate": [
+      "说好的定制呢……算了。",
+      "还在等那个定制，说实话有点失望。"
+    ],
+    "meetupInvite": [
+      "我知道这不在平台上，但能不能见一面？陪我一晚，我付{money}。",
+      "不勉强，就是很想见见真人。一晚{money}，现金。"
+    ],
+    "meetupAfter": [
+      "今晚真的忘不了，谢谢你。",
+      "还在回味今晚，谢谢你愿意见我。"
+    ]
+  }
+}

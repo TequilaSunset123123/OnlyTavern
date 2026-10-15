@@ -5,6 +5,7 @@
 import preset from '../presets/audience.json'
 import economy from '../presets/economy.json'
 import tags from '../presets/tags.json'
+import templates from '../presets/templates.json'
 import type {
   Account,
   Audience,
@@ -39,28 +40,29 @@ const OPENER_TOPICS: Record<Segment, Record<Topic, number>> = {
   freeloader: { chat: 2, compliment: 1, wants_content: 5, tip: 0.2 },
 }
 
-function line(day: number, kind: LedgerEntry['kind'], id: string, gross: number): LedgerEntry {
-  const fee = Math.round(gross * PLATFORM_FEE)
+/** One payment from one regular. Cash from meetups ('offline') pays no platform fee. */
+export function line(day: number, kind: LedgerEntry['kind'], id: string, gross: number): LedgerEntry {
+  const fee = kind === 'offline' ? 0 : Math.round(gross * PLATFORM_FEE)
   return { id: `${day}-${kind}-${id}`, day, kind, count: 1, gross, fee, net: gross - fee }
 }
 
-function tipCents(rng: Rng, segment: Segment): number {
+export function tipCents(rng: Rng, segment: Segment): number {
   const p = preset.segments[segment]
   return Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(rng, p.dmTipMedian, 0.6)))) * 100
 }
 
-function threadOf(account: Account, regularId: string): Thread {
+export function threadOf(account: Account, regularId: string): Thread {
   const t = account.threads.find((x) => x.regularId === regularId)
   if (!t) throw new ContentError('Conversation not found')
   return t
 }
 
-function withThread(account: Account, thread: Thread): Account {
+export function withThread(account: Account, thread: Thread): Account {
   return { ...account, threads: account.threads.map((t) => (t.regularId === thread.regularId ? thread : t)) }
 }
 
 /** A fan message the model still has to write. */
-function pendingMessage(id: string, day: number, intent: Intent, tip?: number): Message {
+export function pendingMessage(id: string, day: number, intent: Intent, tip?: number): Message {
   return { id, day, from: 'fan', text: '', state: 'pending', intent, ...(tip ? { tipCents: tip } : {}) }
 }
 
@@ -134,7 +136,7 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     if (r.status !== 'active' || r.since === day) continue
     const t = threadOf(a, r.id)
     // Unanswered messages in a row: at most two, and less likely after the first.
-    const tail = t.messages.length - 1 - t.messages.findLastIndex((m) => m.from === 'me')
+    const tail = unanswered(t)
     if (tail >= 2) continue
     const waiting = tail === 1
     const p = preset.segments[r.segment]
@@ -167,14 +169,39 @@ function checkPpv(account: Account, ppv: DmInput['ppv']) {
   }
 }
 
+/** Fan messages since your last one. */
+export function unanswered(thread: Thread): number {
+  return thread.messages.length - 1 - thread.messages.findLastIndex((m) => m.from === 'me')
+}
+
+/** Messages you wrote to this fan yourself in the last 14 days (mass messages don't count). */
+export function recentMine(thread: Thread, day: number): number {
+  return thread.messages.filter((m) => m.from === 'me' && !m.massId && m.day > day - R.closeness.days).length
+}
+
 /**
- * How warm this fan is: the more you wrote to them yourself lately (mass messages
- * don't count), the likelier they buy. 0.7 cold … 1.3 after 10 messages in 14 days.
+ * How warm this fan is: the more you wrote to them yourself lately, the likelier
+ * they buy (and ask for customs or meetups). 0.7 cold … 1.3 after 10 messages in 14 days.
  */
 export function closeness(thread: Thread, day: number): number {
   const C = R.closeness
-  const recent = thread.messages.filter((m) => m.from === 'me' && !m.massId && m.day > day - C.days).length
-  return C.base + C.perMessage * Math.min(C.maxMessages, recent)
+  return C.base + C.perMessage * Math.min(C.maxMessages, recentMine(thread, day))
+}
+
+/**
+ * Ends the thread with a fan reply still to be written. A reply that is already
+ * waiting is reused, so several things you do before the fan answers become one
+ * reply that reacts to all of them.
+ */
+export function withReply(thread: Thread, mine: Message, change: (intent: Intent) => Intent, tip?: number): Thread {
+  const last = thread.messages.at(-1)
+  const folded = last?.state === 'pending' && last.intent?.kind === 'reply' ? last : undefined
+  const messages = folded ? thread.messages.slice(0, -1) : [...thread.messages]
+  const tipped = folded?.tipCents ?? tip
+  const intent = change({ ...folded?.intent, kind: 'reply' })
+  messages.push(mine, pendingMessage(`${mine.id}-reply`, mine.day, { ...intent, ...(tipped ? { tip: tipped } : {}) }, tipped))
+  // You have seen everything up to your own message; the reply is new.
+  return { ...thread, messages, read: messages.length - 1 }
 }
 
 /** Would this fan buy this PPV? Decided by the engine only (plan.md §4.4, 2026-10-14). */
@@ -211,24 +238,22 @@ export function sendDm(
   if (!regular) throw new ContentError('Conversation not found')
   const day = account.clock.day
   const thread = threadOf(account, regularId)
-  const n = thread.messages.length
-  const myId = `${regularId}-m${n}`
+  const myId = `${regularId}-m${thread.messages.length}`
   const rng = rngFor(seed, day, `dm:${myId}`)
   const events: EngineEvent[] = []
   const ledger: LedgerEntry[] = []
 
-  // Fold an unwritten reply into the new one.
+  // A reply that is still unwritten reacts to this message too (folded, see withReply).
   const last = thread.messages.at(-1)
   const folded = last?.state === 'pending' && last.intent?.kind === 'reply' ? last : undefined
-  const messages = folded ? thread.messages.slice(0, -1) : [...thread.messages]
 
   let ppv: Message['ppv']
-  const decisions = [...(folded?.intent?.ppv ?? [])]
+  let decision: NonNullable<Intent['ppv']>[number] | undefined
   let spent = 0
   if (input.ppv) {
     const d = decidePpv(rng, account, regular, thread, input.ppv, !!massId)
     ppv = { ...input.ppv, paid: d.bought }
-    decisions.push({ messageId: myId, ...d })
+    decision = { messageId: myId, ...d }
     if (d.bought) {
       ledger.push(line(day, 'message', myId, input.ppv.priceCents))
       spent += input.ppv.priceCents
@@ -245,13 +270,12 @@ export function sendDm(
     events.push({ day, type: 'dm-tip', regularId, gross: tip })
   }
 
-  messages.push({ id: myId, day, from: 'me', text: input.text.trim(), state: 'sent', ...(ppv ? { ppv } : {}), ...(massId ? { massId } : {}) })
-  messages.push(pendingMessage(`${myId}-reply`, day, { kind: 'reply', ...(decisions.length ? { ppv: decisions } : {}), ...(tip ? { tip } : {}) }, tip))
+  const mine: Message = { id: myId, day, from: 'me', text: input.text.trim(), state: 'sent', ...(ppv ? { ppv } : {}), ...(massId ? { massId } : {}) }
+  const next = withReply(thread, mine, (i) => (decision ? { ...i, ppv: [...(i.ppv ?? []), decision] } : i), tip)
 
   return {
     account: {
-      // You have seen everything up to your own message; the reply is new.
-      ...withThread(account, { ...thread, messages, read: messages.length - 1 }),
+      ...withThread(account, next),
       regulars: account.regulars.map((r) => (r.id === regularId ? { ...r, spent: r.spent + spent, status: 'active' } : r)),
       ledger: [...account.ledger, ...ledger],
     },
@@ -271,11 +295,35 @@ export function fillMessage(account: Account, regularId: string, messageId: stri
 
 const TOPIC_MOOD: Record<Topic, Mood> = { chat: 'casual', compliment: 'praise', wants_content: 'request', tip: 'praise' }
 
-/** Words for a fan message when the model is not available: a corpus line (plan.md §5). */
+const money = (cents: number) => `$${Math.round(cents / 100)}`
+
+/** Template lines for customs and meetups (plan.md §5: "失败时：模板句"). */
+function templateText(rng: Rng, account: Account, regular: Regular, intent: Intent): string | null {
+  const t = templates[regular.language]
+  const sep = regular.language === 'zh' ? '、' : ' and '
+  if (intent.request) {
+    const q = account.requests.find((x) => x.id === intent.request!.requestId)
+    if (!q) return null
+    if (intent.request.phase === 'late') return pick(rng, t.requestLate)
+    if (intent.request.phase !== 'ask') return null
+    const names = q.tags.map((id) => tags.find((x) => x.id === id)?.[regular.language] ?? id).join(sep)
+    return pick(rng, t.requestAsk).replace('{tags}', names).replace('{money}', money(q.offerCents))
+  }
+  if (intent.meetup) {
+    const m = account.meetups.find((x) => x.id === intent.meetup!.meetupId)
+    if (!m) return null
+    return intent.meetup.phase === 'after' ? pick(rng, t.meetupAfter) : pick(rng, t.meetupInvite).replace('{money}', money(m.offerCents))
+  }
+  return null
+}
+
+/** Words for a fan message when the model is not available: a template or corpus line (plan.md §5). */
 export function fallbackText(account: Account, regularId: string, messageId: string): string {
   const regular = account.regulars.find((r) => r.id === regularId)!
   const message = threadOf(account, regularId).messages.find((m) => m.id === messageId)!
   const rng = rngFor(account.meta.seed, message.day, `fallback:${messageId}`)
+  const template = message.intent && templateText(rng, account, regular, message.intent)
+  if (template) return template
   const corpus = CORPUS[regular.language]
   const bought = message.intent?.ppv?.some((d) => d.bought)
   const mood: Mood = message.intent?.kind === 'reply' ? (bought ? 'praise' : 'casual') : TOPIC_MOOD[message.intent?.topic ?? 'chat']

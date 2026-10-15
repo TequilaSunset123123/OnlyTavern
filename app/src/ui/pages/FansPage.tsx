@@ -58,7 +58,7 @@ export function FansPage() {
                 <TableRow>
                   <TableHead>Fan</TableHead>
                   <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Spent in DMs</TableHead>
+                  <TableHead className="text-right">Spent</TableHead>
                   <TableHead>Since</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>

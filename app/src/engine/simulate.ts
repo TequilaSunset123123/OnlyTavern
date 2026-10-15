@@ -1,12 +1,14 @@
 // The engine entry point (plan.md §4.1): state in, events and the new state out.
 // Pure: same account + same seed + same days (+ same settings) -> same result.
 import economy from '../presets/economy.json'
-import { type Account, type DailyStat, DEFAULT_SETTINGS, type EngineEvent, SEGMENTS, type Settings } from '../store/schema'
+import { type Account, type DailyStat, DEFAULT_SETTINGS, type EngineEvent, LedgerKindSchema, SEGMENTS, type Settings } from '../store/schema'
 import { simulateAudienceDay, subscriberCount } from './audience'
 import { ledgerLine } from './economy'
 import { simulateMassDay } from './massMessages'
+import { simulateMeetupsDay } from './meetups'
 import { activityFactor, simulatePostsDay } from './posts'
 import { simulateRegularsDay } from './regulars'
+import { simulateRequestsDay } from './requests'
 
 export type SimulateResult = { account: Account; events: EngineEvent[] }
 
@@ -44,11 +46,13 @@ export function simulate(
     ].filter((l) => l.gross > 0)
     acc = { ...acc, audience: r.audience, ledger: [...acc.ledger, ...lines] }
 
-    // Regulars come last: they react to today's crowd.
+    // Regulars come last: they react to today's crowd. Then their customs and meetups.
     const rd = simulateRegularsDay(acc, acc.audience, seed, day, settings)
-    acc = rd.account
+    const qd = simulateRequestsDay(rd.account, seed, day)
+    const od = simulateMeetupsDay(qd.account, seed, day)
+    acc = od.account
 
-    const net = { subscription: 0, renewal: 0, tip: 0, post: 0, message: 0, payout: 0 }
+    const net = Object.fromEntries(LedgerKindSchema.options.map((k) => [k, 0])) as DailyStat['net']
     for (const l of acc.ledger) if (l.day === day) net[l.kind] += l.net
     acc = {
       ...acc,
@@ -73,7 +77,7 @@ export function simulate(
     for (const m of economy.milestones) {
       if (before < m && after >= m) events.push({ day, type: 'milestone', subscribers: m })
     }
-    events.push(...rd.events)
+    events.push(...rd.events, ...qd.events, ...od.events)
   }
 
   const today = account.clock.day + days

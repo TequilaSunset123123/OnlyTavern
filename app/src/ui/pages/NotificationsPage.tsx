@@ -36,15 +36,50 @@ function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: st
       return `${fan(e.regularId)} tipped you ${money(e.gross)} in messages`
     case 'mass':
       return `Mass message: ${count(e.views)} view${s(e.views)}${e.purchases ? `, ${count(e.purchases)} unlocked (${money(e.gross)})` : ''}`
+    case 'request':
+      return `${fan(e.regularId)} asked for a custom`
+    case 'request-paid':
+      return `${fan(e.regularId)} paid ${money(e.gross)} for your custom`
+    case 'request-unpaid':
+      return `${fan(e.regularId)} did not pay for your custom`
+    case 'request-expired':
+      return e.accepted ? `You missed the deadline for ${fan(e.regularId)}'s custom` : `${fan(e.regularId)}'s custom request expired`
+    case 'meetup':
+      return `${fan(e.regularId)} invited you to meet in person`
+    case 'meetup-done':
+      return `You met ${fan(e.regularId)}: ${money(e.gross)} in cash`
+    case 'meetup-expired':
+      return `${fan(e.regularId)}'s invitation expired`
   }
 }
 
 const FILTERS: Record<string, EngineEvent['type'][]> = {
-  all: ['subscribers', 'churn', 'tips', 'milestone', 'payout', 'post', 'purchases', 'regular', 'dm', 'dm-purchase', 'dm-tip', 'mass'],
+  all: [
+    'subscribers',
+    'churn',
+    'tips',
+    'milestone',
+    'payout',
+    'post',
+    'purchases',
+    'regular',
+    'dm',
+    'dm-purchase',
+    'dm-tip',
+    'mass',
+    'request',
+    'request-paid',
+    'request-unpaid',
+    'request-expired',
+    'meetup',
+    'meetup-done',
+    'meetup-expired',
+  ],
   subscriptions: ['subscribers', 'churn', 'milestone'],
   tips: ['tips', 'dm-tip'],
   messages: ['regular', 'dm', 'dm-purchase', 'mass'],
   posts: ['post', 'purchases'],
+  requests: ['request', 'request-paid', 'request-unpaid', 'request-expired', 'meetup', 'meetup-done', 'meetup-expired'],
 }
 
 export function NotificationsPage() {
@@ -75,12 +110,13 @@ export function NotificationsPage() {
         </div>
       </div>
       <Tabs value={filter} onValueChange={setFilter}>
-        <TabsList>
+        <TabsList scrollable>
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="tips">Tips</TabsTrigger>
           <TabsTrigger value="posts">Posts</TabsTrigger>
           <TabsTrigger value="messages">Messages</TabsTrigger>
+          <TabsTrigger value="requests">Requests</TabsTrigger>
         </TabsList>
       </Tabs>
       {shown.length === 0 && <EmptyState title="Nothing yet" description="Notifications from the last 30 days show up here." />}

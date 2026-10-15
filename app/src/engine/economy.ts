@@ -18,6 +18,8 @@ export type Balances = {
   earned: number
   paidOut: number
   minPayout: number
+  /** Cash from meetups: earned off the platform, so never part of the balances above. */
+  cash: number
 }
 
 export function balances(account: Account): Balances {
@@ -25,12 +27,14 @@ export function balances(account: Account): Balances {
   let available = 0
   let pending = 0
   let paidOut = 0
+  let cash = 0
   for (const e of account.ledger) {
-    if (e.kind === 'payout') paidOut -= e.net
+    if (e.kind === 'offline') cash += e.net
+    else if (e.kind === 'payout') paidOut -= e.net
     else if (e.day > cutoff) pending += e.net
     else available += e.net
   }
-  return { available: available - paidOut, pending, earned: available + pending, paidOut, minPayout: economy.minPayoutCents }
+  return { available: available - paidOut, pending, earned: available + pending, paidOut, minPayout: economy.minPayoutCents, cash }
 }
 
 export class PayoutError extends Error {}

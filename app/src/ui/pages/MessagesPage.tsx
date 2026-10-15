@@ -32,6 +32,9 @@ import { useFanWriter, useInbox, useThread } from '../../hooks/useMessages'
 import { errorText, money } from '../format'
 import { BulkPane } from '../messages/BulkPane'
 import { MediaTile } from '../MediaTile'
+import { MeetupCard } from '../requests/MeetupCard'
+import { NOT_PAID } from '../requests/labels'
+import { RequestCard } from '../requests/RequestCard'
 import { VaultPickerDialog } from '../VaultPickerDialog'
 
 // Layout: Fanzly's Messages (All Chats / Bulk Message, filter chips) with Fastt's
@@ -132,6 +135,9 @@ function preview(m: Message | null, pending: boolean): string {
   if (pending) return 'New message'
   if (!m) return ''
   const prefix = m.from === 'me' ? 'You: ' : ''
+  if (m.intent?.request?.phase === 'ask') return `📝 Custom request: ${m.text}`
+  if (m.intent?.meetup?.phase === 'invite') return `📅 Meetup invite: ${m.text}`
+  if (m.delivery) return 'You: 📝 Custom delivered'
   if (m.ppv) return `${prefix}🔒 Paid message ${money(m.ppv.priceCents)}`
   if (m.tipCents) return `💰 Tipped ${money(m.tipCents)}`
   return prefix + m.text
@@ -208,7 +214,7 @@ function Conversation({ accountId, regularId, onBack }: { accountId: string; reg
         <div className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto p-4">
           <div className="flex flex-col gap-3">
             {view.messages.map((m) => (
-              <MessageBubble key={m.id} view={view} message={m} writer={writer} />
+              <MessageBubble key={m.id} accountId={accountId} view={view} message={m} writer={writer} />
             ))}
           </div>
         </div>
@@ -219,7 +225,7 @@ function Conversation({ accountId, regularId, onBack }: { accountId: string; reg
   )
 }
 
-function MessageBubble({ view, message: m, writer }: { view: ThreadView; message: Message; writer: ReturnType<typeof useFanWriter> }) {
+function MessageBubble({ accountId, view, message: m, writer }: { accountId: string; view: ThreadView; message: Message; writer: ReturnType<typeof useFanWriter> }) {
   const user = m.from === 'me' ? 'sender' : 'receiver'
   const time = `Day ${m.day}`
   if (m.state === 'pending') {
@@ -254,11 +260,44 @@ function MessageBubble({ view, message: m, writer }: { view: ThreadView; message
           {m.massId ? ' · mass message' : ''}
         </span>
       )}
+      {m.delivery && <Delivery view={view} delivery={m.delivery} />}
       {m.text && <ChatMessage user={user} message={m.text} time={time} showAvatar={m.from === 'fan'} avatarFallback={view.regular.name.slice(0, 1)} />}
       {m.writtenBy === 'corpus' && <span className="pl-12 text-xs text-content-tertiary">Preset line: the model was not available</span>}
       {m.tipCents ? <Badge variant="success">💰 Tipped {money(m.tipCents)}</Badge> : null}
+      <Extras accountId={accountId} view={view} message={m} />
     </div>
   )
+}
+
+/** What you sent for a custom request, and whether the fan paid. */
+function Delivery({ view, delivery }: { view: ThreadView; delivery: NonNullable<Message['delivery']> }) {
+  const q = view.requests.find((x) => x.id === delivery.requestId)
+  return (
+    <>
+      <div className="flex max-w-full flex-wrap justify-end gap-1">
+        {delivery.vaultIds.map((id) => (
+          <div key={id} className="w-32">
+            <MediaTile item={view.items[id] ?? null} />
+          </div>
+        ))}
+      </div>
+      {q?.delivery && (
+        <span className="text-xs text-content-tertiary">
+          📝 Custom · {q.delivery.paid ? `Paid ${money(q.offerCents)}` : `Not paid · ${NOT_PAID[q.delivery.reason]}`}
+        </span>
+      )}
+    </>
+  )
+}
+
+/** The request or invitation a fan message carries, with its buttons. */
+function Extras({ accountId, view, message: m }: { accountId: string; view: ThreadView; message: Message }) {
+  if (m.from !== 'fan') return null
+  const q = m.intent?.request?.phase === 'ask' && view.requests.find((x) => x.id === m.intent!.request!.requestId)
+  if (q) return <RequestCard accountId={accountId} day={view.day} request={q} items={(q.delivery?.vaultIds ?? []).map((id) => view.items[id] ?? null)} />
+  const o = m.intent?.meetup?.phase === 'invite' && view.meetups.find((x) => x.id === m.intent!.meetup!.meetupId)
+  if (o) return <MeetupCard accountId={accountId} day={view.day} meetup={o} />
+  return null
 }
 
 function Composer({ accountId, regularId }: { accountId: string; regularId: string }) {
