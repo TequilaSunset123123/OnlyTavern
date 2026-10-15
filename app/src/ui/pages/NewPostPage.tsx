@@ -30,6 +30,8 @@ export function NewPostPage() {
   if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
 
   const canLock = feed?.canLockPosts ?? false
+  // A paid page can only post for subscribers (the engine refuses locked posts there).
+  const postAccess = canLock ? access : 'free'
   const chosen = vaultIds.map((id) => vault.find((v) => v.id === id) ?? null)
 
   const publish = () => {
@@ -38,7 +40,7 @@ export function NewPostPage() {
       .mutateAsync({
         type: 'post.publish',
         id: active.id,
-        post: { text, vaultIds, access, priceCents: access === 'locked' ? Math.round(Number(price) * 100) : 0 },
+        post: { text, vaultIds, access: postAccess, priceCents: postAccess === 'locked' ? Math.round(Number(price) * 100) : 0 },
       })
       .then(() => navigate('/'))
       .catch((e) => setError(errorText(e)))
@@ -68,17 +70,22 @@ export function NewPostPage() {
 
       <Card>
         <CardContent className="flex flex-col gap-3">
-          <SegmentedControl
-            options={ACCESS.map((o) => ({ ...o, disabled: o.value === 'locked' && !canLock }))}
-            value={access}
-            onChange={(v) => setAccess(v as PostInput['access'])}
-          />
-          {!canLock && (
-            <p className="text-xs text-content-tertiary">
-              Like on real OnlyFans, only free pages can lock posts. Paid pages sell extras in messages.
-            </p>
+          {/* SegmentedControl cannot disable one option, so a paid page does not get the choice at all. */}
+          {canLock ? (
+            <SegmentedControl options={ACCESS} value={access} onChange={(v) => setAccess(v as PostInput['access'])} />
+          ) : (
+            <div className="flex flex-col items-start gap-2">
+              <p className="typography-body-small-14px-semibold">Free for subscribers</p>
+              <p className="text-xs text-content-tertiary">
+                Your page is paid, so every post is included in the subscription. Like on real OnlyFans, only free pages can lock posts (pay to view);
+                paid pages sell extras as paid messages.
+              </p>
+              <Button size="32" variant="tertiary" onClick={() => navigate('/profile')}>
+                Switch to a free page in My Profile
+              </Button>
+            </div>
           )}
-          {access === 'locked' && (
+          {postAccess === 'locked' && (
             <TextField label="Price (USD)" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} helperText="$3–$200" />
           )}
         </CardContent>
