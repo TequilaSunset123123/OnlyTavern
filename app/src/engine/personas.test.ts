@@ -3,7 +3,7 @@ import personas from '../presets/personas.json'
 import { createAccount } from '../store/account'
 import { migrate } from '../store/migrate'
 import { SEGMENTS } from '../store/schema'
-import { dmBehaviour, fanIdentity, makePersona } from './personas'
+import { behaviour, fanIdentity, makePersona } from './personas'
 import { sendDm } from './regulars'
 import { rngFor } from './rng'
 import { simulate } from './simulate'
@@ -39,10 +39,12 @@ describe('fan personas', () => {
     expect(makePersona(rngFor('s', 1, 'x'), 'whale', 'zh').bio).toMatch(/^\d+岁，/)
   })
 
-  it('obsessed fans and haters keep writing when ignored', () => {
-    expect(dmBehaviour(['pet_names'])).toEqual({ dmFactor: 1, maxUnanswered: 2, ignoredFactor: 0.3 })
-    expect(dmBehaviour(['pet_names', 'stalker']).maxUnanswered).toBe(4)
-    expect(dmBehaviour(['misogynist']).maxUnanswered).toBe(3)
+  it('obsessed fans and haters keep writing when ignored; obsessed fans and stalkers want to meet', () => {
+    expect(behaviour(['pet_names'])).toEqual({ dmFactor: 1, maxUnanswered: 2, ignoredFactor: 0.3, meetupFactor: 1, turnsHater: null })
+    expect(behaviour(['pet_names', 'stalker'])).toMatchObject({ maxUnanswered: 4, meetupFactor: 2.5 })
+    expect(behaviour(['obsessive']).meetupFactor).toBe(2)
+    expect(behaviour(['misogynist']).maxUnanswered).toBe(3)
+    expect(behaviour(['creepy_compliments']).turnsHater).toEqual({ afterDays: 14, daily: 0.08 })
   })
 
   it('haters message you to insult you', () => {
@@ -55,6 +57,43 @@ describe('fan personas', () => {
       }
     }
     expect(haterOpeners).toBeGreaterThan(0)
+  })
+})
+
+describe('ignored fans turn on you', () => {
+  it('creepy and obsessed fans you ignore become haters; others do not; talking to them again wins them back', () => {
+    let turned = 0
+    for (const seed of ['a', 'b', 'c', 'd', 'e', 'f']) {
+      let a = simulate(createAccount({ id: 'x', seed, now: 0, name: 'Mia', handle: 'mia' }), 60, seed).account
+      // Half of them obsessed, half just horny; nobody gets an answer.
+      a = { ...a, regulars: a.regulars.map(({ turned: _, ...r }, i) => ({ ...r, segment: 'simp' as const, traits: i % 2 ? ['horny_direct'] : ['obsessive'] })) }
+      const ids = new Set(a.regulars.filter((r) => r.traits.includes('obsessive')).map((r) => r.id))
+      const after = simulate(a, 25, seed).account
+      for (const r of after.regulars) {
+        if (!ids.has(r.id)) {
+          expect(r.turned).toBeUndefined()
+          continue
+        }
+        if (!r.turned) continue
+        turned++
+        expect(r).toMatchObject({ segment: 'hater', turned: { from: 'simp' } })
+        expect(r.traits).toContain('misogynist')
+        const t = after.threads.find((x) => x.regularId === r.id)!
+        expect(t.messages.some((m) => m.intent?.topic === 'harass' && m.day === r.turned!.day)).toBe(true)
+        expect(after.events.some((e) => e.type === 'regular-turned' && e.regularId === r.id)).toBe(true)
+
+        // Win him back: write to him every day.
+        let b = after
+        for (let i = 0; i < 20 && b.regulars.find((x) => x.id === r.id)!.turned; i++) {
+          b = simulate(sendDm(b, r.id, { text: 'sorry, missed you' }, seed).account, 1, seed).account
+        }
+        const back = b.regulars.find((x) => x.id === r.id)!
+        expect(back).toMatchObject({ segment: 'simp', traits: ['obsessive'] })
+        expect(back.turned).toBeUndefined()
+        expect(b.events.some((e) => e.type === 'regular-back' && e.regularId === r.id)).toBe(true)
+      }
+    }
+    expect(turned).toBeGreaterThan(0)
   })
 })
 

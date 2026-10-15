@@ -50,6 +50,10 @@ function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: st
       return `You met ${fan(e.regularId)}: ${money(e.gross)} in cash`
     case 'meetup-expired':
       return `${fan(e.regularId)}'s invitation expired`
+    case 'regular-turned':
+      return `${fan(e.regularId)} got tired of being ignored and turned on you`
+    case 'regular-back':
+      return `${fan(e.regularId)} has warmed up to you again`
   }
 }
 
@@ -74,10 +78,12 @@ const FILTERS: Record<string, EngineEvent['type'][]> = {
     'meetup',
     'meetup-done',
     'meetup-expired',
+    'regular-turned',
+    'regular-back',
   ],
   subscriptions: ['subscribers', 'churn', 'milestone'],
   tips: ['tips', 'dm-tip'],
-  messages: ['regular', 'dm', 'dm-purchase', 'mass'],
+  messages: ['regular', 'dm', 'dm-purchase', 'mass', 'regular-turned', 'regular-back'],
   posts: ['post', 'purchases'],
   requests: ['request', 'request-paid', 'request-unpaid', 'request-expired', 'meetup', 'meetup-done', 'meetup-expired'],
 }

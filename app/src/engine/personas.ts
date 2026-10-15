@@ -68,18 +68,36 @@ export function makePersona(rng: Rng, segment: Segment, language: Language): Per
   return { name, handle, age, country: place.country, bio: `${age}, ${job} from ${place.city}, ${place.region}, ${relationship}`, traits }
 }
 
-const STYLES = personas.styles as Record<string, { label: string; prompt: string; dm?: { dmFactor: number; maxUnanswered: number; ignoredFactor: number } }>
+type Behaviour = {
+  dmFactor?: number
+  maxUnanswered?: number
+  ignoredFactor?: number
+  meetupFactor?: number
+  turnsHater?: { afterDays: number; daily: number }
+}
+const STYLES = personas.styles as Record<string, { label: string; prompt: string; behaviour?: Behaviour }>
 
 /** How the model should make this fan write. */
 export const traitPrompt = (id: string) => STYLES[id]?.prompt ?? ''
 export const traitLabel = (id: string) => STYLES[id]?.label ?? id
 
-/** How often he messages you, how many unanswered messages he sends in a row, and how much being ignored slows him down. */
-export function dmBehaviour(traits: string[]): { dmFactor: number; maxUnanswered: number; ignoredFactor: number } {
-  const own = traits.map((t) => STYLES[t]?.dm).filter((x) => !!x)
+/** When ignored fans give up on you, how fast you can win them back (presets/personas.json). */
+export const WIN_BACK = personas.winBack
+
+/**
+ * What his traits do: how often he messages you, how many unanswered messages he
+ * sends in a row, how much being ignored slows him down, how keen he is to meet,
+ * and whether ignoring him for long can turn him into a hater.
+ */
+export function behaviour(traits: string[]) {
+  const own = traits.map((t) => STYLES[t]?.behaviour).filter((x) => !!x)
+  const turns = own.map((x) => x.turnsHater).filter((x) => !!x)
   return {
-    dmFactor: Math.max(1, ...own.map((x) => x.dmFactor)),
-    maxUnanswered: Math.max(2, ...own.map((x) => x.maxUnanswered)),
-    ignoredFactor: Math.max(0.3, ...own.map((x) => x.ignoredFactor)),
+    dmFactor: Math.max(1, ...own.map((x) => x.dmFactor ?? 1)),
+    maxUnanswered: Math.max(2, ...own.map((x) => x.maxUnanswered ?? 2)),
+    ignoredFactor: Math.max(0.3, ...own.map((x) => x.ignoredFactor ?? 0.3)),
+    meetupFactor: Math.max(1, ...own.map((x) => x.meetupFactor ?? 1)),
+    /** The quickest way he turns, if any of his traits can. */
+    turnsHater: turns.sort((a, b) => a.afterDays - b.afterDays || b.daily - a.daily)[0] ?? null,
   }
 }

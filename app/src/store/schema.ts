@@ -66,6 +66,8 @@ export const RegularSchema = z.object({
   /** Total cents spent on you: paid messages, tips, custom requests and meetups. */
   spent: Cents.nonnegative(),
   status: z.enum(['active', 'dormant']),
+  /** He turned into a hater because you ignored him: what he was, since when, and the trait that came with it. */
+  turned: z.object({ from: SegmentSchema, day: z.number().int(), trait: z.string().optional() }).optional(),
 })
 
 /** Engine decisions the model has to act out in a fan message (plan.md §2.3). */
@@ -204,6 +206,8 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
   z.object({ day: z.number().int(), type: z.literal('meetup'), regularId: z.string(), meetupId: z.string() }),
   z.object({ day: z.number().int(), type: z.literal('meetup-done'), regularId: z.string(), gross: Cents }),
   z.object({ day: z.number().int(), type: z.literal('meetup-expired'), regularId: z.string() }),
+  z.object({ day: z.number().int(), type: z.literal('regular-turned'), regularId: z.string() }),
+  z.object({ day: z.number().int(), type: z.literal('regular-back'), regularId: z.string() }),
 ])
 
 export const MemberSchema = z.object({

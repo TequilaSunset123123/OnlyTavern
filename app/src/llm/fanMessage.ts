@@ -104,6 +104,7 @@ export function buildFanPrompt(view: ThreadView, messageId: string): ChatMessage
   const user = [
     `You are ${r.name} (@${r.handle}), ${r.bio}.`,
     `Fan type: ${seg.label.toLowerCase()}, ${seg.description}.`,
+    ...(r.turned ? [`You used to be one of her ${preset.segments[r.turned.from].label.toLowerCase()} fans, but she ignored you, so now you resent her.`] : []),
     `How you write: ${view.traits.map((t) => t.prompt).join('; ') || 'like a typical fan'}.`,
     `You like: ${r.likes.map(tagLabel).join(', ') || 'anything'}. You have spent ${money(r.spent)} on this creator in messages and became a regular on day ${r.since}.`,
     `The creator: ${c.name} (@${c.handle}), ${c.accountType === 'free' ? 'free page' : `paid page at ${money(c.priceCents)}/month`}, ${c.subscribers} subscribers. Today is day ${target.day}.`,

@@ -5,6 +5,7 @@
 import preset from '../presets/audience.json'
 import type { Account, EngineEvent, LedgerEntry, Meetup } from '../store/schema'
 import { ContentError } from './content'
+import { behaviour } from './personas'
 import { closeness, line, pendingMessage, recentMine, threadOf, unanswered, withThread } from './regulars'
 import { logNormal, rngFor } from './rng'
 
@@ -59,7 +60,8 @@ export function simulateMeetupsDay(account: Account, seed: string, day: number):
     if (last && day - (last.closedDay ?? last.day) < M.cooldownDays) continue
 
     const rng = rngFor(seed, day, `meetups:${r.id}`)
-    if (rng() >= p.meetupDaily * closeness(t, day)) continue
+    // Obsessed fans and stalkers are much keener to meet (presets/personas.json).
+    if (rng() >= p.meetupDaily * closeness(t, day) * behaviour(r.traits).meetupFactor) continue
     const offer = Math.max(M.minCents, Math.round((logNormal(rng, p.meetupMedian, M.spread) * 100) / M.roundCents) * M.roundCents)
     const id = `${r.id}-o${mine.length}`
     const messageId = `${r.id}-m${t.messages.length}`

@@ -24,7 +24,7 @@ import { subscriberCount } from './audience'
 import { CORPUS, pick, pickWeighted } from './comments'
 import { ContentError } from './content'
 import { PLATFORM_FEE } from './economy'
-import { dmBehaviour, makePersona, pickLanguage } from './personas'
+import { behaviour, makePersona, pickLanguage, WIN_BACK } from './personas'
 import { intensityMatch } from './posts'
 import { logNormal, type Rng, rngFor } from './rng'
 
@@ -64,6 +64,10 @@ export function threadOf(account: Account, regularId: string): Thread {
   return t
 }
 
+function updateRegular(account: Account, regular: Regular): Account {
+  return { ...account, regulars: account.regulars.map((r) => (r.id === regular.id ? regular : r)) }
+}
+
 export function withThread(account: Account, thread: Thread): Account {
   return { ...account, threads: account.threads.map((t) => (t.regularId === thread.regularId ? thread : t)) }
 }
@@ -100,6 +104,35 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
   let a = account
   const events: EngineEvent[] = []
   const ledger: LedgerEntry[] = []
+
+  // Creepy and obsessed fans you ignore for long enough turn on you; talk to them
+  // again and they may come round.
+  for (const r of a.regulars) {
+    if (r.status !== 'active') continue
+    const t = threadOf(a, r.id)
+    const lastMine = Math.max(r.since, ...t.messages.filter((m) => m.from === 'me').map((m) => m.day))
+    const rr = rngFor(seed, day, `regulars:mood:${r.id}`)
+    if (r.turned) {
+      if (day - r.turned.day >= WIN_BACK.afterDays && recentMine(t, day) >= WIN_BACK.messages && rr() < WIN_BACK.daily) {
+        const { turned, ...back } = r
+        a = updateRegular(a, { ...back, segment: turned.from, traits: r.traits.filter((x) => x !== turned.trait) })
+        events.push({ day, type: 'regular-back', regularId: r.id })
+      }
+      continue
+    }
+    const turns = behaviour(r.traits).turnsHater
+    if (!turns || r.segment === 'hater' || unanswered(t) === 0 || day - lastMine < turns.afterDays || rr() >= turns.daily) continue
+    const trait = r.traits.includes('misogynist') ? undefined : 'misogynist'
+    a = updateRegular(a, { ...r, segment: 'hater', traits: trait ? [...r.traits, trait] : r.traits, turned: { from: r.segment, day, ...(trait ? { trait } : {}) } })
+    // Whatever he was offering is off; he lets you know what he thinks of you.
+    a = {
+      ...a,
+      requests: a.requests.map((q) => (q.regularId === r.id && q.status === 'open' ? { ...q, status: 'expired' as const, closedDay: day } : q)),
+      meetups: a.meetups.map((m) => (m.regularId === r.id && m.status === 'open' ? { ...m, status: 'expired' as const, closedDay: day } : m)),
+    }
+    a = withThread(a, { ...t, messages: [...t.messages, pendingMessage(`${r.id}-m${t.messages.length}`, day, { kind: 'opener', topic: 'harass' })] })
+    events.push({ day, type: 'regular-turned', regularId: r.id })
+  }
 
   // Dormant: you have not written to them for a long time.
   a = {
@@ -143,7 +176,7 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     const t = threadOf(a, r.id)
     // Unanswered messages in a row: at most two (obsessed fans and haters keep going),
     // and less likely once he is waiting for you.
-    const b = dmBehaviour(r.traits)
+    const b = behaviour(r.traits)
     const tail = unanswered(t)
     if (tail >= b.maxUnanswered) continue
     const p = preset.segments[r.segment]

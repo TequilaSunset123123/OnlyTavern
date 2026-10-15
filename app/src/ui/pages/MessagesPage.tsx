@@ -385,6 +385,9 @@ function FanDetails({ view }: { view: ThreadView }) {
     <div className="flex flex-col gap-4">
       {SEGMENT_BADGE[r.segment] && <Badge className="self-center">{SEGMENT_BADGE[r.segment]}</Badge>}
       <p className="text-sm text-content-secondary">{r.bio}</p>
+      {r.turned && (
+        <Alert variant="warning">Turned on you on day {r.turned.day} because you ignored him. Write to him regularly and he may come round.</Alert>
+      )}
       <div className="flex flex-wrap gap-1">
         {view.traits.map((t) => (
           <Badge key={t.id} variant={RED_FLAGS.includes(t.id) ? 'errorColour' : 'default'}>

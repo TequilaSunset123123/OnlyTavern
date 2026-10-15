@@ -1,4 +1,5 @@
-// SillyTavern side of OnlyTavern: a button in the extensions menu that opens the
+// SillyTavern side of OnlyTavern: a button at the bottom left of the chat bar (next to
+// the extensions wand, one tap) and an entry in the wand menu, both opening the
 // React app (dist/index.html) in a full-screen same-origin iframe. Closing only
 // hides the iframe, so the app keeps its state until the page reloads.
 //
@@ -67,6 +68,22 @@ function addLaunchButton() {
     launchButton.addEventListener('click', openApp);
 }
 
+// One-tap button in the chat bar's left side, styled like SillyTavern's own
+// (#leftSendForm > div gives size and hover); order puts it after the wand (order 4).
+function addQuickButton() {
+    const form = document.getElementById('leftSendForm');
+    if (!form) return;
+    const button = document.createElement('div');
+    button.id = 'onlytavern-quick';
+    button.classList.add('fa-solid', 'fa-camera-retro', 'interactable');
+    button.title = 'Open OnlyTavern';
+    button.tabIndex = 0;
+    button.style.order = '5';
+    button.addEventListener('click', openApp);
+    button.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && openApp());
+    form.appendChild(button);
+}
+
 // A block in the Extensions panel, so the extension is visible there too.
 function addSettingsBlock() {
     const container = document.getElementById('extensions_settings');
@@ -81,7 +98,7 @@ function addSettingsBlock() {
                 <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
             </div>
             <div class="inline-drawer-content">
-                <p>A creator-platform simulator. Also available from the extensions (wand) menu.</p>
+                <p>A creator-platform simulator. Open it with the camera button at the bottom left of the chat bar, or from the extensions (wand) menu.</p>
                 <div class="menu_button menu_button_icon" id="onlytavern-open">
                     <i class="fa-solid fa-camera-retro"></i>
                     <span>Open OnlyTavern</span>
@@ -94,6 +111,7 @@ function addSettingsBlock() {
 
 (function () {
     addLaunchButton();
+    addQuickButton();
     addSettingsBlock();
     window.OnlyTavernHost = { close: closeApp, download };
 })();
