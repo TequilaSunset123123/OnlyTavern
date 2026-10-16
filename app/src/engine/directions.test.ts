@@ -113,8 +113,8 @@ describe('directions', () => {
 
   it('e-girls attract obsessed fans', () => {
     const obsessed = (factors: Record<string, number>) =>
-      Array.from({ length: 400 }, (_, i) => makePersona(rngFor('s', i, 'p'), 'simp', 'en', factors)).filter((p) => p.traits.includes('obsessive')).length
-    expect(obsessed(directionEffects(withPoints(fresh('egirl'), 200)).traits)).toBeGreaterThan(obsessed({}) * 1.3)
+      Array.from({ length: 400 }, (_, i) => makePersona(rngFor('s', i, 'p'), 'simp', 'en', factors)).filter((p) => p.behaviours.includes('obsessive')).length
+    expect(obsessed(directionEffects(withPoints(fresh('egirl'), 200)).attracts)).toBeGreaterThan(obsessed({}) * 1.3)
   })
 
   it('older saves start as girl next door, not yet chosen, with no points', () => {

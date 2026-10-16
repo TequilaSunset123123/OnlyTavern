@@ -3,7 +3,7 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 10
+export const SCHEMA_VERSION = 11
 
 export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
 export const SegmentSchema = z.enum(SEGMENTS)
@@ -53,6 +53,24 @@ export const AudienceSchema = z.object({
   cohorts: z.record(SegmentSchema, z.array(z.number().int().nonnegative()).length(30)),
 })
 
+/**
+ * A state an event put him in (presets/personas.json `conditions`), since `since`:
+ *   - hostile: he turned on you (you ignored him, or turned him down); he acts as a hater
+ *     until you win him back. `level`: his loyalty level then (Devoted or more hate longer);
+ *   - unhinged: a stalker you won back comes back worse;
+ *   - blocked: you blocked him, or he blocked you after his wife caught you two; for good;
+ *   - lyingLow: his wife caught you two and he is keeping away until `until`.
+ * You cannot write to him while he is blocked or lying low.
+ */
+export const ConditionSchema = z.discriminatedUnion('id', [
+  z.object({ id: z.literal('hostile'), since: z.number().int(), level: z.number().int() }),
+  z.object({ id: z.literal('unhinged'), since: z.number().int() }),
+  z.object({ id: z.literal('blocked'), since: z.number().int(), by: z.enum(['you', 'him']) }),
+  z.object({ id: z.literal('lyingLow'), since: z.number().int(), until: z.number().int() }),
+])
+export type Condition = z.infer<typeof ConditionSchema>
+export type ConditionId = Condition['id']
+
 /** A crowd fan who talks to you: has a profile, memory and a DM thread (plan.md §4.4). */
 export const RegularSchema = z.object({
   id: z.string(),
@@ -64,8 +82,14 @@ export const RegularSchema = z.object({
   age: z.number().int(),
   /** One-line background: age, job, where he lives, relationship (presets/personas.json, no model). */
   bio: z.string(),
-  /** How he writes and behaves (style ids in presets/personas.json): e.g. creepy, obsessed, stalker, misogynist. */
-  traits: z.array(z.string()),
+  // Who he is, in three layers (presets/personas.json; engine/personas.ts). His type
+  // (segment) and loyalty sit beside them; name, bio and the rest are only description.
+  /** Personality: how he talks (one id from `personalities`). Words only, never a number. */
+  personality: z.string(),
+  /** Behaviours: lasting tendencies that change the odds (ids from `behaviours`), e.g. obsessed, stalker, cheapskate. */
+  behaviours: z.array(z.string()),
+  /** Conditions: states that events give him and that can change or go away (engine/conditions.ts). */
+  conditions: z.array(ConditionSchema),
   /** Relationship key in presets/personas.json (married men can get caught at a meetup). */
   relationship: z.string(),
   /** Loyalty points, built by everything you two do together (engine/fans.ts). */
@@ -76,17 +100,6 @@ export const RegularSchema = z.object({
   /** Total cents spent on you: paid messages, tips, custom requests and meetups. */
   spent: Cents.nonnegative(),
   status: z.enum(['active', 'dormant']),
-  /**
-   * He turned into a hater (you ignored him, or turned him down): what he was, since when,
-   * the trait that came with it, and his loyalty level then (Devoted or more hate longer).
-   */
-  turned: z.object({ from: SegmentSchema, day: z.number().int(), trait: z.string().optional(), level: z.number().int() }).optional(),
-  /**
-   * Out of reach since `day`: his wife caught you two (engine/meetups.ts), or you blocked
-   * him (engine/incidents.ts). Back on `until`, never if it is missing. You cannot write
-   * to him until then.
-   */
-  away: z.object({ reason: z.enum(['wife', 'blocked']), day: z.number().int(), until: z.number().int().optional() }).optional(),
 })
 
 /** Engine decisions the model has to act out in a fan message (plan.md §2.3). */
@@ -188,6 +201,10 @@ export const MeetupSchema = z.object({
   closedDay: z.number().int().optional(),
   /** The fan's invitation message. */
   messageId: z.string(),
+  /** You brought it up (engine/deals.ts), not him. */
+  askedBy: z.literal('you').optional(),
+  /** You asked and he did not think you worth paying: a few dollars to put you down, or nothing at all. */
+  terms: z.enum(['lowball', 'free']).optional(),
 })
 
 export const INCIDENT_CHOICES = ['playAlong', 'letDown', 'calm', 'block'] as const
@@ -257,7 +274,16 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
   z.object({ day: z.number().int(), type: z.literal('request-paid'), regularId: z.string(), gross: Cents }),
   z.object({ day: z.number().int(), type: z.literal('request-unpaid'), regularId: z.string() }),
   z.object({ day: z.number().int(), type: z.literal('request-expired'), regularId: z.string(), accepted: z.boolean() }),
-  z.object({ day: z.number().int(), type: z.literal('meetup'), regularId: z.string(), meetupId: z.string() }),
+  z.object({
+    day: z.number().int(),
+    type: z.literal('meetup'),
+    regularId: z.string(),
+    meetupId: z.string(),
+    /** You asked him; what he offered then. */
+    askedBy: z.literal('you').optional(),
+    terms: z.enum(['lowball', 'free']).optional(),
+    offerCents: Cents.optional(),
+  }),
   z.object({
     day: z.number().int(),
     type: z.literal('meetup-done'),
@@ -384,6 +410,8 @@ export const SettingsSchema = z.object({
   fanLanguage: z.enum(['en', 'zh', 'mix']),
   /** SillyTavern connection profile id for fan messages; null = ST's selected one. */
   connectionProfile: z.string().nullable(),
+  /** Most regulars active at once (3–20); missing = the preset's (presets/audience.json regulars.cap). */
+  maxActiveRegulars: z.number().int().min(3).max(20).optional(),
 })
 export type Settings = z.infer<typeof SettingsSchema>
 export const DEFAULT_SETTINGS: Settings = { fanLanguage: 'en', connectionProfile: null }

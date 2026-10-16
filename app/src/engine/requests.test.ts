@@ -120,7 +120,9 @@ describe('custom requests', () => {
       loyalty: { points: 0, level: 1, cap: 5, name: 'Curious', from: 0, next: 5 },
       away: null,
       incidents: [],
-      traits: [],
+      personality: { id: 'pet_names', label: 'Clingy', prompt: 'calls her baby' },
+      behaviours: [],
+      conditions: [],
       requests: acc.requests,
       meetups: [],
     }
@@ -142,7 +144,9 @@ describe('custom requests', () => {
       loyalty: { points: 0, level: 1, cap: 5, name: 'Curious', from: 0, next: 5 },
       away: null,
       incidents: [],
-      traits: [],
+      personality: { id: 'pet_names', label: 'Clingy', prompt: 'calls her baby' },
+      behaviours: [],
+      conditions: [],
       requests: a.requests,
       meetups: [],
     }

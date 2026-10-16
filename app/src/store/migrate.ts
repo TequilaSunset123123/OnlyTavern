@@ -1,5 +1,5 @@
 import { LOYALTY_GAIN } from '../engine/fans'
-import { makePersona } from '../engine/personas'
+import { makePersona, weighted } from '../engine/personas'
 import personas from '../presets/personas.json'
 import { rngFor } from '../engine/rng'
 import { initialAudience, noPoints } from './account'
@@ -116,6 +116,43 @@ export const MIGRATIONS: Record<number, Migration> = {
           : r,
       ),
     }
+  },
+  // v10 -> v11 (2026-10-15): a fan's traits become three layers. His first trait is his
+  // personality if it is one (otherwise he gets one from his type, by seed); the other
+  // traits are behaviours; turning hostile, Unhinged, being blocked and lying low become
+  // conditions. A hostile fan gets his old type back (he acts as a hater while hostile),
+  // and loses the misogynist trait that came with turning.
+  10: (doc) => {
+    const seed = (doc.meta as { seed: string }).seed
+    const today = (doc.clock as { day: number }).day
+    type Seg = keyof typeof personas.segments
+    type Old = {
+      id: string
+      since: number
+      segment: Seg
+      traits?: string[]
+      personality?: string
+      turned?: { from: Seg; day: number; trait?: string; level: number }
+      away?: { reason: 'wife' | 'blocked'; day: number; until?: number }
+    } & Record<string, unknown>
+    const upgradeOne = ({ traits = [], turned, away, ...r }: Old) => {
+      const segment = turned?.from ?? r.segment
+      const kept = traits.filter((t) => t !== turned?.trait)
+      const personality =
+        r.personality ??
+        (kept[0] && kept[0] in personas.personalities
+          ? kept[0]
+          : weighted(rngFor(seed, r.since, `personality:${r.id}`), personas.segments[segment].personalities as Record<string, number>))
+      const conditions = [
+        ...(turned ? [{ id: 'hostile', since: turned.day, level: turned.level }] : []),
+        ...(kept.includes('unhinged') ? [{ id: 'unhinged', since: turned?.day ?? r.since }] : []),
+        ...(away?.reason === 'blocked' ? [{ id: 'blocked', since: away.day, by: 'you' }] : []),
+        ...(away?.reason === 'wife' && away.until === undefined ? [{ id: 'blocked', since: away.day, by: 'him' }] : []),
+        ...(away?.reason === 'wife' && away.until !== undefined && away.until > today ? [{ id: 'lyingLow', since: away.day, until: away.until }] : []),
+      ]
+      return { ...r, segment, personality, behaviours: (r.behaviours as string[] | undefined) ?? kept.filter((t) => t in personas.behaviours), conditions }
+    }
+    return { ...doc, regulars: (doc.regulars as Old[]).map(upgradeOne) }
   },
 }
 

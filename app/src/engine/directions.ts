@@ -22,7 +22,7 @@ type Spec = {
   signatureTags: string[]
   audience: Partial<Record<Segment, number>>
   visitors: number
-  traits: Record<string, number>
+  attracts: Record<string, number>
   requests: { rate: number; offer: number }
   meetups: { rate: number; offer: number }
   meetupPoints: number
@@ -50,8 +50,8 @@ export type Effects = {
   mix: Record<Segment, number>
   /** Multiplies how many people visit. */
   visitors: number
-  /** Multiplies how likely new regulars get each writing style or trait. */
-  traits: Record<string, number>
+  /** Multiplies how likely new regulars get each personality or behaviour (presets/personas.json). */
+  attracts: Record<string, number>
   requests: { rate: number; offer: number }
   meetups: { rate: number; offer: number }
   meetupEvents: Record<string, number>
@@ -65,7 +65,7 @@ export function directionEffects(account: Account): Effects {
   return {
     mix: Object.fromEntries(SEGMENTS.map((s) => [s, scale(spec.audience[s])])) as Record<Segment, number>,
     visitors: scale(spec.visitors),
-    traits: Object.fromEntries(Object.entries(spec.traits).map(([t, m]) => [t, scale(m)])),
+    attracts: Object.fromEntries(Object.entries(spec.attracts).map(([t, m]) => [t, scale(m)])),
     requests: { rate: scale(spec.requests.rate), offer: scale(spec.requests.offer) },
     meetups: { rate: scale(spec.meetups.rate), offer: scale(spec.meetups.offer) },
     meetupEvents: Object.fromEntries(Object.entries(spec.meetupEvents).map(([e, m]) => [e, scale(m)])),

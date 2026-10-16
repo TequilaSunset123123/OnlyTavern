@@ -1,8 +1,9 @@
-// Stalker incidents (2026-10-15). A fan with a stalker trait courts you (courtship: gifts,
-// a ring, "be my girlfriend") or will not leave you alone (clingy: turns up where you are,
-// digs up your name). The engine decides that one happens and which kind: on any day, or
-// after you meet him. You choose what to do in a popup, and the engine rolls how it turns
-// out. Every chance is shown with the choice (incidentOdds), so nothing is hidden:
+// Stalker incidents (2026-10-15). A fan with the Stalker behaviour (or the Unhinged
+// condition) courts you (courtship: gifts, a ring, "be my girlfriend") or will not leave
+// you alone (clingy: turns up where you are, digs up your name). The engine decides that
+// one happens and which kind: on any day, or after you meet him. You choose what to do
+// in a popup, and the engine rolls how it turns out. Every chance is shown with the
+// choice (incidentOdds), so nothing is hidden:
 //   courtship  play along  he sends a big gift, and gets more obsessed;
 //              let down    he takes it (more likely the more loyal he is), or turns on you;
 //              block       he is gone for good;
@@ -18,7 +19,8 @@ import { ContentError } from './content'
 import { paymentLine as line } from './economy'
 import { addLoyalty, loyaltyLevel, type MeetupOutcome } from './fans'
 import { turnHater } from './haters'
-import { behaviour } from './personas'
+import { actingType, hasCondition, withCondition } from './conditions'
+import { modifiers, withBehaviour } from './personas'
 import { tipCents } from './regulars'
 import { type Rng, rngFor } from './rng'
 import { addFanMessage, updateRegular } from './threads'
@@ -43,12 +45,12 @@ export function incidentOdds(account: Account, incident: Incident): Partial<Reco
   const level = loyaltyLevel(r)
   if (incident.kind === 'courtship') return { playAlong: 1, letDown: clamp(I.courtship.letDown.ok + I.courtship.letDown.perLevel * (level - 1)), block: 1 }
   const calm = I.clingy.calm
-  const unhinged = r.traits.includes('unhinged') ? I.clingy.block.unhinged : 0
-  return { calm: clamp(calm.ok + calm.perLevel * (level - 1) + (r.segment === 'hater' ? calm.hater : 0)), block: clamp(I.clingy.block.ok + unhinged) }
+  const unhinged = hasCondition(r, 'unhinged') ? I.clingy.block.unhinged : 0
+  return { calm: clamp(calm.ok + calm.perLevel * (level - 1) + (actingType(r) === 'hater' ? calm.hater : 0)), block: clamp(I.clingy.block.ok + unhinged) }
 }
 
-/** How often he has incidents: × the daily chance (0 for fans without a stalker trait). */
-const proneness = (r: Regular) => behaviour(r.traits).incidents
+/** How often he has incidents: × the daily chance (0 unless a behaviour or condition says so: stalker, unhinged). */
+const proneness = (r: Regular) => modifiers(r).incidents
 
 function canHaveOne(account: Account, r: Regular, day: number): boolean {
   if (r.status !== 'active' || !proneness(r)) return false
@@ -67,8 +69,8 @@ function open(rng: Rng, account: Account, r: Regular, kind: IncidentKind, day: n
 
 /** A hater only ever won't leave you alone; an unhinged fan mostly; the rest mostly court you. */
 function kindFor(rng: Rng, r: Regular): IncidentKind {
-  if (r.segment === 'hater') return 'clingy'
-  return rng() < (r.traits.includes('unhinged') ? I.unhingedCourtshipShare : I.courtshipShare) ? 'courtship' : 'clingy'
+  if (actingType(r) === 'hater') return 'clingy'
+  return rng() < (hasCondition(r, 'unhinged') ? I.unhingedCourtshipShare : I.courtshipShare) ? 'courtship' : 'clingy'
 }
 
 /** One simulated day: a stalker may court you or turn up where you are. */
@@ -116,7 +118,7 @@ export function resolveIncident(account: Account, incidentId: string, choice: In
     lost = s.lost
   }
   const block = () => {
-    a = updateRegular(a, { ...a.regulars.find((x) => x.id === r.id)!, status: 'dormant', away: { reason: 'blocked', day } })
+    a = updateRegular(a, { ...withCondition(a.regulars.find((x) => x.id === r.id)!, { id: 'blocked', since: day, by: 'you' }), status: 'dormant' })
     a = {
       ...a,
       requests: a.requests.map((q) => (q.regularId === r.id && (q.status === 'open' || q.status === 'accepted') ? { ...q, status: 'expired' as const, closedDay: day } : q)),
@@ -125,7 +127,7 @@ export function resolveIncident(account: Account, incidentId: string, choice: In
   }
   const turn = () => {
     const cur = a.regulars.find((x) => x.id === r.id)!
-    if (cur.segment === 'hater') {
+    if (actingType(cur) === 'hater') {
       a = addFanMessage(a, r.id, day, { kind: 'opener', topic: 'harass' })
       return
     }
@@ -140,7 +142,7 @@ export function resolveIncident(account: Account, incidentId: string, choice: In
     gross = tipCents(rng, r) * I.courtship.playAlong.giftFactor
     ledger.push(line(day, 'tip', `${incidentId}-gift`, gross))
     events.push({ day, type: 'dm-tip', regularId: r.id, gross })
-    a = updateRegular(a, { ...r, spent: r.spent + gross, traits: r.traits.includes('obsessive') ? r.traits : [...r.traits, 'obsessive'] })
+    a = updateRegular(a, { ...withBehaviour(r, 'obsessive'), spent: r.spent + gross })
     a = addLoyalty(a, r.id, 'playAlong')
     a = addFanMessage(a, r.id, day, { kind: 'opener', incident: incidentId, tip: gross }, gross)
   } else if (choice === 'letDown') {

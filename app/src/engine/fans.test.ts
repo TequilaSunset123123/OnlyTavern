@@ -55,7 +55,7 @@ describe('loyalty', () => {
       const a = grown(seed)
       const id = a.regulars[0].id
       // Like Rick: a simp with obsessive + stalker traits and a few of your messages behind him.
-      let acc = set(a, id, { segment: 'simp', traits: ['pet_names', 'obsessive', 'stalker'], loyalty: 7, status: 'active', relationship: 'single' })
+      let acc = set(a, id, { segment: 'simp', personality: 'pet_names', behaviours: ['obsessive', 'stalker'], loyalty: 7, status: 'active', relationship: 'single' })
       for (let d = 0; d < 30 && !acc.meetups.some((m) => m.regularId === id); d++) {
         if (d % 7 === 0) acc = sendDm(acc, id, { text: 'hey' }, seed).account
         acc = simulate(acc, 1, seed).account
@@ -70,7 +70,7 @@ describe('loyalty', () => {
       let n = 0
       for (const seed of ['a', 'b', 'c', 'd']) {
         let acc = grown(seed)
-        acc = { ...acc, regulars: acc.regulars.map((r) => ({ ...r, segment: 'regular' as const, traits: ['horny_direct'], loyalty, status: 'active' as const })) }
+        acc = { ...acc, regulars: acc.regulars.map((r) => ({ ...r, segment: 'regular' as const, personality: 'horny_direct', behaviours: [], loyalty, status: 'active' as const })) }
         acc = simulate(acc, 30, seed).account
         n += acc.requests.length + acc.meetups.length
       }
@@ -85,17 +85,17 @@ describe('meetup outcomes', () => {
   const withMeetup = (patch: Partial<Regular>, seed = 'd') => {
     const a = grown(seed)
     const id = a.regulars[0].id
-    const acc = set(a, id, { segment: 'whale', traits: ['dominant'], loyalty: 40, status: 'active', relationship: 'married', ...patch })
+    const acc = set(a, id, { segment: 'whale', personality: 'dominant', behaviours: [], conditions: [], loyalty: 40, status: 'active', relationship: 'married', ...patch })
     const m: Meetup = { id: 'm1', regularId: id, day: acc.clock.day, offerCents: 100000, replyBy: acc.clock.day + 5, status: 'open', hidden: false, messageId: 'x' }
     return { acc: acceptMeetup({ ...acc, meetups: [...acc.meetups, m] }, 'm1', acc.clock.day + 1, false), id }
   }
 
-  it('odds come from his type, traits, marriage and your direction', () => {
+  it('odds come from his type, behaviours, marriage and your direction', () => {
     const married = meetupOdds(withMeetup({}).acc, reg(withMeetup({}).acc, withMeetup({}).id))
     const single = meetupOdds(withMeetup({ relationship: 'single' }).acc, reg(withMeetup({ relationship: 'single' }).acc, withMeetup({}).id))
     expect(married.wife).toBeGreaterThan(0)
     expect(single.wife).toBe(0)
-    const stalker = withMeetup({ segment: 'simp', traits: ['stalker'] })
+    const stalker = withMeetup({ segment: 'simp', behaviours: ['stalker'] })
     expect(meetupOdds(stalker.acc, reg(stalker.acc, stalker.id)).creep).toBe(personas.segments.simp.fan.meetup.events.creep * 3)
     const escort = { ...stalker.acc, direction: { ...stalker.acc.direction, id: 'escort' as const, points: { ...stalker.acc.direction.points, escort: 500 } } }
     expect(meetupOdds(escort, reg(escort, stalker.id)).creep).toBeLessThan(meetupOdds(stalker.acc, reg(stalker.acc, stalker.id)).creep!)
@@ -104,7 +104,7 @@ describe('meetup outcomes', () => {
   it('each outcome settles the money and its consequences', () => {
     const seen = new Set<string>()
     for (let i = 0; i < 60 && seen.size < 5; i++) {
-      const { acc, id } = withMeetup({ segment: i % 2 ? 'simp' : 'whale', traits: i % 3 ? ['stalker'] : ['dominant'] }, `s${i}`)
+      const { acc, id } = withMeetup({ segment: i % 2 ? 'simp' : 'whale', ...(i % 3 ? { behaviours: ['stalker'] } : { personality: 'dominant' }) }, `s${i}`)
       const before = subscriberCount(acc.audience)
       const day = simulateMeetupsDay(acc, `o${i}`, acc.clock.day + 1)
       const m = day.account.meetups.find((x) => x.id === 'm1')!
@@ -117,12 +117,12 @@ describe('meetup outcomes', () => {
       if (m.outcome === 'noShow') expect(m.paidCents).toBe(0)
       if (m.outcome === 'creep') {
         expect(m.paidCents).toBe(50000)
-        expect(reg(day.account, id).traits).toContain('stalker')
+        expect(reg(day.account, id).behaviours).toContain('stalker')
       }
       if (m.outcome === 'wife') {
         expect(m.paidCents).toBe(0)
         expect(reg(day.account, id).status).toBe('dormant')
-        expect(reg(day.account, id).away?.reason).toBe('wife')
+        expect(reg(day.account, id).conditions.map((c) => c.id)).toContainEqual(expect.stringMatching(/^(blocked|lyingLow)$/))
         expect(subscriberCount(day.account.audience)).toBeLessThanOrEqual(before)
       }
       expect(day.events[0]).toMatchObject({ type: 'meetup-done', outcome: m.outcome, gross: m.paidCents })
@@ -142,14 +142,14 @@ describe('meetup outcomes', () => {
     }
     // Loyal (level 3): gone for good, and you cannot write to him.
     const low = caught(20)
-    expect(reg(low.acc, low.id).away).toEqual({ reason: 'wife', day: low.acc.clock.day })
+    expect(reg(low.acc, low.id).conditions).toEqual([{ id: 'blocked', since: low.acc.clock.day, by: 'him' }])
     expect(low.events[0]).toMatchObject({ returns: false })
     expect(() => sendDm(low.acc, low.id, { text: 'hey' }, 's')).toThrow(/blocked/)
     expect(simulate(low.acc, 60, 'x').account.regulars.find((r) => r.id === low.id)!.status).toBe('dormant')
 
     // Devoted (level 4): lies low, then writes to you again and stays around.
     const high = caught(40)
-    const until = reg(high.acc, high.id).away!.until!
+    const until = reg(high.acc, high.id).conditions.find((c) => c.id === 'lyingLow')!.until
     expect(until - high.acc.clock.day).toBeGreaterThanOrEqual(14)
     expect(until - high.acc.clock.day).toBeLessThanOrEqual(30)
     expect(high.events[0]).toMatchObject({ returns: true })

@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { buildFanPrompt, parseFanMessage } from '../llm/fanMessage'
 import { createAccount } from '../store/account'
 import type { Account } from '../store/schema'
-import { addVaultItem } from './content'
+import { addVaultItem, publishPost } from './content'
 import { sendMass, simulateMassDay } from './massMessages'
-import { fallbackText, fillMessage, markRead, sendDm } from './regulars'
+import { activeCap, fallbackText, fillMessage, markRead, sendDm, simulateRegularsDay, tagAttracts } from './regulars'
 import { simulate } from './simulate'
 
 function grown(seed = 'a', days = 40): Account {
@@ -38,6 +38,32 @@ describe('regulars', () => {
     a = simulate(a, 90, 'c', { fanLanguage: 'zh', connectionProfile: null }).account
     expect(a.regulars.length).toBeGreaterThan(0)
     expect(a.regulars.every((r) => r.language === 'zh')).toBe(true)
+  })
+
+  it('degradation, domination and BDSM posts draw in more misogynists', () => {
+    let a = createAccount({ id: 'x', seed: 'm', now: 0, name: 'Mia', handle: 'mia' })
+    a = addVaultItem(a, 'v0', { description: 'Collar and leash', tags: ['degradation', 'domination'], intensity: 5, cast: 'me' })
+    a = addVaultItem(a, 'v1', { description: 'Red lace set', tags: ['lingerie'], intensity: 3, cast: 'me' })
+    expect(tagAttracts(a, 0)).toEqual({})
+    const kinky = publishPost(a, 'p0', { text: '', vaultIds: ['v0'], access: 'free', priceCents: 0 })
+    // The strongest tag on a post counts: degradation ×3.
+    expect(tagAttracts(kinky, 0)).toEqual({ misogynist: 3 })
+    // Half your recent posts: half the pull.
+    const mixed = publishPost(kinky, 'p1', { text: '', vaultIds: ['v1'], access: 'free', priceCents: 0 })
+    expect(tagAttracts(mixed, 0)).toEqual({ misogynist: 2 })
+    // Older than regulars.recentDays: no pull.
+    expect(tagAttracts(mixed, 30)).toEqual({})
+  })
+
+  it('a lower cap in Settings sends the regulars you neglected longest to sleep', () => {
+    const settings = { fanLanguage: 'en' as const, connectionProfile: null }
+    const a = grown('cap', 120)
+    const active = a.regulars.filter((r) => r.status === 'active').length
+    expect(active).toBeGreaterThan(3)
+    const day = a.clock.day + 1
+    const after = simulateRegularsDay({ ...a, requests: [], meetups: [] }, a.audience, 'cap', day, { ...settings, maxActiveRegulars: 3 }).account
+    expect(after.regulars.filter((r) => r.status === 'active' && !r.conditions.some((c) => c.id === 'hostile')).length).toBeLessThanOrEqual(3)
+    expect(activeCap(settings)).toBe(8)
   })
 })
 
@@ -147,7 +173,9 @@ describe('fan message prompt and parsing', () => {
       loyalty: { points: 0, level: 1, cap: 5, name: 'Curious', from: 0, next: 5 },
       away: null,
       incidents: [],
-      traits: [{ id: 'creepy_compliments', label: 'Creepy', prompt: 'sleazy compliments' }],
+      personality: { id: 'horny_direct', label: 'Horny', prompt: 'always horny' },
+      behaviours: [{ id: 'creepy_compliments', label: 'Creepy', prompt: 'sleazy compliments' }],
+      conditions: [{ id: 'hostile', label: 'Hostile', prompt: 'you resent her' }],
       requests: [],
       meetups: [],
     }
@@ -156,7 +184,9 @@ describe('fan message prompt and parsing', () => {
     expect(user.content).toMatch(/You (bought|did not buy) her paid message \[paid message, \$5.00: Red lace set\]/)
     expect(user.content).toContain('[Her] look')
     expect(system.content).toContain('Mention money or a deal only when')
-    expect(user.content).toContain('How you write: sleazy compliments')
+    expect(user.content).toContain('How you write: always horny.')
+    expect(user.content).toContain('What you are like: sleazy compliments.')
+    expect(user.content).toContain('Right now: you resent her.')
     expect(user.content).not.toMatch(/You are sending a \$/)
   })
 

@@ -52,7 +52,12 @@ function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: st
     case 'request-expired':
       return e.accepted ? `You missed the deadline for ${fan(e.regularId)}'s custom` : `${fan(e.regularId)}'s custom request expired`
     case 'meetup':
-      return `${fan(e.regularId)} invited you to meet in person`
+      if (!e.askedBy) return `${fan(e.regularId)} invited you to meet in person`
+      return e.terms === 'free'
+        ? `${fan(e.regularId)} said yes to meeting you, but he will not pay: you offered yourself`
+        : e.terms === 'lowball'
+          ? `${fan(e.regularId)} said yes to meeting you, for ${money(e.offerCents ?? 0)}: that is all he thinks you are worth`
+          : `${fan(e.regularId)} said yes to meeting you: ${money(e.offerCents ?? 0)} in cash`
     case 'meetup-done':
       return {
         smooth: `You met ${fan(e.regularId)}: ${money(e.gross)} in cash`,

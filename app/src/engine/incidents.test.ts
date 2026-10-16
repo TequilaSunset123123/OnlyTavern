@@ -14,8 +14,7 @@ const set = (a: Account, id: string, patch: Partial<Regular>): Account => ({
   ...a,
   regulars: a.regulars.map((r) => {
     if (r.id !== id) return r
-    const { turned: _, away: __, ...rest } = r
-    return { ...rest, ...patch }
+    return { ...r, conditions: [], ...patch }
   }),
 })
 
@@ -23,27 +22,27 @@ const set = (a: Account, id: string, patch: Partial<Regular>): Account => ({
 function withIncident(kind: Incident['kind'], patch: Partial<Regular> = {}, seed = 'a') {
   const a = grown(seed)
   const id = a.regulars[0].id
-  const acc = set(a, id, { segment: 'simp', traits: ['stalker'], status: 'active', loyalty: 10, ...patch })
+  const acc = set(a, id, { segment: 'simp', behaviours: ['stalker'], status: 'active', loyalty: 10, ...patch })
   const incident: Incident = { id: `${id}-i0`, regularId: id, day: acc.clock.day, kind, story: 0, status: 'open' }
   return { acc: { ...acc, incidents: [incident] }, id, incidentId: incident.id }
 }
 
 describe('stalker incidents', () => {
   it('happen to stalkers as time goes by, and never to anyone else', () => {
-    const count = (traits: string[]) => {
+    const count = (behaviours: string[]) => {
       let n = 0
       for (const seed of ['a', 'b', 'c']) {
         let a = grown(seed)
-        a = { ...a, incidents: [], regulars: a.regulars.map((r) => ({ ...r, segment: 'simp' as const, traits, status: 'active' as const, since: a.clock.day })) }
+        a = { ...a, incidents: [], regulars: a.regulars.map((r) => ({ ...r, segment: 'simp' as const, behaviours, conditions: [], status: 'active' as const, since: a.clock.day })) }
         const after = simulate(a, 30, seed).account
         n += after.incidents.length
         // New regulars arriving meanwhile may be stalkers of their own.
-        expect(after.incidents.every((x) => reg(after, x.regularId).traits.some((t) => t === 'stalker' || t === 'unhinged'))).toBe(true)
+        expect(after.incidents.every((x) => reg(after, x.regularId).behaviours.includes('stalker') || reg(after, x.regularId).conditions.some((c) => c.id === 'unhinged'))).toBe(true)
       }
       return n
     }
-    expect(count(['stalker'])).toBeGreaterThan(0)
-    expect(count(['obsessive'])).toBe(0)
+    // Obsessed fans only get them once a creepy meetup has made them stalkers too (checked above).
+    expect(count(['stalker'])).toBeGreaterThan(count(['obsessive']))
   })
 
   it('follow a meetup with a stalker: courtship after a good night, clingy after a creepy one', () => {
@@ -51,7 +50,7 @@ describe('stalker incidents', () => {
     for (let i = 0; i < 80 && seen.size < 2; i++) {
       const a = grown('m')
       const id = a.regulars[0].id
-      const acc = set(a, id, { segment: 'simp', traits: ['stalker'], status: 'active', loyalty: 20, relationship: 'single' })
+      const acc = set(a, id, { segment: 'simp', behaviours: ['stalker'], status: 'active', loyalty: 20, relationship: 'single' })
       const m: Meetup = { id: 'm1', regularId: id, day: acc.clock.day, offerCents: 50000, replyBy: acc.clock.day + 5, status: 'open', hidden: false, messageId: 'x' }
       const day = simulateMeetupsDay(acceptMeetup({ ...acc, meetups: [m], incidents: [] }, 'm1', acc.clock.day + 1, false), `m${i}`, acc.clock.day + 1)
       const incident = day.account.incidents.find((x) => x.meetupId === 'm1')
@@ -69,7 +68,7 @@ describe('stalker incidents', () => {
     const high = withIncident('courtship', { loyalty: 40 })
     expect(incidentOdds(high.acc, high.acc.incidents[0]).letDown!).toBeGreaterThan(incidentOdds(low.acc, low.acc.incidents[0]).letDown!)
     const fan = withIncident('clingy')
-    const hater = withIncident('clingy', { segment: 'hater', traits: ['stalker', 'misogynist'] })
+    const hater = withIncident('clingy', { segment: 'hater', personality: 'misogynist', behaviours: ['stalker'] })
     expect(incidentOdds(hater.acc, hater.acc.incidents[0]).calm!).toBeLessThan(incidentOdds(fan.acc, fan.acc.incidents[0]).calm!)
   })
 
@@ -79,7 +78,7 @@ describe('stalker incidents', () => {
     const x = r.account.incidents[0]
     expect(x).toMatchObject({ status: 'done', choice: 'playAlong', result: 'gift' })
     expect(r.account.ledger.at(-1)).toMatchObject({ kind: 'tip', gross: x.gross })
-    expect(reg(r.account, id).traits).toContain('obsessive')
+    expect(reg(r.account, id).behaviours).toContain('obsessive')
     expect(reg(r.account, id).loyalty).toBe(13)
     expect(reg(r.account, id).spent).toBe(reg(acc, id).spent + x.gross!)
     const last = threadOf(r.account, id).messages.at(-1)!
@@ -97,10 +96,10 @@ describe('stalker incidents', () => {
         const x = r.account.incidents[0]
         results.set(`${choice}:${x.result}`, (results.get(`${choice}:${x.result}`) ?? 0) + 1)
         const after = reg(r.account, id)
-        if (x.result === 'turned' || x.result === 'escalated') expect(after.segment).toBe('hater')
+        if (x.result === 'turned' || x.result === 'escalated') expect(after.conditions.map((c) => c.id)).toContain('hostile')
         if (x.result === 'escalated' || x.result === 'backlash') expect(subscriberCount(r.account.audience)).toBe(before - x.lost!)
         if (x.result === 'blocked' || x.result === 'backlash') {
-          expect(after.away).toEqual({ reason: 'blocked', day: acc.clock.day })
+          expect(after.conditions).toContainEqual({ id: 'blocked', since: acc.clock.day, by: 'you' })
           expect(() => sendDm(r.account, id, { text: 'hey' }, 's')).toThrow(/blocked him/)
           // He never comes back on his own.
           expect(reg(simulate(r.account, 30, 's').account, id).status).toBe('dormant')

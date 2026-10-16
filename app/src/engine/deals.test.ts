@@ -3,7 +3,9 @@ import { buildFanPrompt } from '../llm/fanMessage'
 import { createAccount } from '../store/account'
 import { migrate } from '../store/migrate'
 import type { Account, Regular } from '../store/schema'
+import personas from '../presets/personas.json'
 import { askedFor, dealChance } from './deals'
+import { acceptMeetup, simulateMeetupsDay } from './meetups'
 import { sendDm } from './regulars'
 import { simulate } from './simulate'
 import { threadOf } from './threads'
@@ -13,7 +15,7 @@ const grown = (seed = 'a', direction?: 'escort') => {
   a = simulate(a, 90, seed).account
   return a
 }
-const as = (a: Account, r: Regular, segment: Regular['segment']): Account => ({ ...a, regulars: a.regulars.map((x) => (x.id === r.id ? { ...x, segment, traits: ['pet_names'] } : x)) })
+const as = (a: Account, r: Regular, segment: Regular['segment']): Account => ({ ...a, regulars: a.regulars.map((x) => (x.id === r.id ? { ...x, segment, personality: 'pet_names', behaviours: [], conditions: [] } : x)) })
 
 function view(a: Account, r: Regular) {
   const t = threadOf(a, r.id)
@@ -27,7 +29,9 @@ function view(a: Account, r: Regular) {
     loyalty: { points: 0, level: 1, cap: 5, name: 'Curious', from: 0, next: 5 },
     away: null,
     incidents: [],
-    traits: [],
+    personality: { id: 'pet_names', label: 'Clingy', prompt: 'calls her baby' },
+    behaviours: [],
+    conditions: [],
     requests: a.requests,
     meetups: a.meetups,
   }
@@ -75,7 +79,7 @@ describe('deals: one way in, decided by the engine', () => {
     expect(yes).toBeGreaterThan(0)
   })
 
-  it('haters never take a deal; escorts get far more yeses to a meetup', () => {
+  it('haters never take a custom; escorts get far more meetup invitations', () => {
     const a = grown('a')
     const r = a.regulars[0]
     const hater = as(a, r, 'hater')
@@ -86,7 +90,7 @@ describe('deals: one way in, decided by the engine', () => {
     const whaleHere = as(a, r, 'whale')
     const escort = { ...whaleHere, direction: { ...whaleHere.direction, id: 'escort' as const, points: { ...whaleHere.direction.points, escort: 200 } } }
     const w = (acc: Account) => acc.regulars.find((x) => x.id === r.id)!
-    expect(dealChance(escort, w(escort), 'meetup', true)).toBeGreaterThan(dealChance(whaleHere, w(whaleHere), 'meetup', true) * 1.5)
+    expect(dealChance(escort, w(escort), 'meetup', false)).toBeGreaterThan(dealChance(whaleHere, w(whaleHere), 'meetup', false) * 1.5)
   })
 
   it('the prompt gets one line for what happens, and nothing about deals that are not happening', () => {
@@ -97,10 +101,10 @@ describe('deals: one way in, decided by the engine', () => {
     expect(plain).not.toMatch(/custom|meet/i)
 
     const hater = as(a, r, 'hater')
-    const sent = sendDm(hater, r.id, { text: 'come on, meet up with me' }, 's').account
+    const sent = sendDm(hater, r.id, { text: 'want a custom made for you?' }, 's').account
     const reply = threadOf(sent, r.id).messages.at(-1)!
     const lines = buildFanPrompt(view(sent, r), reply.id)[1].content.split('What happens now:')[1].trim().split('\n')
-    expect(lines).toContain('- She brought up meeting in person; you turn it down.')
+    expect(lines).toContain('- She brought up a custom piece; you turn it down.')
   })
 
   it('older saves move their request and meetup notes on fan messages into one deal field', () => {
@@ -130,5 +134,62 @@ describe('deals: one way in, decided by the engine', () => {
       { kind: 'meetup', step: 'ask', id: 'm1' },
       { kind: 'meetup', step: 'met', id: 'm1' },
     ])
+  })
+
+  describe('you ask him to meet (2026-10-16)', () => {
+    const P = personas.loyalty.points
+    const fan = (seed: string, patch: Partial<Regular>) => {
+      const base = grown(seed)
+      const r0 = base.regulars[0]
+      const a = { ...base, meetups: [], regulars: base.regulars.map((x) => (x.id === r0.id ? { ...x, personality: 'shy', behaviours: [], conditions: [], status: 'active' as const, ...patch } : x)) }
+      return { a, r: a.regulars.find((x) => x.id === r0.id)! }
+    }
+    const ask = (seed: string, patch: Partial<Regular>) => {
+      const { a, r } = fan(seed, patch)
+      const sent = sendDm(a, r.id, { text: 'want to meet up this weekend?' }, `m-${seed}`).account
+      const deal = threadOf(sent, r.id).messages.at(-1)!.intent!.deal!
+      return { deal, meetup: sent.meetups.find((m) => m.id === deal.id), sent }
+    }
+    const seeds = Array.from({ length: 40 }, (_, i) => `s${i}`)
+
+    it('men nearly always say yes, more so the more loyal; no cooldown after the last one', () => {
+      const { a, r } = fan('a', { segment: 'regular', loyalty: 0 })
+      expect(dealChance(a, r, 'meetup', true)).toBe(0.9)
+      expect(dealChance(a, { ...r, loyalty: P[3] }, 'meetup', true)).toBeCloseTo(0.9 + 0.07 * 0.75)
+      expect(dealChance(a, { ...r, segment: 'freeloader' }, 'meetup', true)).toBeGreaterThan(0.9)
+      // A Devoted regular says yes nearly every time, even right after a meetup.
+      const yes = seeds.filter((s) => ask(s, { segment: 'regular', loyalty: P[3] }).deal.step === 'ask').length
+      expect(yes).toBeGreaterThan(34)
+    })
+
+    it('unless he is devoted to you, he takes you for a freebie: nothing, or a few dollars', () => {
+      const terms = (patch: Partial<Regular>) => seeds.map((s) => ask(s, patch).meetup).filter((m) => !!m)
+      const casual = terms({ segment: 'regular', loyalty: 0 })
+      expect(casual.length).toBeGreaterThan(30)
+      for (const m of casual) {
+        expect(m.askedBy).toBe('you')
+        expect(m.terms === 'free' ? m.offerCents === 0 : m.terms === 'lowball' && m.offerCents >= 200 && m.offerCents <= 2000).toBe(true)
+      }
+      expect(casual.filter((m) => m.terms === 'free').length).toBeGreaterThan(casual.length * 0.4)
+      // A freeloader nearly always wants it free.
+      expect(terms({ segment: 'freeloader', loyalty: 0 }).filter((m) => m.terms === 'free').length).toBeGreaterThan(28)
+      // Devoted, a simp, obsessed or old money: he pays like a client.
+      for (const patch of [{ segment: 'regular' as const, loyalty: P[3] }, { segment: 'simp' as const, loyalty: 0 }, { segment: 'regular' as const, behaviours: ['obsessive'] }, { segment: 'whale' as const, behaviours: ['older_gentleman'] }]) {
+        const paid = terms(patch)
+        expect(paid.every((m) => !m.terms && m.offerCents >= 10000)).toBe(true)
+      }
+    })
+
+    it('a freebie stays free on the day; his message says so', () => {
+      const { a, r } = fan('a', { segment: 'freeloader', loyalty: 0, relationship: 'single' })
+      const m = { id: 'mf', regularId: r.id, day: a.clock.day, offerCents: 0, replyBy: a.clock.day + 5, status: 'open' as const, hidden: false, messageId: 'x', askedBy: 'you' as const, terms: 'free' as const }
+      const acc = acceptMeetup({ ...a, meetups: [m] }, 'mf', a.clock.day + 1, false)
+      const after = simulateMeetupsDay(acc, 'f', a.clock.day + 1).account
+      const done = after.meetups.find((x) => x.id === 'mf')!
+      expect(done.paidCents).toBe(0)
+      const msg = threadOf(after, r.id).messages.at(-1)!
+      const lines = buildFanPrompt(view(after, r), msg.id)[1].content
+      if (done.outcome === 'smooth' || done.outcome === 'bonus') expect(lines).toContain('did not pay her anything')
+    })
   })
 })

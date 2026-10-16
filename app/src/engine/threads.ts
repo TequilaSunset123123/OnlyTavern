@@ -36,6 +36,15 @@ export function unanswered(thread: Thread): number {
 }
 
 /** Messages you wrote to this fan yourself in the last 14 days (mass messages don't count). */
+/**
+ * The day he last heard from you: your last message, or since he became a regular, or
+ * since he came back from lying low (his "back" message). Ignoring counts from here.
+ */
+export function lastContact(r: Regular, thread: Thread): number {
+  const back = thread.messages.filter((m) => m.intent?.deal?.kind === 'meetup' && m.intent.deal.step === 'back').map((m) => m.day)
+  return Math.max(r.since, ...back, ...thread.messages.filter((m) => m.from === 'me').map((m) => m.day))
+}
+
 export function recentMine(thread: Thread, day: number): number {
   return thread.messages.filter((m) => m.from === 'me' && !m.massId && m.day > day - RECENT_DAYS).length
 }

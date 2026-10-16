@@ -57,7 +57,9 @@ describe('schema 10', () => {
     }
     const up = migrate(old)
     expect(up.incidents).toEqual([])
-    expect(up.regulars[0].turned).toEqual({ from: 'whale', day: 10, level: 4 })
+    // (and on to schema 11: he is a hostile whale now)
+    expect(up.regulars[0].segment).toBe('whale')
+    expect(up.regulars[0].conditions).toContainEqual({ id: 'hostile', since: 10, level: 4 })
     expect(up.regulars[0].id).toBe(r.id)
   })
 })

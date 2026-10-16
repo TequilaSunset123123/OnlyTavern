@@ -57,7 +57,28 @@
     "id": "bdsm",
     "en": "BDSM",
     "zh": "BDSM",
-    "intensity": 5
+    "intensity": 5,
+    "attracts": {
+      "misogynist": 2
+    }
+  },
+  {
+    "id": "degradation",
+    "en": "Degradation",
+    "zh": "羞辱",
+    "intensity": 5,
+    "attracts": {
+      "misogynist": 3
+    }
+  },
+  {
+    "id": "domination",
+    "en": "Domination",
+    "zh": "支配",
+    "intensity": 4,
+    "attracts": {
+      "misogynist": 2
+    }
   },
   {
     "id": "romantic",

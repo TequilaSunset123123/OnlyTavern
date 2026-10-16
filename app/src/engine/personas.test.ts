@@ -3,7 +3,8 @@ import personas from '../presets/personas.json'
 import { createAccount } from '../store/account'
 import { migrate } from '../store/migrate'
 import { SEGMENTS } from '../store/schema'
-import { behaviour, fanIdentity, makePersona } from './personas'
+import { fanProfile } from './fans'
+import { fanIdentity, makePersona, modifiers } from './personas'
 import { sendDm } from './regulars'
 import { rngFor } from './rng'
 import { simulate } from './simulate'
@@ -23,27 +24,32 @@ describe('fan personas', () => {
     }
   })
 
-  it('every type gets a job, a place, a relationship and a way of writing; simps often obsess, haters always hate', () => {
+  it('every type gets a job, a place, a relationship and a personality; simps often obsess, haters always hate', () => {
     for (const segment of SEGMENTS) {
       const people = Array.from({ length: 200 }, (_, i) => makePersona(rngFor('s', i, segment), segment, 'en'))
       for (const p of people) {
         expect(p.bio).toMatch(new RegExp(`^${p.age}, .+ from .+, .+, .+$`))
-        expect(p.traits.length).toBeGreaterThan(0)
+        expect(p.personality in personas.personalities).toBe(true)
+        expect(p.behaviours.every((b) => b in personas.behaviours)).toBe(true)
       }
       if (segment === 'simp') {
-        const obsessed = people.filter((p) => p.traits.includes('obsessive') || p.traits.includes('stalker')).length
+        const obsessed = people.filter((p) => p.behaviours.includes('obsessive') || p.behaviours.includes('stalker')).length
         expect(obsessed / people.length).toBeGreaterThan(0.4)
       }
-      if (segment === 'hater') expect(people.every((p) => p.traits[0] === 'misogynist' || p.traits[0] === 'troll')).toBe(true)
+      if (segment === 'hater') expect(people.every((p) => p.personality === 'misogynist' || p.personality === 'troll')).toBe(true)
     }
+    // Submissive and misogynist fans are not only haters.
+    const whales = Array.from({ length: 300 }, (_, i) => makePersona(rngFor('s', i, 'w'), 'whale', 'en').personality)
+    expect(whales).toContain('submissive')
+    expect(whales).toContain('misogynist')
     expect(makePersona(rngFor('s', 1, 'x'), 'whale', 'zh').bio).toMatch(/^\d+岁，/)
   })
 
-  it('obsessed fans and haters keep writing when ignored; obsessed fans and stalkers want to meet', () => {
-    expect(behaviour(['pet_names'])).toEqual({
+  it('only behaviours and conditions change the odds; obsessed fans and haters keep writing when ignored', () => {
+    expect(modifiers({ behaviours: [], conditions: [] })).toEqual({
       dmFactor: 1,
-      maxUnanswered: 2,
-      ignoredFactor: 0.3,
+      maxUnanswered: 0,
+      ignoredFactor: 0,
       meetupFactor: 1,
       meetupMinLoyalty: 5,
       events: {},
@@ -53,10 +59,17 @@ describe('fan personas', () => {
       incidents: 0,
       comesBackAs: [],
     })
-    expect(behaviour(['pet_names', 'stalker'])).toMatchObject({ maxUnanswered: 4, meetupFactor: 2.5 })
-    expect(behaviour(['obsessive']).meetupFactor).toBe(2)
-    expect(behaviour(['misogynist']).maxUnanswered).toBe(3)
-    expect(behaviour(['creepy_compliments']).turnsHater).toEqual({ afterDays: 14, daily: 0.08 })
+    expect(modifiers({ behaviours: ['stalker'], conditions: [] })).toMatchObject({ maxUnanswered: 4, meetupFactor: 2.5 })
+    expect(modifiers({ behaviours: ['obsessive'], conditions: [] }).meetupFactor).toBe(2)
+    expect(modifiers({ behaviours: ['creepy_compliments'], conditions: [] }).turnsHater).toEqual({ afterDays: 14, daily: 0.08 })
+    expect(modifiers({ behaviours: [], conditions: [{ id: 'unhinged', since: 0 }] }).incidents).toBe(2)
+    // A personality is words only: a misogynist whale writes as often as any whale.
+    const a = simulate(createAccount({ id: 'x', seed: 'p', now: 0, name: 'Mia', handle: 'mia' }), 60, 'p').account
+    const r = { ...a.regulars[0], segment: 'whale' as const, behaviours: [], conditions: [] }
+    expect(fanProfile({ ...r, personality: 'misogynist' })).toEqual(fanProfile({ ...r, personality: 'shy' }))
+    // A hater keeps going when ignored (his type), and so does a hostile fan (he acts as one).
+    expect(fanProfile({ ...r, segment: 'hater' }).dm.maxUnanswered).toBe(3)
+    expect(fanProfile({ ...r, conditions: [{ id: 'hostile', since: 0, level: 1 }] }).dm.maxUnanswered).toBe(3)
   })
 
   it('haters message you to insult you', () => {
@@ -79,29 +92,30 @@ describe('ignored fans turn on you', () => {
     for (const seed of ['a', 'b', 'c', 'd', 'e', 'f']) {
       let a = simulate(createAccount({ id: 'x', seed, now: 0, name: 'Mia', handle: 'mia' }), 60, seed).account
       // Half of them obsessed, half just horny; nobody gets an answer.
-      a = { ...a, regulars: a.regulars.map(({ turned: _, ...r }, i) => ({ ...r, segment: 'simp' as const, traits: i % 2 ? ['horny_direct'] : ['obsessive'] })) }
-      const ids = new Set(a.regulars.filter((r) => r.traits.includes('obsessive')).map((r) => r.id))
-      const horny = new Set(a.regulars.filter((r) => r.traits.includes('horny_direct')).map((r) => r.id))
+      a = { ...a, regulars: a.regulars.map((r, i) => ({ ...r, segment: 'simp' as const, personality: 'horny_direct', behaviours: i % 2 ? [] : ['obsessive'], conditions: [] })) }
+      const ids = new Set(a.regulars.filter((r) => r.behaviours.includes('obsessive')).map((r) => r.id))
+      const horny = new Set(a.regulars.filter((r) => !r.behaviours.length).map((r) => r.id))
       const after = simulate(a, 25, seed).account
-      // Only the fans set up above: new ones may arrive meanwhile with any traits.
+      // Only the fans set up above: new ones may arrive meanwhile with anything.
       for (const r of after.regulars.filter((x) => ids.has(x.id) || horny.has(x.id))) {
-        if (!r.turned) continue
+        const hostile = r.conditions.find((c) => c.id === 'hostile')
+        if (!hostile) continue
         if (horny.has(r.id)) hornyTurned++
         else turned++
-        expect(r).toMatchObject({ segment: 'hater', turned: { from: 'simp' } })
-        expect(r.traits).toContain('misogynist')
+        // He keeps his type, personality and behaviours; the condition makes him a hater.
+        expect(r).toMatchObject({ segment: 'simp', personality: 'horny_direct' })
         const t = after.threads.find((x) => x.regularId === r.id)!
-        expect(t.messages.some((m) => m.intent?.topic === 'harass' && m.day === r.turned!.day)).toBe(true)
+        expect(t.messages.some((m) => m.intent?.topic === 'harass' && m.day === hostile.since)).toBe(true)
         expect(after.events.some((e) => e.type === 'regular-turned' && e.regularId === r.id)).toBe(true)
 
         // Win him back: write to him every day.
         let b = after
-        for (let i = 0; i < 20 && b.regulars.find((x) => x.id === r.id)!.turned; i++) {
+        const isHostile = (acc: typeof b) => acc.regulars.find((x) => x.id === r.id)!.conditions.some((c) => c.id === 'hostile')
+        for (let i = 0; i < 20 && isHostile(b); i++) {
           b = simulate(sendDm(b, r.id, { text: 'sorry, missed you' }, seed).account, 1, seed).account
         }
         const back = b.regulars.find((x) => x.id === r.id)!
-        expect(back).toMatchObject({ segment: 'simp', traits: horny.has(r.id) ? ['horny_direct'] : ['obsessive'] })
-        expect(back.turned).toBeUndefined()
+        expect(back).toMatchObject({ segment: 'simp', personality: 'horny_direct', behaviours: horny.has(r.id) ? [] : ['obsessive'], conditions: [] })
         expect(b.events.some((e) => e.type === 'regular-back' && e.regularId === r.id)).toBe(true)
       }
     }
@@ -112,24 +126,62 @@ describe('ignored fans turn on you', () => {
 })
 
 describe('schema 6', () => {
-  it('gives the regulars of an older save a new identity and traits, keeping everything else', () => {
+  it('gives the regulars of an older save a new identity and a personality, keeping everything else', () => {
     let a = simulate(createAccount({ id: 'x', seed: 'b', now: 0, name: 'Mia', handle: 'mia' }), 60, 'b').account
     const r0 = a.regulars[0]
     a = sendDm(a, r0.id, { text: 'hi' }, 'b').account
     const old = {
       ...a,
       meta: { ...a.meta, schemaVersion: 5 },
-      regulars: a.regulars.map(({ traits: _, ...r }) => ({ ...r, name: 'Stephanie', handle: 'stephanie_rippin', bio: 'senior solutions supervisor' })),
+      regulars: a.regulars.map(({ personality: _, behaviours: __, conditions: ___, ...r }) => ({ ...r, name: 'Stephanie', handle: 'stephanie_rippin', bio: 'senior solutions supervisor' })),
     }
     const up = migrate(old)
     expect(up.regulars).toHaveLength(a.regulars.length)
     for (const [i, r] of up.regulars.entries()) {
       expect(r.name).not.toBe('Stephanie')
-      expect(r.traits.length).toBeGreaterThan(0)
+      expect(r.personality in personas.personalities).toBe(true)
       // Identity is new; loyalty is rebuilt from what you two did, so it matches what was earned.
-      const blank = { name: '', handle: '', bio: '', age: 0, country: '', traits: [], relationship: '' }
+      const blank = { name: '', handle: '', bio: '', age: 0, country: '', personality: '', behaviours: [], conditions: [], relationship: '' }
       expect({ ...r, ...blank }).toEqual({ ...a.regulars[i], ...blank })
     }
     expect(up.threads).toEqual(a.threads)
+  })
+})
+
+describe('schema 11', () => {
+  it('splits old traits into personality, behaviours and conditions', () => {
+    const a = simulate(createAccount({ id: 'x', seed: 'c', now: 0, name: 'Mia', handle: 'mia' }), 90, 'c').account
+    const [r0, r1, r2] = a.regulars
+    const old = (r: (typeof a.regulars)[number], patch: object) => {
+      const { personality: _, behaviours: __, conditions: ___, ...rest } = r
+      return { ...rest, ...patch }
+    }
+    const v10 = {
+      ...a,
+      meta: { ...a.meta, schemaVersion: 10 },
+      regulars: [
+        // A stalker who turned (misogynist came with turning) and got blocked.
+        old(r0, { segment: 'hater', traits: ['pet_names', 'stalker', 'misogynist'], turned: { from: 'simp', day: 5, trait: 'misogynist', level: 2 }, away: { reason: 'blocked', day: 9 } }),
+        // Creepy was his way of writing; now a behaviour, so he gets a personality from his type.
+        old(r1, { segment: 'regular', traits: ['creepy_compliments', 'unhinged'], away: { reason: 'wife', day: 3, until: a.clock.day + 5 } }),
+        // Lying low is over.
+        old(r2, { segment: 'whale', traits: ['dominant'], away: { reason: 'wife', day: 3, until: a.clock.day - 1 } }),
+        ...a.regulars.slice(3).map((r) => old(r, { traits: [r.personality, ...r.behaviours] })),
+      ],
+    }
+    const [x0, x1, x2] = migrate(v10).regulars
+    expect(x0).toMatchObject({ segment: 'simp', personality: 'pet_names', behaviours: ['stalker'] })
+    expect(x0.conditions).toEqual([
+      { id: 'hostile', since: 5, level: 2 },
+      { id: 'blocked', since: 9, by: 'you' },
+    ])
+    expect(x1.personality in personas.segments.regular.personalities).toBe(true)
+    expect(x1.behaviours).toEqual(['creepy_compliments'])
+    expect(x1.conditions).toEqual([
+      { id: 'unhinged', since: r1.since },
+      { id: 'lyingLow', since: 3, until: a.clock.day + 5 },
+    ])
+    expect(x2).toMatchObject({ personality: 'dominant', behaviours: [], conditions: [] })
+    expect('traits' in x0 || 'turned' in x0 || 'away' in x0).toBe(false)
   })
 })

@@ -43,7 +43,7 @@ import { VaultPickerDialog } from '../VaultPickerDialog'
 
 const SEGMENT_BADGE: Record<string, string> = { whale: 'VIP', simp: 'Superfan', hater: 'Hater', freeloader: 'Freebie hunter' }
 const FILTERS = ['All', 'Unread', 'Tipped', 'Dormant'] as const
-/** Traits worth a warning colour on the fan's profile. */
+/** Personalities and behaviours worth a warning colour on the fan's profile (conditions always get one). */
 const RED_FLAGS = ['stalker', 'misogynist', 'obsessive', 'troll']
 const WHY_NOT = { price: 'too pricey for them', taste: 'not their taste', mood: 'not in the mood', liked: '' }
 
@@ -528,21 +528,43 @@ function FanDetails({ view }: { view: ThreadView }) {
   const r = view.regular
   const purchases = view.messages.filter((m) => m.ppv?.paid)
   const l = view.loyalty
+  const hostile = r.conditions.find((c) => c.id === 'hostile')
   const progress = l.next === null ? 100 : Math.round(((l.points - l.from) / (l.next - l.from)) * 100)
   return (
     <div className="flex flex-col gap-4">
       {SEGMENT_BADGE[r.segment] && <Badge className="self-center">{SEGMENT_BADGE[r.segment]}</Badge>}
       <p className="text-sm text-content-secondary">{r.bio}</p>
-      {r.turned && (
-        <Alert variant="warning">Turned on you on day {r.turned.day} because you ignored him. Write to him regularly and he may come round.</Alert>
-      )}
-      <div className="flex flex-wrap gap-1">
-        {view.traits.map((t) => (
-          <Badge key={t.id} variant={RED_FLAGS.includes(t.id) ? 'errorColour' : 'default'}>
-            {t.label}
-          </Badge>
-        ))}
-      </div>
+      {hostile && !view.away && <Alert variant="warning">Turned on you on day {hostile.since}. Write to him regularly and he may come round.</Alert>}
+      <dl className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 text-sm">
+        <dt className="text-content-tertiary">Personality</dt>
+        <dd className="flex flex-wrap justify-end gap-1">
+          <Badge variant={RED_FLAGS.includes(view.personality.id) ? 'errorColour' : 'default'}>{view.personality.label}</Badge>
+        </dd>
+        {view.behaviours.length > 0 && (
+          <>
+            <dt className="text-content-tertiary">Behaviour</dt>
+            <dd className="flex flex-wrap justify-end gap-1">
+              {view.behaviours.map((b) => (
+                <Badge key={b.id} variant={RED_FLAGS.includes(b.id) ? 'errorColour' : 'default'}>
+                  {b.label}
+                </Badge>
+              ))}
+            </dd>
+          </>
+        )}
+        {view.conditions.length > 0 && (
+          <>
+            <dt className="text-content-tertiary">Condition</dt>
+            <dd className="flex flex-wrap justify-end gap-1">
+              {view.conditions.map((c) => (
+                <Badge key={c.id} variant="errorColour">
+                  {c.label}
+                </Badge>
+              ))}
+            </dd>
+          </>
+        )}
+      </dl>
       <dl className="grid grid-cols-2 gap-y-2 text-sm">
         <dt className="text-content-tertiary">Spent</dt>
         <dd className="text-right font-semibold">{money(r.spent)}</dd>

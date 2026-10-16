@@ -26,11 +26,12 @@ import { paymentLine as line } from './economy'
 import { answerDeal, askedFor } from './deals'
 import { directionEffects } from './directions'
 import { dormantAfterDays } from './haters'
-import { behaviour, makePersona, pickLanguage } from './personas'
-import { intensityMatch } from './posts'
+import { actingType, awayNow, conditionOf, hasCondition, loveHate, withoutCondition } from './conditions'
+import { makePersona, pickLanguage } from './personas'
+import { intensityMatch, postTags } from './posts'
 import { logNormal, type Rng, rngFor } from './rng'
-import { addLoyalty, awayNow, fanProfile, loyaltyEffects } from './fans'
-import { addFanMessage, pendingMessage, threadOf, unanswered, updateRegular, withReply, withThread } from './threads'
+import { addLoyalty, fanProfile, loyaltyEffects } from './fans'
+import { addFanMessage, lastContact, pendingMessage, threadOf, unanswered, updateRegular, withReply, withThread } from './threads'
 
 const R = preset.regulars
 
@@ -44,22 +45,26 @@ const OPENER_TOPICS: Record<Segment, Record<Topic, number>> = {
   freeloader: { chat: 2, compliment: 1, wants_content: 5, tip: 0.2, harass: 0, obsess: 0 },
 }
 
-/** What a fan writes to you about on his own: his type, then his traits (obsessed fans mostly obsess). */
+/** Love-hate (conditions.ts): mostly insults, often pining for her, sometimes a tip. */
+const LOVE_HATE_TOPICS: Record<Topic, number> = { chat: 1, compliment: 0, wants_content: 0, tip: 1, harass: 4, obsess: 3 }
+
+/** What a fan writes to you about on his own: his type (a hater's while hostile), then his behaviours (obsessed fans mostly obsess). */
 function openerTopics(r: Regular): Record<Topic, number> {
-  const t = { ...OPENER_TOPICS[r.segment] }
-  if (r.traits.includes('obsessive') || r.traits.includes('stalker')) t.obsess = 6
+  if (loveHate(r)) return { ...LOVE_HATE_TOPICS }
+  const t = { ...OPENER_TOPICS[actingType(r)] }
+  if (r.behaviours.includes('obsessive') || r.behaviours.includes('stalker')) t.obsess = 6
   return t
 }
 
-/** A tip from one regular: around his type's median (presets/personas.json). */
+/** A tip from one regular: around his type's median (presets/personas.json), times what his loyalty makes him spend. */
 export function tipCents(rng: Rng, r: Regular): number {
-  return Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(rng, fanProfile(r).tip.median, 0.6)))) * 100
+  return Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(rng, fanProfile(r).tip.median * loyaltyEffects(r).spend, 0.6)))) * 100
 }
 
 /** His chance to tip: his type's, scaled by his loyalty. */
 const tipChance = (r: Regular) => Math.min(0.9, fanProfile(r).tip.chance * loyaltyEffects(r).tip)
 
-function newRegular(rng: Rng, id: string, segment: Segment, day: number, settings: Settings, traitFactors: Record<string, number>): Regular {
+function newRegular(rng: Rng, id: string, segment: Segment, day: number, settings: Settings, attracts: Record<string, number>): Regular {
   const language = pickLanguage(rng, settings.fanLanguage)
   const pref = preset.segments[segment].preferredIntensity
   const near = tags.filter((t) => Math.abs(t.intensity - pref) <= 1)
@@ -67,15 +72,48 @@ function newRegular(rng: Rng, id: string, segment: Segment, day: number, setting
   return {
     id,
     segment,
-    ...makePersona(rng, segment, language, traitFactors),
+    ...makePersona(rng, segment, language, attracts),
     language,
     likes,
     since: day,
     spent: 0,
     status: 'active',
     loyalty: 0,
+    conditions: [],
   }
 }
+
+/**
+ * Who your recent posts draw in (presets/tags.json `attracts`, 2026-10-15): BDSM,
+ * degradation and domination bring more misogynists. Each personality's or behaviour's
+ * odds are scaled by the share of your last posts (regulars.recentDays) that carry such
+ * a tag, up to the tag's factor.
+ */
+export function tagAttracts(account: Account, day: number): Record<string, number> {
+  const recent = account.posts.filter((p) => p.day > day - R.recentDays && p.day <= day)
+  if (!recent.length) return {}
+  const pull = new Map<string, number>()
+  for (const p of recent) {
+    const ids = new Set(postTags(p, account))
+    const strongest: Record<string, number> = {}
+    for (const t of tags) {
+      if (!ids.has(t.id) || !('attracts' in t)) continue
+      for (const [id, m] of Object.entries(t.attracts as Record<string, number>)) strongest[id] = Math.max(strongest[id] ?? 1, m)
+    }
+    for (const [id, m] of Object.entries(strongest)) pull.set(id, (pull.get(id) ?? 0) + (m - 1))
+  }
+  return Object.fromEntries([...pull].map(([id, extra]) => [id, 1 + extra / recent.length]))
+}
+
+/** Your direction's pull times your posts' pull. */
+function attracts(account: Account, day: number): Record<string, number> {
+  const out = { ...directionEffects(account).attracts }
+  for (const [id, m] of Object.entries(tagAttracts(account, day))) out[id] = (out[id] ?? 1) * m
+  return out
+}
+
+/** How many regulars can be active at once: your setting (Settings), or the preset's. */
+export const activeCap = (settings: Settings) => settings.maxActiveRegulars ?? R.cap
 
 export type RegularsDay = { account: Account; events: EngineEvent[] }
 
@@ -91,22 +129,39 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
 
   // Back after lying low since his wife caught you two (meetups.ts).
   for (const r of a.regulars) {
-    if (r.away?.until !== day) continue
-    a = updateRegular(a, { ...r, status: 'active' })
+    if (conditionOf(r, 'lyingLow')?.until !== day) continue
+    a = updateRegular(a, { ...withoutCondition(r, 'lyingLow'), status: 'active' })
     const caught = a.meetups.findLast((m) => m.regularId === r.id && m.outcome === 'wife')
     a = addFanMessage(a, r.id, day, { kind: 'opener', deal: { kind: 'meetup', step: 'back', ...(caught ? { id: caught.id } : {}) } })
     events.push({ day, type: 'regular-back', regularId: r.id, reason: 'wife' })
   }
 
   // Dormant: you have not written to them for a long time (since he came back, if he was
-  // away); loyal fans wait longer. Turned haters give up on their own (haters.ts).
+  // away); loyal fans wait longer. Hostile fans give up on their own (haters.ts).
+  const lastMine = (r: Regular) => lastContact(r, threadOf(a, r.id))
+  const hostile = (r: Regular) => hasCondition(r, 'hostile')
   a = {
     ...a,
-    regulars: a.regulars.map((r) => {
-      const t = a.threads.find((x) => x.regularId === r.id)
-      const lastMine = Math.max(r.since, r.away?.until ?? r.since, ...(t?.messages.filter((m) => m.from === 'me').map((m) => m.day) ?? []))
-      return r.status === 'active' && !r.turned && day - lastMine > dormantAfterDays(r) ? { ...r, status: 'dormant' as const } : r
-    }),
+    regulars: a.regulars.map((r) => (r.status === 'active' && !hostile(r) && day - lastMine(r) > dormantAfterDays(r) ? { ...r, status: 'dormant' as const } : r)),
+  }
+
+  // Over your cap (you lowered it in Settings, or wrote to a dormant fan): the ones you
+  // have not written to for longest go dormant. Hostile fans and fans with a deal still open stay.
+  const cap = activeCap(settings)
+  const over = a.regulars.filter((r) => r.status === 'active').length - cap
+  if (over > 0) {
+    const busy = new Set([
+      ...a.requests.filter((q) => q.status === 'open' || q.status === 'accepted').map((q) => q.regularId),
+      ...a.meetups.filter((m) => m.status === 'open' || m.status === 'accepted').map((m) => m.regularId),
+    ])
+    const quiet = new Set(
+      a.regulars
+        .filter((r) => r.status === 'active' && !hostile(r) && !busy.has(r.id))
+        .sort((x, y) => lastMine(x) - lastMine(y))
+        .slice(0, over)
+        .map((r) => r.id),
+    )
+    a = { ...a, regulars: a.regulars.map((r) => (quiet.has(r.id) ? { ...r, status: 'dormant' as const } : r)) }
   }
 
   // Someone new reaches out. Word gets around: if you leave regulars unanswered
@@ -115,13 +170,13 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
   const weights = Object.fromEntries(SEGMENTS.map((s) => [s, subscriberCount(audience, s) * preset.segments[s].reachOut])) as Record<Segment, number>
   // A little traffic from outside on top of your subscribers, so the first regulars do not wait for a big audience.
   const lambda = R.baseDaily + Object.values(weights).reduce((x, y) => x + y, 0)
-  const recent = a.regulars.filter((r) => r.since <= day - 3).slice(-R.cap)
+  const recent = a.regulars.filter((r) => r.since <= day - 3).slice(-cap)
   const answered = recent.length ? recent.filter((r) => threadOf(a, r.id).messages.some((m) => m.from === 'me')).length / recent.length : 1
   const chance = Math.min(R.maxNewDaily, 1 - Math.exp(-lambda)) * (R.ignoredFactor + (1 - R.ignoredFactor) * answered)
-  if (a.regulars.filter((r) => r.status === 'active').length < R.cap && rng() < chance) {
+  if (a.regulars.filter((r) => r.status === 'active').length < cap && rng() < chance) {
     const segment = pickWeighted(rng, weights)
     const id = `r${day}-${a.regulars.length}`
-    const regular = newRegular(rng, id, segment, day, settings, directionEffects(a).traits)
+    const regular = newRegular(rng, id, segment, day, settings, attracts(a, day))
     const topic = pickWeighted(rng, openerTopics(regular))
     const tip = topic === 'tip' ? tipCents(rng, regular) : undefined
     a = {
@@ -143,11 +198,11 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     const t = threadOf(a, r.id)
     // Unanswered messages in a row: at most two (obsessed fans and haters keep going),
     // and less likely once he is waiting for you.
-    const b = behaviour(r.traits)
+    const dm = fanProfile(r).dm
     const tail = unanswered(t)
-    if (tail >= b.maxUnanswered) continue
+    if (tail >= dm.maxUnanswered) continue
     const rr = rngFor(seed, day, `regulars:dm:${r.id}`)
-    if (rr() >= fanProfile(r).dmDaily * b.dmFactor * (tail > 0 ? b.ignoredFactor : 1)) continue
+    if (rr() >= dm.daily * (tail > 0 ? dm.ignoredFactor : 1)) continue
     const topic = pickWeighted(rr, openerTopics(r))
     const tip = topic === 'tip' && rr() < Math.max(tipChance(r), 0.5) ? tipCents(rr, r) : undefined
     const id = `${r.id}-m${t.messages.length}`
@@ -183,12 +238,13 @@ function checkPpv(account: Account, ppv: DmInput['ppv']) {
 function decidePpv(rng: Rng, account: Account, regular: Regular, ppv: NonNullable<DmInput['ppv']>, mass: boolean) {
   const loyal = loyaltyEffects(regular)
   if (loyal.buysAnything && !mass) return { bought: true, reason: 'liked' as const }
-  const p = preset.segments[regular.segment]
+  // A love-hate fan still has his old taste.
+  const p = preset.segments[loveHate(regular) ? regular.segment : actingType(regular)]
   const items = ppv.vaultIds.map((id) => account.vault.find((v) => v.id === id)!)
   const intensity = Math.max(...items.map((i) => i.intensity))
   const match = intensityMatch(intensity, p.preferredIntensity)
-  // Personal offers: prices hurt less than on the wall (per $25 instead of per $10).
-  const priceFactor = Math.exp((-p.priceSensitivity * ppv.priceCents) / R.dmPriceScaleCents)
+  // Personal offers: prices hurt less than on the wall (per $25 instead of per $10); loyal fans pay more readily.
+  const priceFactor = Math.exp((-p.priceSensitivity * ppv.priceCents) / (R.dmPriceScaleCents * loyal.spend))
   const likesBonus = items.some((i) => i.tags.some((t) => regular.likes.includes(t))) ? 1.5 : 1
   const chance = Math.min(0.95, fanProfile(regular).ppv * loyal.buy * (mass ? R.massPpvFactor : 1) * match * priceFactor * likesBonus)
   if (rng() < chance) return { bought: true, reason: 'liked' as const }
@@ -214,9 +270,8 @@ export function sendDm(
   if (!regular) throw new ContentError('Conversation not found')
   const day = account.clock.day
   if (awayNow(regular, day)) {
-    throw new ContentError(
-      regular.away?.reason === 'blocked' ? 'You blocked him' : regular.away?.until === undefined ? 'He blocked you after his wife found out' : 'He is lying low since his wife found out',
-    )
+    const blocked = conditionOf(regular, 'blocked')
+    throw new ContentError(!blocked ? 'He is lying low since his wife found out' : blocked.by === 'you' ? 'You blocked him' : 'He blocked you after his wife found out')
   }
   const thread = threadOf(account, regularId)
   const myId = `${regularId}-m${thread.messages.length}`
@@ -322,7 +377,7 @@ export function fallbackText(account: Account, regularId: string, messageId: str
   const corpus = CORPUS[regular.language]
   const bought = message.intent?.ppv?.some((d) => d.bought)
   const mood: Mood = message.intent?.kind === 'reply' ? (bought ? 'praise' : 'casual') : TOPIC_MOOD[message.intent?.topic ?? 'chat']
-  return pick(rng, corpus.segments[regular.segment][mood])
+  return pick(rng, corpus.segments[actingType(regular)][mood])
 }
 
 /** You have seen the conversation up to now. */

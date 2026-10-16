@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { useTheme } from './hooks/useTheme'
 import { routes } from './ui/routes'
+import { Splash } from './ui/time/Splash'
 
 // Memory router: the app lives in an iframe, so there is no URL to sync with.
 const router = createMemoryRouter(routes)
@@ -17,6 +18,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <Splash />
     </QueryClientProvider>
   )
 }

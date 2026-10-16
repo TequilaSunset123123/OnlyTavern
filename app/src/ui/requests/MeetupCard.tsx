@@ -34,8 +34,14 @@ const MAX_AHEAD = 14
 const HIDE_HELP = 'Leave it out of what co-creators know. Takes effect once the account has one.'
 
 /** Where he is since the scandal (only on the Requests page; the chat says it under the conversation). */
-const afterScandal = (r: Regular | undefined, day: number) =>
-  !r?.away ? '' : r.away.until === undefined ? ' He blocked you.' : r.away.until > day ? ' He is lying low for a while.' : ` He came back on day ${r.away.until}.`
+function afterScandal(r: Regular | undefined, day: number): string {
+  if (!r) return ''
+  const blocked = r.conditions.find((c) => c.id === 'blocked')
+  const low = r.conditions.find((c) => c.id === 'lyingLow')
+  if (blocked) return blocked.by === 'him' ? ' He blocked you.' : ' You blocked him.'
+  if (low && low.until > day) return ' He is lying low for a while.'
+  return ' He came back.'
+}
 
 const inDays = (target: number, day: number) => (target - day === 1 ? 'tomorrow' : `in ${target - day} days`)
 
@@ -48,15 +54,19 @@ const OUTCOME: Record<NonNullable<Meetup['outcome']>, (m: Meetup) => string> = {
   wife: () => 'His wife caught you. The scandal cost you subscribers.',
 }
 
+/** What he offered: as a client, or (you asked, he does not think you worth it) a few dollars or nothing. */
+const OFFER_LABEL = { paid: 'Cash offered, no platform fee', lowball: 'All he thinks you are worth', free: 'He wants it for free' }
+
 /** Status chip, tone, the day line and the money label for each state. */
 function look(m: Meetup, day: number): { status: string; tone: DealTone; subtitle: string; label: string; cents: number } {
   switch (m.status) {
     case 'open':
-      return { status: 'Invitation', tone: 'waiting', subtitle: `Day ${m.day} · answer by day ${m.replyBy}`, label: 'Cash offered, no platform fee', cents: m.offerCents }
+      return { status: m.askedBy ? 'You asked' : 'Invitation', tone: 'waiting', subtitle: `Day ${m.day} · answer by day ${m.replyBy}`, label: OFFER_LABEL[m.terms ?? 'paid'], cents: m.offerCents }
     case 'accepted':
-      return { status: 'Accepted', tone: 'pending', subtitle: `Meeting on day ${m.meetDay} · ${inDays(m.meetDay ?? day, day)}`, label: 'Cash on the day', cents: m.offerCents }
+      return { status: 'Accepted', tone: 'pending', subtitle: `Meeting on day ${m.meetDay} · ${inDays(m.meetDay ?? day, day)}`, label: m.terms === 'free' ? 'He will not pay' : 'Cash on the day', cents: m.offerCents }
     case 'done': {
       const paid = m.paidCents ?? m.offerCents
+      if (m.terms === 'free' && m.outcome !== 'noShow' && m.outcome !== 'wife') return { status: 'Freebie', tone: 'failed', subtitle: `Met on day ${m.meetDay}`, label: 'He paid nothing', cents: 0 }
       return paid
         ? { status: 'Paid', tone: 'paid', subtitle: `Met on day ${m.meetDay}`, label: 'Cash received', cents: paid }
         : { status: m.outcome === 'noShow' ? 'No-show' : 'No money', tone: 'failed', subtitle: `Day ${m.meetDay}`, label: 'Cash offered', cents: m.offerCents }

@@ -1,7 +1,10 @@
 // How a deal starts (plan.md §2 rule 3, 2026-10-15). One entry point for customs and
 // meetups, two ways in:
 //   - a fan brings one up on his own: rolled once a day, once he is loyal enough;
-//   - you bring one up in a message: he says yes or no, rolled when you send it.
+//   - you bring one up in a message: he says yes or no, rolled when you send it. Asked to
+//     meet, men nearly always say yes; but unless he is devoted to you (loyalty, a simp,
+//     obsessed, old money) he takes you for a freebie: he offers nothing, or a few dollars
+//     to put you down (personas.json askedMeetups).
 // Everything with a number is decided here, like a game mechanic; the numbers per fan
 // type are in presets/personas.json (engine/fans.ts). The model only gets one line
 // saying what happened (llm/fanMessage.ts). What happens next (accept, deliver, meet)
@@ -9,6 +12,8 @@
 import preset from '../presets/audience.json'
 import tags from '../presets/tags.json'
 import type { Account, EngineEvent, Intent, Meetup, Regular, Request } from '../store/schema'
+import personas from '../presets/personas.json'
+import { actingType } from './conditions'
 import { directionEffects } from './directions'
 import { fanProfile, loyaltyEffects, loyaltyLevel } from './fans'
 import { logNormal, type Rng, rngFor } from './rng'
@@ -16,6 +21,7 @@ import { addFanMessage, threadOf } from './threads'
 
 const Q = preset.requests
 const M = preset.meetups
+const ASKED = personas.askedMeetups
 export type DealKind = 'custom' | 'meetup'
 type Deal = NonNullable<Intent['deal']>
 
@@ -28,15 +34,19 @@ export const wentBadly = (q: Request) =>
   (q.status === 'expired' && q.acceptedDay !== undefined) ||
   (q.status === 'delivered' && !q.delivery?.paid)
 
+/** His chance to say yes when you ask (before loyalty): customs his type's `custom.accept`, meetups `meetup.asked.accept`. */
+const askedAccept = (r: Regular, kind: DealKind) => (kind === 'custom' ? fanProfile(r).custom.accept : fanProfile(r).meetup.asked.accept)
+
 /**
  * Hard rules: his type does this at all, nothing of this kind is open with him, and the
- * last one ended a while ago. A dormant fan only counts when you write to him (that wakes him).
+ * last one ended a while ago (no wait when you ask him to meet: he is always up for it).
+ * A dormant fan only counts when you write to him (that wakes him).
  */
 function eligible(account: Account, r: Regular, kind: DealKind, day: number, youAsked: boolean): boolean {
-  const f = fanProfile(r)[kind]
-  if ((r.status !== 'active' && !youAsked) || !(youAsked ? f.accept : f.daily)) return false
+  if ((r.status !== 'active' && !youAsked) || !(youAsked ? askedAccept(r, kind) : fanProfile(r)[kind].daily)) return false
   const mine: (Request | Meetup)[] = kind === 'custom' ? account.requests.filter((q) => q.regularId === r.id) : account.meetups.filter((m) => m.regularId === r.id)
   if (mine.some((x) => (kind === 'custom' ? requestOpen(x as Request) : meetupOpen(x as Meetup)))) return false
+  if (youAsked && kind === 'meetup') return true
   const last = mine.at(-1)
   return !last || day - (last.closedDay ?? last.day) >= (kind === 'custom' ? Q.cooldownDays : M.cooldownDays)
 }
@@ -46,8 +56,10 @@ const loyalEnough = (r: Regular, kind: DealKind) => loyaltyLevel(r) >= fanProfil
 
 /**
  * The chance: per day that he brings it up himself, or that he says yes when you do.
- * His type's rate × his loyalty × your direction (× his traits for meetups; × 0.5 after a custom that went badly).
+ * His type's rate × his loyalty × your direction (× his behaviours for meetups; × 0.5 after a custom that went badly).
  * Loyalty counts more for meetups (×2.5 at Devoted, ×4 at Fanatic) than for customs.
+ * You asking him to meet is different: his type's `asked.accept` (most men say yes),
+ * closing in on 97% as his loyalty rises; your direction and his behaviours do not matter.
  */
 export function dealChance(account: Account, r: Regular, kind: DealKind, youAsked: boolean): number {
   const f = fanProfile(r)
@@ -58,12 +70,32 @@ export function dealChance(account: Account, r: Regular, kind: DealKind, youAske
     const base = youAsked ? f.custom.accept : f.custom.daily
     return Math.min(0.95, base * loyal * fx.requests.rate * (last && wentBadly(last) ? Q.upsetFactor : 1))
   }
-  const base = youAsked ? f.meetup.accept : f.meetup.daily
-  return Math.min(0.95, base * loyaltyEffects(r).meetup * fx.meetups.rate * f.meetup.factor)
+  if (youAsked) {
+    const accept = f.meetup.asked.accept
+    return Math.min(0.97, accept + (0.97 - accept) * ((loyaltyLevel(r) - 1) / 4))
+  }
+  return Math.min(0.95, f.meetup.daily * loyaltyEffects(r).meetup * fx.meetups.rate * f.meetup.factor)
+}
+
+/** You asked him to meet: does he pay like a client, or take you for a freebie? */
+export function paysWhenAsked(r: Regular): boolean {
+  const P = ASKED.pays
+  return loyaltyLevel(r) >= P.minLoyalty || P.segments.includes(actingType(r)) || r.behaviours.some((b) => P.behaviours.includes(b))
+}
+
+/** What he offers: like a client (around his type's median, × loyalty and direction), or, when you asked and he does not pay, a few dollars or nothing. */
+function meetupOffer(rng: Rng, account: Account, r: Regular, youAsked: boolean): { offerCents: number; terms?: Meetup['terms'] } {
+  if (youAsked && !paysWhenAsked(r)) {
+    if (rng() < fanProfile(r).meetup.asked.free) return { offerCents: 0, terms: 'free' }
+    const [lo, hi] = ASKED.lowballDollars
+    return { offerCents: (lo + Math.floor(rng() * (hi - lo + 1))) * 100, terms: 'lowball' }
+  }
+  const median = fanProfile(r).meetup.median * directionEffects(account).meetups.offer * loyaltyEffects(r).spend
+  return { offerCents: Math.max(M.minCents, Math.round((logNormal(rng, median, M.spread) * 100) / M.roundCents) * M.roundCents) }
 }
 
 /** Opens a deal on his message `messageId`: what he wants and offers, decided now. */
-function open(rng: Rng, account: Account, r: Regular, kind: DealKind, day: number, messageId: string): { account: Account; deal: Deal; event: EngineEvent } {
+function open(rng: Rng, account: Account, r: Regular, kind: DealKind, day: number, messageId: string, youAsked: boolean): { account: Account; deal: Deal; event: EngineEvent } {
   const f = fanProfile(r)
   const fx = directionEffects(account)
   if (kind === 'custom') {
@@ -75,7 +107,8 @@ function open(rng: Rng, account: Account, r: Regular, kind: DealKind, day: numbe
     }
     const wanted = likes.slice(0, rng() < 0.5 ? 1 : 2)
     const intensity = Math.max(1, ...wanted.map((id) => tags.find((x) => x.id === id)?.intensity ?? 1))
-    const offerCents = Math.min(Q.maxCents, Math.max(Q.minCents, Math.round(logNormal(rng, f.custom.median * fx.requests.offer, Q.spread)) * 100))
+    const median = f.custom.median * fx.requests.offer * loyaltyEffects(r).spend
+    const offerCents = Math.min(Q.maxCents, Math.max(Q.minCents, Math.round(logNormal(rng, median, Q.spread)) * 100))
     const id = `${r.id}-q${account.requests.filter((q) => q.regularId === r.id).length}`
     const request: Request = { id, regularId: r.id, day, tags: wanted, intensity, offerCents, dueDay: day + Q.dueDays, status: 'open', messageId }
     return {
@@ -84,13 +117,14 @@ function open(rng: Rng, account: Account, r: Regular, kind: DealKind, day: numbe
       event: { day, type: 'request', regularId: r.id, requestId: id },
     }
   }
-  const offerCents = Math.max(M.minCents, Math.round((logNormal(rng, f.meetup.median * fx.meetups.offer, M.spread) * 100) / M.roundCents) * M.roundCents)
+  const { offerCents, terms } = meetupOffer(rng, account, r, youAsked)
   const id = `${r.id}-o${account.meetups.filter((m) => m.regularId === r.id).length}`
-  const meetup: Meetup = { id, regularId: r.id, day, offerCents, replyBy: day + M.replyDays, status: 'open', hidden: false, messageId }
+  const asked = youAsked ? { askedBy: 'you' as const, ...(terms ? { terms } : {}) } : {}
+  const meetup: Meetup = { id, regularId: r.id, day, offerCents, replyBy: day + M.replyDays, status: 'open', hidden: false, messageId, ...asked }
   return {
     account: { ...account, meetups: [...account.meetups, meetup] },
     deal: { kind, step: 'ask', id },
-    event: { day, type: 'meetup', regularId: r.id, meetupId: id },
+    event: { day, type: 'meetup', regularId: r.id, meetupId: id, ...(youAsked ? { ...asked, offerCents } : {}) },
   }
 }
 
@@ -106,7 +140,7 @@ export function simulateDealsDay(account: Account, seed: string, day: number): {
       if (!eligible(a, r, kind, day, false) || !loyalEnough(r, kind)) continue
       const rng = rngFor(seed, day, `deals:${kind}:${r.id}`)
       if (rng() >= dealChance(a, r, kind, false)) continue
-      const opened = open(rng, a, r, kind, day, `${r.id}-m${threadOf(a, r.id).messages.length}`)
+      const opened = open(rng, a, r, kind, day, `${r.id}-m${threadOf(a, r.id).messages.length}`, false)
       a = addFanMessage(opened.account, r.id, day, { kind: 'opener', deal: opened.deal })
       events.push(opened.event)
       break
@@ -132,6 +166,6 @@ export function answerDeal(account: Account, r: Regular, kind: DealKind, seed: s
   const day = account.clock.day
   const rng = rngFor(seed, day, `deals:asked:${replyId}`)
   if (!eligible(account, r, kind, day, true) || rng() >= dealChance(account, r, kind, true)) return { account, deal: { kind, step: 'no' }, events: [] }
-  const opened = open(rng, account, r, kind, day, replyId)
+  const opened = open(rng, account, r, kind, day, replyId, true)
   return { account: { ...opened.account, events: [...opened.account.events, opened.event] }, deal: opened.deal, events: [opened.event] }
 }

@@ -4,9 +4,10 @@
 import { subscriberCount } from '../engine/audience'
 import { addVaultItem, canLockPosts, deletePost, deleteVaultItem, publishPost, updateVaultItem } from '../engine/content'
 import { directionInfo, directionPrompt, setDirection, SPECS, SWITCH_LOSS } from '../engine/directions'
-import { traitLabel, traitPrompt } from '../engine/personas'
+import { fanLayers } from '../engine/personas'
 import { postIntensity, postTags } from '../engine/posts'
-import { awayNow, loyaltyInfo } from '../engine/fans'
+import { loyaltyInfo } from '../engine/fans'
+import { awayNow, conditionOf } from '../engine/conditions'
 import { balances, requestPayout } from '../engine/economy'
 import audiencePreset from '../presets/audience.json'
 import economy from '../presets/economy.json'
@@ -339,7 +340,11 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
     async getCaptions() {
       return captions
     },
-    getSettings: () => storage.loadSettings(),
+    // The cap shows the preset's number until you change it.
+    getSettings: async () => {
+      const s = await storage.loadSettings()
+      return { ...s, maxActiveRegulars: s.maxActiveRegulars ?? audiencePreset.regulars.cap }
+    },
     async getInbox(id) {
       const account = await mustLoad(id)
       const threads: InboxThread[] = account.regulars.map((regular) => {
@@ -384,8 +389,8 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
           direction: directionPrompt(account),
         },
         loyalty: loyaltyInfo(regular),
-        away: !awayNow(regular, account.clock.day) ? null : regular.away?.reason === 'blocked' ? 'blocked' : regular.away?.until === undefined ? 'gone' : 'lyingLow',
-        traits: regular.traits.map((id) => ({ id, label: traitLabel(id), prompt: traitPrompt(id) })),
+        away: !awayNow(regular, account.clock.day) ? null : !conditionOf(regular, 'blocked') ? 'lyingLow' : conditionOf(regular, 'blocked')?.by === 'you' ? 'blocked' : 'gone',
+        ...fanLayers(regular),
         requests: account.requests.filter((q) => q.regularId === regularId),
         meetups: account.meetups.filter((m) => m.regularId === regularId),
         incidents: account.incidents.filter((x) => x.regularId === regularId),

@@ -35,11 +35,13 @@ export type { DeliveryCheck } from '../engine/requests'
 export type { MassInput } from '../engine/massMessages'
 export type { DirectionInfo } from '../engine/directions'
 export type { LoyaltyInfo, MeetupOutcome } from '../engine/fans'
+export type { LayerInfo } from '../engine/personas'
 export type { Lapse, MeetupReport, PeriodReport } from '../engine/report'
 import type { Comment } from '../engine/comments'
 import type { PostInput, VaultInput } from '../engine/content'
 import type { DirectionInfo } from '../engine/directions'
 import type { LoyaltyInfo } from '../engine/fans'
+import type { LayerInfo } from '../engine/personas'
 import type { Lapse, PeriodReport } from '../engine/report'
 import type { MassInput } from '../engine/massMessages'
 import type { DmInput } from '../engine/regulars'
@@ -175,10 +177,12 @@ export type ThreadView = {
   creator: { name: string; handle: string; accountType: Profile['accountType']; priceCents: number; subscribers: number; direction: string }
   /** How loyal he is (engine/fans.ts): level 1–5, his type's ceiling, and points toward the next level. */
   loyalty: LoyaltyInfo
-  /** Since his wife caught you two: gone for good or lying low for a while; or you blocked him. You cannot write to him meanwhile. */
+  /** His Blocked or Lying low condition, if he has one now: he blocked you (gone), lies low for a while, or you blocked him. You cannot write to him meanwhile. */
   away: 'gone' | 'lyingLow' | 'blocked' | null
-  /** How this fan writes and behaves: a short label for the UI, the description for the model. */
-  traits: { id: string; label: string; prompt: string }[]
+  /** Who he is in three layers (engine/personas.ts): how he talks, his lasting tendencies, the states he is in now. A label for the UI, a description for the model. */
+  personality: LayerInfo
+  behaviours: LayerInfo[]
+  conditions: LayerInfo[]
   /** This fan's custom requests and meetup invitations. */
   requests: Request[]
   meetups: Meetup[]

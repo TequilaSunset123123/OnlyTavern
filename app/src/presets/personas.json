@@ -1038,25 +1038,10 @@
    "zh": "和爸妈住"
   }
  },
- "styles": {
+ "personalities": {
   "horny_direct": {
    "label": "Horny",
    "prompt": "always horny and blunt: says exactly what he wants to see her do or do to her, uses crude sexual words, skips small talk"
-  },
-  "creepy_compliments": {
-   "label": "Creepy",
-   "prompt": "sleazy compliments that get too personal and too physical (her body, her mouth, how she would smell or taste), suggestive emojis",
-   "behaviour": {
-    "turnsHater": {
-     "afterDays": 14,
-     "daily": 0.08
-    },
-    "events": {
-     "creep": 1.5
-    },
-    "meetupFactor": 1.8,
-    "meetupMinLoyalty": 1
-   }
   },
   "pet_names": {
    "label": "Clingy",
@@ -1074,14 +1059,9 @@
    "label": "Awkward",
    "prompt": "awkward and nervous, over-apologizes, then suddenly blurts out something dirty"
   },
-  "older_gentleman": {
-   "label": "Old money",
-   "prompt": "older man trying to sound classy and generous, long-winded and formal, but every message turns pervy",
-   "behaviour": {
-    "events": {
-     "bonus": 1.5
-    }
-   }
+  "submissive": {
+   "label": "Submissive",
+   "prompt": "submissive: begs to obey and serve her, calls her goddess or mistress, asks her permission for everything, wants to be told what to do and put in his place, eager to pay tribute"
   },
   "negging": {
    "label": "Negging",
@@ -1091,6 +1071,40 @@
    "label": "Quiet",
    "prompt": "writes very little, one-liners and single words, unsettling in his silence"
   },
+  "misogynist": {
+   "label": "Misogynist",
+   "prompt": "misogynistic: holds her and women in general in contempt, calls her a whore or a slut, talks down to her like a thing he owns or pays for, crude and degrading even when he is being nice"
+  },
+  "troll": {
+   "label": "Troll",
+   "prompt": "a sarcastic troll who mocks her looks, her prices and her content and tries to provoke a reaction"
+  }
+ },
+ "behaviours": {
+  "creepy_compliments": {
+   "label": "Creepy",
+   "prompt": "sleazy compliments that get too personal and too physical (her body, her mouth, how she would smell or taste), suggestive emojis",
+   "modifiers": {
+    "turnsHater": {
+     "afterDays": 14,
+     "daily": 0.08
+    },
+    "events": {
+     "creep": 1.5
+    },
+    "meetupFactor": 1.8,
+    "meetupMinLoyalty": 1
+   }
+  },
+  "older_gentleman": {
+   "label": "Old money",
+   "prompt": "older man trying to sound classy and generous, long-winded and formal, but every message turns pervy",
+   "modifiers": {
+    "events": {
+     "bonus": 1.5
+    }
+   }
+  },
   "cheapskate": {
    "label": "Cheapskate",
    "prompt": "always haggling and asking for freebies, guilt-trips her about her prices, still horny"
@@ -1098,7 +1112,7 @@
   "obsessive": {
    "label": "Obsessed",
    "prompt": "obsessively infatuated: thinks about her all day, believes they are meant to be together, gets jealous of her other fans, sulks and gets clingy when she does not answer quickly",
-   "behaviour": {
+   "modifiers": {
     "dmFactor": 1.6,
     "maxUnanswered": 4,
     "ignoredFactor": 1,
@@ -1116,7 +1130,7 @@
   "stalker": {
    "label": "Stalker",
    "prompt": "a stalker: brings up things about her real life he should not know, hints he has been near where she lives or followed her other accounts, tracks when she is online; unsettling and possessive",
-   "behaviour": {
+   "modifiers": {
     "dmFactor": 1.6,
     "maxUnanswered": 4,
     "ignoredFactor": 1,
@@ -1134,29 +1148,21 @@
     "incidents": 1,
     "comesBackAs": "unhinged"
    }
-  },
-  "misogynist": {
-   "label": "Misogynist",
-   "prompt": "openly misogynistic and aggressive: insults and degrades her and women in general, calls her worthless and a whore, says she will regret this career, hostile and contemptuous",
-   "behaviour": {
-    "dmFactor": 1.3,
-    "maxUnanswered": 3,
-    "ignoredFactor": 0.8
-   }
-  },
-  "troll": {
-   "label": "Troll",
-   "prompt": "a sarcastic troll who mocks her looks, her prices and her content and tries to provoke a reaction",
-   "behaviour": {
-    "dmFactor": 1,
-    "maxUnanswered": 3,
-    "ignoredFactor": 0.6
+  }
+ },
+ "conditions": {
+  "hostile": {
+   "label": "Hostile",
+   "prompt": "you turned on her and resent her now: you insult and degrade her and women in general, call her a whore, tell her she will regret this career",
+   "loveHate": {
+    "label": "Love-hate",
+    "prompt": "you turned on her because she ignored you, but you are still hooked on her: you swing between insulting her and begging for her attention, bitter and jealous, and you still pay to see her"
    }
   },
   "unhinged": {
    "label": "Unhinged",
    "prompt": "unhinged and possessive: swings between worshipping her and threatening her, talks as if she belongs to him, mentions places she has been and that he is always watching; deeply unsettling",
-   "behaviour": {
+   "modifiers": {
     "dmFactor": 1.8,
     "maxUnanswered": 5,
     "ignoredFactor": 1,
@@ -1173,6 +1179,14 @@
     "fame": 2,
     "incidents": 2
    }
+  },
+  "blocked": {
+   "label": "Blocked",
+   "prompt": ""
+  },
+  "lyingLow": {
+   "label": "Lying low",
+   "prompt": ""
   }
  },
  "segments": {
@@ -1229,17 +1243,23 @@
     "divorced": 2,
     "dumped": 1
    },
-   "styles": {
+   "personalities": {
     "horny_direct": 3,
-    "creepy_compliments": 3,
     "pet_names": 2,
     "lowercase": 2,
     "dominant": 1,
-    "shy": 1
+    "shy": 1,
+    "submissive": 1,
+    "misogynist": 1
+   },
+   "behaviours": {
+    "creepy_compliments": 0.25
    },
    "fan": {
-    "loyaltyCap": 4,
     "dmDaily": 0.15,
+    "maxUnanswered": 2,
+    "ignoredFactor": 0.3,
+    "loyaltyCap": 4,
     "ppv": 0.4,
     "tip": {
      "chance": 0.05,
@@ -1253,7 +1273,10 @@
     },
     "meetup": {
      "daily": 0.03,
-     "accept": 0.3,
+     "asked": {
+      "accept": 0.9,
+      "free": 0.6
+     },
      "median": 300,
      "minLoyalty": 3,
      "events": {
@@ -1311,14 +1334,20 @@
     "mom": 3,
     "married": 1
    },
-   "styles": {
+   "personalities": {
     "minimal": 4,
     "shy": 3,
-    "creepy_compliments": 1
+    "submissive": 1,
+    "misogynist": 0.5
+   },
+   "behaviours": {
+    "creepy_compliments": 0.1
    },
    "fan": {
-    "loyaltyCap": 3,
     "dmDaily": 0.05,
+    "maxUnanswered": 2,
+    "ignoredFactor": 0.3,
+    "loyaltyCap": 3,
     "ppv": 0.2,
     "tip": {
      "chance": 0.02,
@@ -1332,7 +1361,10 @@
     },
     "meetup": {
      "daily": 0.01,
-     "accept": 0.15,
+     "asked": {
+      "accept": 0.75,
+      "free": 0.5
+     },
      "median": 200,
      "minLoyalty": 3,
      "events": {
@@ -1388,19 +1420,22 @@
     "mom": 3,
     "dumped": 2
    },
-   "styles": {
+   "personalities": {
     "pet_names": 3,
-    "creepy_compliments": 2,
     "lowercase": 2,
-    "shy": 1
+    "shy": 1,
+    "submissive": 2
    },
-   "traits": {
+   "behaviours": {
+    "creepy_compliments": 0.2,
     "obsessive": 0.45,
     "stalker": 0.2
    },
    "fan": {
-    "loyaltyCap": 5,
     "dmDaily": 0.45,
+    "maxUnanswered": 2,
+    "ignoredFactor": 0.3,
+    "loyaltyCap": 5,
     "ppv": 0.75,
     "tip": {
      "chance": 0.25,
@@ -1414,7 +1449,10 @@
     },
     "meetup": {
      "daily": 0.06,
-     "accept": 0.6,
+     "asked": {
+      "accept": 0.95,
+      "free": 0.3
+     },
      "median": 400,
      "minLoyalty": 2,
      "events": {
@@ -1477,15 +1515,21 @@
     "divorced": 3,
     "single": 1
    },
-   "styles": {
-    "older_gentleman": 3,
+   "personalities": {
     "dominant": 3,
     "horny_direct": 2,
-    "negging": 1
+    "negging": 1,
+    "submissive": 2,
+    "misogynist": 1
+   },
+   "behaviours": {
+    "older_gentleman": 0.35
    },
    "fan": {
-    "loyaltyCap": 5,
     "dmDaily": 0.3,
+    "maxUnanswered": 2,
+    "ignoredFactor": 0.3,
+    "loyaltyCap": 5,
     "ppv": 0.9,
     "tip": {
      "chance": 0.3,
@@ -1499,7 +1543,10 @@
     },
     "meetup": {
      "daily": 0.1,
-     "accept": 0.7,
+     "asked": {
+      "accept": 0.9,
+      "free": 0.3
+     },
      "median": 1500,
      "minLoyalty": 2,
      "events": {
@@ -1556,13 +1603,16 @@
     "dumped": 3,
     "mom": 2
    },
-   "styles": {
+   "personalities": {
     "misogynist": 3,
     "troll": 2
    },
+   "behaviours": {},
    "fan": {
+    "dmDaily": 0.4,
+    "maxUnanswered": 3,
+    "ignoredFactor": 0.7,
     "loyaltyCap": 1,
-    "dmDaily": 0.35,
     "ppv": 0.05,
     "tip": {
      "chance": 0,
@@ -1576,7 +1626,10 @@
     },
     "meetup": {
      "daily": 0,
-     "accept": 0,
+     "asked": {
+      "accept": 0.6,
+      "free": 0.3
+     },
      "median": 0,
      "minLoyalty": 5,
      "events": {}
@@ -1611,13 +1664,20 @@
     "mom": 4,
     "girlfriend": 1
    },
-   "styles": {
-    "cheapskate": 4,
-    "lowercase": 1
+   "personalities": {
+    "lowercase": 2,
+    "horny_direct": 1,
+    "negging": 1,
+    "misogynist": 0.5
+   },
+   "behaviours": {
+    "cheapskate": 0.75
    },
    "fan": {
-    "loyaltyCap": 1,
     "dmDaily": 0.2,
+    "maxUnanswered": 2,
+    "ignoredFactor": 0.3,
+    "loyaltyCap": 1,
     "ppv": 0.1,
     "tip": {
      "chance": 0.01,
@@ -1631,7 +1691,10 @@
     },
     "meetup": {
      "daily": 0,
-     "accept": 0,
+     "asked": {
+      "accept": 0.95,
+      "free": 0.85
+     },
      "median": 0,
      "minLoyalty": 5,
      "events": {}
@@ -1694,6 +1757,13 @@
    2.5,
    4
   ],
+  "spend": [
+   1,
+   1.2,
+   1.5,
+   2,
+   3
+  ],
   "buysAnythingAt": 5,
   "gain": {
    "message": 1,
@@ -1726,7 +1796,28 @@
   "fame": {
    "perHater": 0.03,
    "max": 0.3
+  },
+  "loveHate": {
+   "fromLevel": 4,
+   "buy": 0.5,
+   "tip": 0.5
   }
+ },
+ "askedMeetups": {
+  "pays": {
+   "minLoyalty": 4,
+   "segments": [
+    "simp"
+   ],
+   "behaviours": [
+    "obsessive",
+    "older_gentleman"
+   ]
+  },
+  "lowballDollars": [
+   2,
+   20
+  ]
  },
  "incidents": {
   "daily": 0.06,

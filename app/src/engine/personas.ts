@@ -1,19 +1,27 @@
 // Who a fan is (plan.md §1, 2026-10-14): every crowd fan and regular is put together
 // from our own parts in presets/personas.json, by seed. Fans are men only. No model,
 // no name library: the parts are ours, so profiles fit the game.
+//
+// A regular has three layers (2026-10-15), beside his type and loyalty:
+//   - personality: how he talks (Horny, Awkward, Quiet, Bossy...). One per fan; words only;
+//   - behaviours: lasting tendencies that change the odds (Obsessed, Stalker, Creepy,
+//     Cheapskate, Old money). Rolled one by one when he arrives; events can add one;
+//   - conditions: states events put him in and take away (engine/conditions.ts).
+// His name, age, job, bio are description only: the engine never reads them.
+// (His relationship is the exception: a married man can get caught at a meetup.)
 import personas from '../presets/personas.json'
-import type { Segment, Settings } from '../store/schema'
+import type { Regular, Segment, Settings } from '../store/schema'
+import { loveHate } from './conditions'
 import type { Rng } from './rng'
 
 export type Language = 'en' | 'zh'
-export type TraitId = keyof typeof personas.styles
 
 const MIX_CHINESE_SHARE = 0.3
 const NUMBERS = ['69', '88', '420', '777', '99', '23']
 
 const at = <T>(list: T[], x: number): T => list[Math.floor(x * list.length)]
 
-function weighted<K extends string>(rng: Rng, weights: Partial<Record<K, number>>): K {
+export function weighted<K extends string>(rng: Rng, weights: Partial<Record<K, number>>): K {
   const entries = Object.entries(weights) as [K, number][]
   let r = rng() * entries.reduce((a, [, w]) => a + w, 0)
   for (const [k, w] of entries) if ((r -= w) < 0) return k
@@ -49,32 +57,38 @@ export function fanIdentity(rng: Rng, language: Language): { name: string; handl
   return { name, handle }
 }
 
-export type Persona = { name: string; handle: string; age: number; country: string; bio: string; traits: TraitId[]; relationship: string }
+export type Persona = { name: string; handle: string; age: number; country: string; bio: string; relationship: string; personality: string; behaviours: string[] }
 
 /**
- * A whole regular: identity, age, job, where he lives, relationship and how he writes.
- * `traitFactors` (from your direction) make some styles and traits likelier.
+ * A whole regular: identity, age, job, where he lives, relationship, his personality
+ * and behaviours. `attracts` (your direction, your recent posts) makes some likelier.
  */
-export function makePersona(rng: Rng, segment: Segment, language: Language, traitFactors: Record<string, number> = {}): Persona {
+export function makePersona(rng: Rng, segment: Segment, language: Language, attracts: Record<string, number> = {}): Persona {
   const { name, handle } = fanIdentity(rng, language)
   const S = personas.segments[segment]
   const age = S.age[0] + Math.floor(rng() * (S.age[1] - S.age[0] + 1))
   const job = at(S.jobs[language], rng())
   const status = weighted(rng, S.relationships)
   const relationship = personas.relationships[status][language]
-  const f = (t: string) => traitFactors[t] ?? 1
-  const styles = Object.fromEntries(Object.entries(S.styles).map(([t, w]) => [t, w * f(t)])) as Partial<Record<TraitId, number>>
-  const extra = 'traits' in S ? (Object.entries(S.traits) as [TraitId, number][]) : []
-  const traits = [weighted(rng, styles), ...extra.filter(([t, p]) => rng() < Math.min(0.9, p * f(t))).map(([t]) => t)]
+  const f = (id: string) => attracts[id] ?? 1
+  const personality = weighted(rng, Object.fromEntries(Object.entries(S.personalities).map(([id, w]) => [id, w * f(id)])))
+  const behaviours = Object.entries(S.behaviours as Record<string, number>)
+    .filter(([id, p]) => rng() < Math.min(0.9, p * f(id)))
+    .map(([id]) => id)
+  const who = { relationship: status, personality, behaviours }
   if (language === 'zh') {
     const place = at(personas.zh.cities, rng())
-    return { name, handle, age, country: place.country, bio: `${age}岁，${place.city}，${job}，${relationship}`, traits, relationship: status }
+    return { name, handle, age, country: place.country, bio: `${age}岁，${place.city}，${job}，${relationship}`, ...who }
   }
   const place = at(personas.en.places, rng())
-  return { name, handle, age, country: place.country, bio: `${age}, ${job} from ${place.city}, ${place.region}, ${relationship}`, traits, relationship: status }
+  return { name, handle, age, country: place.country, bio: `${age}, ${job} from ${place.city}, ${place.region}, ${relationship}`, ...who }
 }
 
-type Behaviour = {
+/** An event gives him a lasting tendency (a creepy meetup makes him a stalker). */
+export const withBehaviour = (r: Regular, id: string): Regular => (r.behaviours.includes(id) ? r : { ...r, behaviours: [...r.behaviours, id] })
+
+/** What a behaviour or condition does to the odds (presets/personas.json `modifiers`). */
+type Modifiers = {
   dmFactor?: number
   maxUnanswered?: number
   ignoredFactor?: number
@@ -84,42 +98,55 @@ type Behaviour = {
   /** Multiplies the chances of what happens at a meetup (presets/personas.json fan.meetup.events). */
   events?: Record<string, number>
   turnsHater?: { afterDays: number; daily: number }
-  /** As a hater, half of them give up within this many days (instead of his type's). */
+  /** When hostile, half of them give up within this many days (instead of his type's). */
   haterHalfLifeDays?: number
-  /** How much damage he does to your name as a hater (× the base per hater). */
+  /** How much damage he does to your name when he acts as a hater (× the base per hater). */
   fame?: number
   /** Stalker incidents (engine/incidents.ts): × the daily chance; none without it. */
   incidents?: number
-  /** The trait he comes back with when you win him back after he turned. */
+  /** The condition he comes back with when you win him back after he turned. */
   comesBackAs?: string
 }
-const STYLES = personas.styles as Record<string, { label: string; prompt: string; behaviour?: Behaviour }>
+type Layer = { label: string; prompt: string; modifiers?: Modifiers; loveHate?: { label: string; prompt: string } }
+const PERSONALITIES = personas.personalities as Record<string, Layer>
+const BEHAVIOURS = personas.behaviours as Record<string, Layer>
+const CONDITIONS = personas.conditions as Record<string, Layer>
 
-/** How the model should make this fan write. */
-export const traitPrompt = (id: string) => STYLES[id]?.prompt ?? ''
-export const traitLabel = (id: string) => STYLES[id]?.label ?? id
+export type LayerInfo = { id: string; label: string; prompt: string }
+const info = (list: Record<string, Layer>, id: string): LayerInfo => ({ id, label: list[id]?.label ?? id, prompt: list[id]?.prompt ?? '' })
+
+/** His three layers as labels (for the UI) and descriptions (for the model). */
+export function fanLayers(r: Regular) {
+  return {
+    personality: info(PERSONALITIES, r.personality),
+    behaviours: r.behaviours.map((id) => info(BEHAVIOURS, id)),
+    // A hostile fan who was Devoted or more when he turned shows (and writes) as love-hate.
+    conditions: r.conditions.map((c) => (c.id === 'hostile' && loveHate(r) ? { id: c.id, ...CONDITIONS.hostile.loveHate! } : info(CONDITIONS, c.id))),
+  }
+}
 
 /**
- * What his traits do: how often he messages you, how many unanswered messages he
- * sends in a row, how much being ignored slows him down, how keen he is to meet,
- * whether ignoring him for long can turn him into a hater, what kind of hater he makes
- * (engine/haters.ts) and whether he has stalker incidents (engine/incidents.ts).
+ * What his behaviours and conditions do to the odds (his personality never does): how
+ * often he messages you, how keen he is to meet, what can happen when you meet, whether
+ * ignoring him can turn him hostile, what kind of hater he makes (engine/haters.ts) and
+ * whether he has stalker incidents (engine/incidents.ts). His type's own numbers are
+ * engine/fans.ts; these adjust them.
  */
-export function behaviour(traits: string[]) {
-  const own = traits.map((t) => STYLES[t]?.behaviour).filter((x) => !!x)
+export function modifiers(r: Pick<Regular, 'behaviours' | 'conditions'>) {
+  const own = [...r.behaviours.map((id) => BEHAVIOURS[id]?.modifiers), ...r.conditions.map((c) => CONDITIONS[c.id]?.modifiers)].filter((x) => !!x)
   const turns = own.map((x) => x.turnsHater).filter((x) => !!x)
   return {
     dmFactor: Math.max(1, ...own.map((x) => x.dmFactor ?? 1)),
-    maxUnanswered: Math.max(2, ...own.map((x) => x.maxUnanswered ?? 2)),
-    ignoredFactor: Math.max(0.3, ...own.map((x) => x.ignoredFactor ?? 0.3)),
+    maxUnanswered: Math.max(0, ...own.map((x) => x.maxUnanswered ?? 0)),
+    ignoredFactor: Math.max(0, ...own.map((x) => x.ignoredFactor ?? 0)),
     meetupFactor: Math.max(1, ...own.map((x) => x.meetupFactor ?? 1)),
     meetupMinLoyalty: Math.min(5, ...own.map((x) => x.meetupMinLoyalty ?? 5)),
-    /** Product of all his traits' meetup event factors. */
+    /** Product of all their meetup event factors. */
     events: own.reduce<Record<string, number>>((acc, x) => {
       for (const [k, v] of Object.entries(x.events ?? {})) acc[k] = (acc[k] ?? 1) * v
       return acc
     }, {}),
-    /** The quickest way he turns, if any of his traits can. */
+    /** The quickest way he turns, if any of them can. */
     turnsHater: turns.sort((a, b) => a.afterDays - b.afterDays || b.daily - a.daily)[0] ?? null,
     haterHalfLifeDays: Math.max(0, ...own.map((x) => x.haterHalfLifeDays ?? 0)) || null,
     fame: Math.max(1, ...own.map((x) => x.fame ?? 1)),

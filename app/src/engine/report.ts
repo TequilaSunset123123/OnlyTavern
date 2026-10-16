@@ -6,6 +6,7 @@ import { subscriberCount } from './audience'
 import { requestOpen } from './deals'
 import type { MeetupOutcome } from './fans'
 import { haterFame } from './haters'
+import { actingType } from './conditions'
 
 export type Lapse = { kind: 'custom' | 'meetup'; id: string; regularId: string; name: string; deadline: number; accepted: boolean }
 
@@ -58,7 +59,7 @@ export function periodReport(before: Account, after: Account, events: EngineEven
   const earned = (rows: typeof days) => rows.reduce((s, h) => s + Object.entries(h.net).reduce((t, [k, v]) => t + (k === 'payout' ? 0 : v), 0), 0)
   const name = (id: string) => after.regulars.find((r) => r.id === id)?.name ?? 'A fan'
   const n = (type: EngineEvent['type']) => events.filter((e) => e.type === type).length
-  const haters = after.regulars.filter((r) => r.segment === 'hater' && r.status === 'active').length
+  const haters = after.regulars.filter((r) => actingType(r) === 'hater' && r.status === 'active').length
   return {
     from,
     to,

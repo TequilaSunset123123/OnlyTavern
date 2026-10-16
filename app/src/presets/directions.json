@@ -49,7 +49,7 @@
     "lurker": 1.1
    },
    "visitors": 1,
-   "traits": {},
+   "attracts": {},
    "requests": {
     "rate": 1,
     "offer": 1
@@ -92,7 +92,7 @@
     "whale": 1.1
    },
    "visitors": 1.5,
-   "traits": {
+   "attracts": {
     "horny_direct": 1.8,
     "creepy_compliments": 1.3,
     "misogynist": 1.5
@@ -135,7 +135,7 @@
     "hater": 1.2
    },
    "visitors": 1.2,
-   "traits": {
+   "attracts": {
     "obsessive": 1.7,
     "stalker": 1.6,
     "pet_names": 1.6,
@@ -181,7 +181,7 @@
     "freeloader": 0.3
    },
    "visitors": 0.7,
-   "traits": {
+   "attracts": {
     "older_gentleman": 2,
     "dominant": 1.5,
     "negging": 1.3
@@ -227,7 +227,7 @@
     "hater": 0.9
    },
    "visitors": 1.1,
-   "traits": {
+   "attracts": {
     "horny_direct": 1.2
    },
    "requests": {

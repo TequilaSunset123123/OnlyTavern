@@ -7,6 +7,7 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  Slider,
   SwitchField,
   TextField,
 } from '@fanvue/ui'
@@ -15,6 +16,7 @@ import { useDispatch } from '../../hooks/useAccounts'
 import { useSettings } from '../../hooks/useContent'
 import { getConnectionProfiles, getStContext } from '../../bridge/st'
 import { useTheme } from '../../hooks/useTheme'
+import { useState } from 'react'
 
 // Global settings (shared by all accounts), plus the step-0 checks: whether the
 // iframe can reach parent.SillyTavern, and a text field to test the iOS keyboard.
@@ -60,6 +62,9 @@ export function SettingsPage() {
             onChange={(v) => dispatch.mutate({ type: 'settings.update', patch: { fanLanguage: v as Settings['fanLanguage'] } })}
           />
           <p className="text-xs text-content-tertiary">Mixed: mostly English with some Chinese-speaking fans. Applies to all accounts.</p>
+          {settings?.maxActiveRegulars !== undefined && (
+            <RegularsCap key={settings.maxActiveRegulars} value={settings.maxActiveRegulars} onCommit={(n) => dispatch.mutate({ type: 'settings.update', patch: { maxActiveRegulars: n } })} />
+          )}
         </CardContent>
       </Card>
       <Card>
@@ -103,6 +108,20 @@ export function SettingsPage() {
           <TextField label="Keyboard test" placeholder="Type here" />
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+/** Most regulars at once (api fills in the preset's number): the slider moves freely, the setting saves when you let go (the key resets it to the saved number). */
+function RegularsCap({ value, onCommit }: { value: number; onCommit: (n: number) => void }) {
+  const [n, setN] = useState(value)
+  return (
+    <div className="mt-4 flex flex-col gap-2">
+      <span className="typography-body-small-14px-semibold">Active regulars at most: {n}</span>
+      <Slider min={3} max={20} step={1} value={[n]} minLabel="3" maxLabel="20" onValueChange={([v]) => setN(v)} onValueCommit={([v]) => onCommit(v)} />
+      <p className="text-xs text-content-tertiary">
+        At the limit, no new regulars reach out. Above it, the ones you have not written to for longest go dormant the next day (except haters who turned on you and fans with an open custom or meetup). Write to a dormant fan to bring him back.
+      </p>
     </div>
   )
 }
