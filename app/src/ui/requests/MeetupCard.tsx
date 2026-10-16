@@ -1,8 +1,8 @@
 import {
   Alert,
   Badge,
-  type BadgeVariant,
   Button,
+  CalendarIcon,
   Card,
   CardContent,
   Dialog,
@@ -21,24 +21,17 @@ import { useNavigate } from 'react-router'
 import type { Meetup, Message, Regular } from '../../api'
 import { useDispatch } from '../../hooks/useAccounts'
 import { errorText, money } from '../format'
-import { useCelebration } from './celebration'
+import { useCelebration, useHoldBack } from './celebration'
 import { Actions, DealCard, Pop, Rise } from './DealMotion'
+import { DealAmount, DealHeader, type DealTone } from './DealParts'
 
-// An offline meetup (plan.md §4.3, step 5): cash, off the platform. Shown under
-// the fan's invitation in the chat and on the Requests page.
+// An offline meetup (plan.md §4.3, step 5): cash, off the platform. Shown in the chat
+// (under his invitation; once it has happened, before his message after it) and on the
+// Requests page. Layout: DealParts.tsx; motion: DealMotion.tsx.
 
 /** Same as meetups.maxAheadDays in the preset; the engine rejects anything further. */
 const MAX_AHEAD = 14
 const HIDE_HELP = 'Leave it out of what co-creators know. Takes effect once the account has one.'
-
-const STATUS: Record<Meetup['status'], [string, BadgeVariant]> = {
-  open: ['Invitation', 'brandLight'],
-  accepted: ['Accepted', 'brand'],
-  declined: ['Declined', 'default'],
-  done: ['Done', 'success'],
-  expired: ['Expired', 'default'],
-  cancelled: ['Cancelled', 'default'],
-}
 
 /** Where he is since the scandal (only on the Requests page; the chat says it under the conversation). */
 const afterScandal = (r: Regular | undefined, day: number) =>
@@ -46,89 +39,133 @@ const afterScandal = (r: Regular | undefined, day: number) =>
 
 const inDays = (target: number, day: number) => (target - day === 1 ? 'tomorrow' : `in ${target - day} days`)
 
+/** What happened when you met (engine/meetups.ts rolled it). */
+const OUTCOME: Record<NonNullable<Meetup['outcome']>, (m: Meetup) => string> = {
+  smooth: () => 'A good night.',
+  bonus: () => 'He loved it and paid extra.',
+  noShow: () => 'He did not show up.',
+  creep: () => 'He got creepy; you left early with part of the cash. He may fixate on you now.',
+  wife: () => 'His wife caught you. The scandal cost you subscribers.',
+}
+
+/** Status chip, tone, the day line and the money label for each state. */
+function look(m: Meetup, day: number): { status: string; tone: DealTone; subtitle: string; label: string; cents: number } {
+  switch (m.status) {
+    case 'open':
+      return { status: 'Invitation', tone: 'waiting', subtitle: `Day ${m.day} · answer by day ${m.replyBy}`, label: 'Cash offered, no platform fee', cents: m.offerCents }
+    case 'accepted':
+      return { status: 'Accepted', tone: 'pending', subtitle: `Meeting on day ${m.meetDay} · ${inDays(m.meetDay ?? day, day)}`, label: 'Cash on the day', cents: m.offerCents }
+    case 'done': {
+      const paid = m.paidCents ?? m.offerCents
+      return paid
+        ? { status: 'Paid', tone: 'paid', subtitle: `Met on day ${m.meetDay}`, label: 'Cash received', cents: paid }
+        : { status: m.outcome === 'noShow' ? 'No-show' : 'No money', tone: 'failed', subtitle: `Day ${m.meetDay}`, label: 'Cash offered', cents: m.offerCents }
+    }
+    case 'declined':
+      return { status: 'Declined', tone: 'closed', subtitle: `Day ${m.closedDay ?? m.day}`, label: 'Cash offered', cents: m.offerCents }
+    case 'cancelled':
+      return { status: 'Cancelled', tone: 'closed', subtitle: 'You cancelled', label: 'Cash offered', cents: m.offerCents }
+    case 'expired':
+      return { status: 'Expired', tone: 'closed', subtitle: 'You did not answer in time', label: 'Cash offered', cents: m.offerCents }
+  }
+}
+
 export function MeetupCard({
   accountId,
   day,
-  meetup: m,
+  meetup,
   regular,
   message,
+  delay = 0,
+  replayAt = null,
+  still = false,
 }: {
   accountId: string
   day: number
   meetup: Meetup
   regular?: Regular
   message?: Message | null
+  /** Seconds before the card comes in (in the chat: after its bubble). */
+  delay?: number
+  /** In the chat, a meetup that happened shows how it went again, this many seconds in. */
+  replayAt?: number | null
+  /** No entrance of its own: it comes in with the chat (a settled card you already watched settle). */
+  still?: boolean
 }) {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const [accepting, setAccepting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [label, variant] = STATUS[m.status]
+  // Replaying: shown as still to come until the moment it happened.
+  const held = useHoldBack(replayAt)
+  const m: Meetup = held ? { ...meetup, status: 'accepted', outcome: undefined, paidCents: undefined } : meetup
+  const l = look(m, day)
   const run = (action: Parameters<typeof dispatch.mutateAsync>[0]) => dispatch.mutateAsync(action).catch((e) => setError(errorText(e)))
   const celebrate = useCelebration(m.status, m.status === 'accepted' ? 'accepted' : m.status === 'done' ? (m.paidCents ? 'completed' : 'failed') : null)
   const pop = { accepted: '✓ Accepted', completed: `✓ Completed · ${money(m.paidCents ?? 0)} cash`, failed: '✗ No money' }
 
   return (
-    <DealCard pulse={m.status === 'open'} celebrate={celebrate}>
-      <Card className="w-full">
-        <CardContent className="flex flex-col gap-3">
-          <Rise delay={0.15} className="flex items-center gap-2">
-            <span className="typography-body-small-14px-semibold mr-auto">
-              Meetup
-              {regular && (
+    <DealCard pulse={m.status === 'open'} celebrate={celebrate} delay={delay} still={still}>
+      <Card className="w-full rounded-2xl">
+        <CardContent className="flex flex-col gap-4">
+          <Rise delay={0.15}>
+            <DealHeader
+              icon={<CalendarIcon className="size-6" />}
+              title={
                 <>
-                  {' with '}
-                  <button type="button" className="underline" onClick={() => navigate(`/messages/${regular.id}`)}>
-                    {regular.name}
-                  </button>
+                  Meetup
+                  {regular && (
+                    <>
+                      {' with '}
+                      <button type="button" className="underline" onClick={() => navigate(`/messages/${regular.id}`)}>
+                        {regular.name}
+                      </button>
+                    </>
+                  )}
+                  {m.hidden && m.status !== 'declined' && (
+                    <Badge className="ml-2">Hidden</Badge>
+                  )}
                 </>
-              )}
-            </span>
-            {m.hidden && m.status !== 'declined' && <Badge>Hidden</Badge>}
-            <Badge variant={variant}>{label}</Badge>
+              }
+              subtitle={l.subtitle}
+              status={l.status}
+              tone={l.tone}
+            />
           </Rise>
           {regular && (
-            <Rise delay={0.23}>
+            <Rise delay={0.2}>
               <p className="text-sm text-content-secondary">{message ? `“${message.text}”` : 'Open the chat to read their message.'}</p>
             </Rise>
           )}
-          <Rise delay={0.31} className="flex flex-wrap items-center gap-x-2 text-sm">
-            <span>
-              Offers <span className="font-semibold">{money(m.offerCents)}</span> in cash, off the platform (no fee)
-              {m.status === 'open' && <span className="text-content-tertiary"> · answer by day {m.replyBy}</span>}
-            </span>
-            <Pop celebrate={celebrate} label={celebrate ? pop[celebrate] : ''} />
+          {m.status === 'done' && m.outcome && (
+            <Rise delay={0.23}>
+              <p className="text-sm text-content-secondary">
+                {OUTCOME[m.outcome](m)}
+                {m.outcome === 'wife' ? afterScandal(regular, day) : ''}
+              </p>
+            </Rise>
+          )}
+          <Rise delay={0.31}>
+            <DealAmount label={l.label} cents={l.cents} tone={l.tone}>
+              <Pop celebrate={celebrate} label={celebrate ? pop[celebrate] : ''} />
+            </DealAmount>
           </Rise>
-          {m.status === 'accepted' && m.meetDay !== undefined && (
-            <div className="text-sm">
-              Meeting on day {m.meetDay} ({inDays(m.meetDay, day)})
-            </div>
-          )}
-          {m.status === 'done' && (
-            <div className="text-sm text-content-secondary">
-              {
-                {
-                  smooth: `Met on day ${m.meetDay}: ${money(m.paidCents ?? m.offerCents)} cash.`,
-                  bonus: `Met on day ${m.meetDay}: he paid extra, ${money(m.paidCents ?? 0)} cash.`,
-                  noShow: `Day ${m.meetDay}: he did not show up. No money.`,
-                  creep: `Day ${m.meetDay}: he got creepy and you left early with ${money(m.paidCents ?? 0)}. He may fixate on you now.`,
-                  wife: `Day ${m.meetDay}: his wife caught you. No money, and the scandal cost you subscribers.${afterScandal(regular, day)}`,
-                }[m.outcome ?? 'smooth']
-              }
-            </div>
-          )}
-          {m.status === 'cancelled' && <div className="text-sm text-content-tertiary">You cancelled.</div>}
-          {m.status === 'expired' && <div className="text-sm text-content-tertiary">You did not answer in time.</div>}
 
           {error && <Alert variant="error">{error}</Alert>}
           <Rise delay={0.39}>
             <Actions step={m.status}>
               {m.status === 'open' && (
                 <div className="flex gap-2">
-                  <Button size="32" variant="brand" onClick={() => setAccepting(true)}>
+                  <Button size="40" variant="brand" className="flex-1" onClick={() => setAccepting(true)}>
                     Accept
                   </Button>
-                  <Button size="32" variant="secondary" disabled={dispatch.isPending} onClick={() => run({ type: 'meetup.decline', id: accountId, meetupId: m.id })}>
+                  <Button
+                    size="40"
+                    variant="secondary"
+                    className="flex-1"
+                    disabled={dispatch.isPending}
+                    onClick={() => run({ type: 'meetup.decline', id: accountId, meetupId: m.id })}
+                  >
                     Decline
                   </Button>
                 </div>
@@ -140,10 +177,16 @@ export function MeetupCard({
                     label="Keep it from co-creators"
                     helperText={HIDE_HELP}
                     checked={m.hidden}
-                    disabled={dispatch.isPending}
+                    disabled={held || dispatch.isPending}
                     onCheckedChange={(hidden) => run({ type: 'meetup.hide', id: accountId, meetupId: m.id, hidden })}
                   />
-                  <Button size="32" variant="secondary" className="self-start" disabled={dispatch.isPending} onClick={() => run({ type: 'meetup.cancel', id: accountId, meetupId: m.id })}>
+                  <Button
+                    size="40"
+                    variant="secondary"
+                    className="self-start"
+                    disabled={held || dispatch.isPending}
+                    onClick={() => run({ type: 'meetup.cancel', id: accountId, meetupId: m.id })}
+                  >
                     Cancel meeting
                   </Button>
                 </div>

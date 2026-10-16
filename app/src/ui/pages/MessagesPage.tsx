@@ -23,9 +23,9 @@ import {
   TextField,
   VaultIcon,
 } from '@fanvue/ui'
-import { useEffect, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import type { InboxThread, Message, ThreadView } from '../../api'
+import type { InboxThread, Meetup, Message, Request, ThreadView } from '../../api'
 import { useActiveAccount, useDispatch } from '../../hooks/useAccounts'
 import { useTags, useVault } from '../../hooks/useContent'
 import { useFanWriter, useInbox, useThread } from '../../hooks/useMessages'
@@ -33,8 +33,8 @@ import { errorText, money } from '../format'
 import { BulkPane } from '../messages/BulkPane'
 import { MediaTile } from '../MediaTile'
 import { SoftRise } from '../motion/SoftRise'
+import { celebratedIds, markCelebrated } from '../requests/celebrated'
 import { MeetupCard } from '../requests/MeetupCard'
-import { NOT_PAID } from '../requests/labels'
 import { RequestCard } from '../requests/RequestCard'
 import { VaultPickerDialog } from '../VaultPickerDialog'
 
@@ -229,47 +229,167 @@ function Conversation({ accountId, regularId, onBack }: { accountId: string; reg
   )
 }
 
-/** How many of the latest bubbles come in one after another when you open a chat (older ones are off screen). */
+/** How many of the latest entries come in one after another when you open a chat (older ones are off screen). */
 const STAGGERED = 12
-const STAGGER_S = 0.045
+/** Seconds between two entries coming in. */
+const STEP = 0.08
+/** A card under a bubble comes in this long after the bubble. */
+const CARD_AFTER = 0.15
+/** A settled card shows its earlier look this long after it came in, then how it was settled. */
+const SETTLE_AFTER = 0.6
+/** And what follows waits for the settling to play. */
+const SETTLE_TAKES = 1.1
+
+type Entry =
+  | { kind: 'message'; key: string; m: Message }
+  | { kind: 'custom'; key: string; q: Request }
+  | { kind: 'meetup'; key: string; o: Meetup }
+/** When it comes in; for a settled card, when it replays its settling (null: it does not). */
+type Timing = { delay: number; replayAt: number | null }
+const NOW: Timing = { delay: 0, replayAt: null }
+
+const dealId = (e: Entry) => (e.kind === 'custom' ? e.q.id : e.kind === 'meetup' ? e.o.id : null)
 
 /**
- * Every bubble (with its avatar) soft-rises in. When you open the chat the latest ones
- * come in one after another, top to bottom; later ones rise as they arrive, including a
- * fan reply replacing its "typing" dots.
+ * The conversation as a timeline. A custom or meetup sits under the fan message that
+ * opened it until it is settled; then it moves to where it was settled (after your
+ * delivery, or when you met), just before his reaction. Fan messages still queued for
+ * the model are not shown yet; only the one being written shows "typing".
+ */
+function timeline(view: ThreadView, failed: Record<string, string>): Entry[] {
+  const writing = view.messages.find((m) => m.state === 'pending' && !failed[m.id])
+  const entries: Entry[] = []
+  for (const m of view.messages) {
+    if (m.state === 'pending' && !failed[m.id] && m !== writing) continue
+    const d = m.from === 'fan' ? m.intent?.deal : undefined
+    const q = d?.kind === 'custom' && d.step === 'delivered' ? view.requests.find((x) => x.id === d.id && x.status === 'delivered') : undefined
+    const o = d?.kind === 'meetup' && d.step === 'met' ? view.meetups.find((x) => x.id === d.id && x.status === 'done') : undefined
+    if (q) entries.push({ kind: 'custom', key: `deal:${q.id}`, q })
+    if (o) entries.push({ kind: 'meetup', key: `deal:${o.id}`, o })
+    entries.push({ kind: 'message', key: `${m.id}:${m.state}`, m })
+  }
+  return entries
+}
+
+/**
+ * When each entry comes in, one after another. The latest settled card among them, if you
+ * have not watched it settle yet, plays that before the rest follow; the others just come in.
+ */
+function schedule(entries: Entry[], watched: (id: string) => boolean): [string, Timing][] {
+  const latest = entries.findLastIndex((e) => e.kind !== 'message')
+  const replay = latest >= 0 && !watched(dealId(entries[latest])!) ? latest : -1
+  let t = 0
+  return entries.map((e, i) => {
+    const timing: Timing = { delay: t, replayAt: i === replay ? t + SETTLE_AFTER : null }
+    t += i === replay ? SETTLE_AFTER + SETTLE_TAKES : STEP
+    return [e.key, timing]
+  })
+}
+
+const fanSide = (e: Entry | undefined) => !!e && (e.kind !== 'message' || e.m.from === 'fan')
+
+/**
+ * Everything soft-rises in, one by one. When you open the chat the latest entries come in
+ * top to bottom, and a settled custom or meetup replays how it was settled before his
+ * reaction appears; later entries come in as they arrive. The fan's avatar sits once,
+ * beside the last of his entries in a row.
  */
 function MessageList({ accountId, view, writer }: { accountId: string; view: ThreadView; writer: ReturnType<typeof useFanWriter> }) {
-  const key = (m: Message) => `${m.id}:${m.state}`
-  const [opened] = useState(() => new Set(view.messages.map(key)))
-  const first = view.messages.length - STAGGERED
+  const entries = timeline(view, writer.failed)
+  // Settled cards whose completion you have already watched here (celebrated.ts).
+  const [seen] = useState(() => celebratedIds())
+  const watched = (id: string) => seen.has(`${accountId}:${id}`)
+  const [plan, setPlan] = useState(() => {
+    const recent = entries.slice(-STAGGERED)
+    return new Map<string, Timing>([...entries.slice(0, -STAGGERED).map((e) => [e.key, NOW] as [string, Timing]), ...schedule(recent, watched)])
+  })
+  // Entries that just arrived: scheduled once, in order, from now.
+  const fresh = entries.filter((e) => !plan.has(e.key))
+  if (fresh.length) setPlan(new Map([...plan, ...schedule(fresh, watched)]))
+  const settled = new Set(entries.flatMap((e) => dealId(e) ?? []))
+  // Whatever replays now has been watched: next time it just comes in.
+  const replaying = entries.flatMap((e) => (plan.get(e.key)?.replayAt != null ? [`${accountId}:${dealId(e)}`] : []))
+  const replayKey = replaying.join(',')
+  useEffect(() => {
+    if (replayKey) markCelebrated(replayKey.split(','))
+  }, [replayKey])
+
   return (
     <div className="flex flex-col gap-3">
-      {view.messages.map((m, i) => (
-        <SoftRise key={key(m)} delay={opened.has(key(m)) ? Math.max(0, i - first) * STAGGER_S : 0}>
-          <MessageBubble accountId={accountId} view={view} message={m} writer={writer} />
-        </SoftRise>
-      ))}
+      {entries.map((e, i) => {
+        const t = plan.get(e.key) ?? NOW
+        const avatar = fanSide(e) && !fanSide(entries[i + 1])
+        if (e.kind === 'message') {
+          return (
+            <SoftRise key={e.key} delay={t.delay}>
+              <MessageBubble accountId={accountId} view={view} message={e.m} writer={writer} avatar={avatar} cardDelay={t.delay + CARD_AFTER} settled={settled} />
+            </SoftRise>
+          )
+        }
+        return (
+          <SoftRise key={e.key} delay={t.delay}>
+            <FanRow view={view} avatar={avatar}>
+              {e.kind === 'custom' ? (
+                <RequestCard accountId={accountId} day={view.day} request={e.q} items={[]} delay={t.delay} replayAt={t.replayAt} still={t.replayAt === null} />
+              ) : (
+                <MeetupCard accountId={accountId} day={view.day} meetup={e.o} delay={t.delay} replayAt={t.replayAt} still={t.replayAt === null} />
+              )}
+            </FanRow>
+          </SoftRise>
+        )
+      })}
     </div>
   )
 }
 
-function MessageBubble({ accountId, view, message: m, writer }: { accountId: string; view: ThreadView; message: Message; writer: ReturnType<typeof useFanWriter> }) {
+/** Something on the fan's side that is not a text bubble, lined up with his bubbles; his avatar beside it if it is his last. */
+function FanRow({ view, avatar, children }: { view: ThreadView; avatar: boolean; children: ReactNode }) {
+  return (
+    <div className="flex w-full items-end gap-2">
+      <div className="w-10 shrink-0">{avatar && <Avatar size={40} alt={view.regular.name} fallback={view.regular.name.slice(0, 1)} />}</div>
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  )
+}
+
+function MessageBubble({
+  accountId,
+  view,
+  message: m,
+  writer,
+  avatar,
+  cardDelay,
+  settled,
+}: {
+  accountId: string
+  view: ThreadView
+  message: Message
+  writer: ReturnType<typeof useFanWriter>
+  /** His avatar goes with this message (the last of his in a row). */
+  avatar: boolean
+  cardDelay: number
+  /** Customs and meetups shown where they were settled, not under this message. */
+  settled: Set<string>
+}) {
   const user = m.from === 'me' ? 'sender' : 'receiver'
   const time = `Day ${m.day}`
   if (m.state === 'pending') {
     const failed = writer.failed[m.id]
-    if (!failed) return <ChatMessage user="receiver" variant="typing" avatarFallback={view.regular.name.slice(0, 1)} />
+    if (!failed) return <ChatMessage user="receiver" variant="typing" showAvatar={avatar} avatarFallback={view.regular.name.slice(0, 1)} />
     return (
-      <Alert variant="error" title="The model could not write this reply">
-        <div className="flex flex-col gap-2">
-          <span className="text-sm">{failed}</span>
-          <Button size="32" variant="secondary" className="self-start" onClick={() => writer.retry(m.id)}>
-            Retry
-          </Button>
-        </div>
-      </Alert>
+      <FanRow view={view} avatar={avatar}>
+        <Alert variant="error" title="The model could not write this reply">
+          <div className="flex flex-col gap-2">
+            <span className="text-sm">{failed}</span>
+            <Button size="32" variant="secondary" className="self-start" onClick={() => writer.retry(m.id)}>
+              Retry
+            </Button>
+          </div>
+        </Alert>
+      </FanRow>
     )
   }
+  const card = m.from === 'fan' ? dealCard(accountId, view, m, cardDelay, settled) : null
   return (
     <div className={`flex flex-col gap-1 ${m.from === 'me' ? 'items-end' : 'items-start'}`}>
       {m.ppv && (
@@ -289,43 +409,37 @@ function MessageBubble({ accountId, view, message: m, writer }: { accountId: str
         </span>
       )}
       {m.delivery && <Delivery view={view} delivery={m.delivery} />}
-      {m.text && <ChatMessage user={user} message={m.text} time={time} showAvatar={m.from === 'fan'} avatarFallback={view.regular.name.slice(0, 1)} />}
+      {m.text && <ChatMessage user={user} message={m.text} time={time} showAvatar={m.from === 'fan' && avatar && !card} avatarFallback={view.regular.name.slice(0, 1)} />}
       {m.writtenBy === 'corpus' && <span className="pl-12 text-xs text-content-tertiary">Preset line: the model was not available</span>}
-      {m.tipCents ? <Badge variant="success">💰 Tipped {money(m.tipCents)}</Badge> : null}
-      <Extras accountId={accountId} view={view} message={m} />
+      {m.tipCents ? <Badge className={m.from === 'fan' ? 'ml-12' : ''} variant="success">💰 Tipped {money(m.tipCents)}</Badge> : null}
+      {card && (
+        <FanRow view={view} avatar={avatar}>
+          {card}
+        </FanRow>
+      )}
     </div>
   )
 }
 
-/** What you sent for a custom request, and whether the fan paid. */
+/** What you sent for a custom request (the card after it says whether he paid). */
 function Delivery({ view, delivery }: { view: ThreadView; delivery: NonNullable<Message['delivery']> }) {
-  const q = view.requests.find((x) => x.id === delivery.requestId)
   return (
-    <>
-      <div className="flex max-w-full flex-wrap justify-end gap-1">
-        {delivery.vaultIds.map((id) => (
-          <div key={id} className="w-32">
-            <MediaTile item={view.items[id] ?? null} />
-          </div>
-        ))}
-      </div>
-      {q?.delivery && (
-        <span className="text-xs text-content-tertiary">
-          📝 Custom · {q.delivery.paid ? `Paid ${money(q.offerCents)}` : `Not paid · ${NOT_PAID[q.delivery.reason]}`}
-        </span>
-      )}
-    </>
+    <div className="flex max-w-full flex-wrap justify-end gap-1">
+      {delivery.vaultIds.map((id) => (
+        <div key={id} className="w-32">
+          <MediaTile item={view.items[id] ?? null} />
+        </div>
+      ))}
+    </div>
   )
 }
 
-/** The request or invitation a fan message carries, with its buttons. */
-function Extras({ accountId, view, message: m }: { accountId: string; view: ThreadView; message: Message }) {
-  if (m.from !== 'fan') return null
-  // The card sits under the fan message that opened the deal (deals.ts).
+/** The request or invitation a fan message opened, with its buttons, until it is settled (then it shows further down); null if none. */
+function dealCard(accountId: string, view: ThreadView, m: Message, delay: number, settled: Set<string>): ReactNode {
   const q = view.requests.find((x) => x.messageId === m.id)
-  if (q) return <RequestCard accountId={accountId} day={view.day} request={q} items={(q.delivery?.vaultIds ?? []).map((id) => view.items[id] ?? null)} />
+  if (q && !settled.has(q.id)) return <RequestCard accountId={accountId} day={view.day} request={q} items={[]} delay={delay} />
   const o = view.meetups.find((x) => x.messageId === m.id)
-  if (o) return <MeetupCard accountId={accountId} day={view.day} meetup={o} />
+  if (o && !settled.has(o.id)) return <MeetupCard accountId={accountId} day={view.day} meetup={o} delay={delay} />
   return null
 }
 

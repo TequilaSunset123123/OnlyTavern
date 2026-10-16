@@ -23,3 +23,17 @@ export function useCelebration(status: string, next: Celebration): Celebration {
   }, [now])
   return now
 }
+
+/**
+ * Holds a settled card back in its earlier look until `at` seconds after it is first
+ * shown (null: never), so opening the chat replays the moment it was settled.
+ */
+export function useHoldBack(at: number | null): boolean {
+  const [held, setHeld] = useState(at !== null)
+  useEffect(() => {
+    if (at === null) return
+    const t = setTimeout(() => setHeld(false), at * 1000)
+    return () => clearTimeout(t)
+  }, [at])
+  return held
+}

@@ -1,7 +1,6 @@
 import {
   Alert,
   Badge,
-  type BadgeVariant,
   Button,
   Card,
   CardContent,
@@ -14,6 +13,7 @@ import {
   EmptyState,
   FlameIcon,
   TextArea,
+  VideoIcon,
 } from '@fanvue/ui'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -22,35 +22,46 @@ import { useDispatch } from '../../hooks/useAccounts'
 import { useDeliveryCheck, useTags, useVault } from '../../hooks/useContent'
 import { errorText, money } from '../format'
 import { MediaTile } from '../MediaTile'
-import { useCelebration } from './celebration'
+import { useCelebration, useHoldBack } from './celebration'
 import { Actions, DealCard, Pop, Rise } from './DealMotion'
+import { DealAmount, DealHeader, type DealTone } from './DealParts'
 import { NOT_PAID } from './labels'
 
-// A custom request (plan.md §4.3, step 5), shown under the fan's message in the
-// chat and on the Requests page. The engine decides what they want and whether
-// what you send matches; this card only shows it and sends your choices.
-
-const STATUS: Record<Exclude<Request['status'], 'delivered'>, [string, BadgeVariant]> = {
-  open: ['New', 'brandLight'],
-  accepted: ['Accepted', 'brand'],
-  declined: ['Declined', 'default'],
-  expired: ['Expired', 'default'],
-}
-
-function status(q: Request): [string, BadgeVariant] {
-  if (q.status === 'delivered') return q.delivery?.paid ? ['Paid', 'success'] : ['Not paid', 'error']
-  return STATUS[q.status]
-}
+// A custom request (plan.md §4.3, step 5), shown in the chat (under his ask while it is
+// open; after your delivery once it is settled) and on the Requests page. The engine
+// decides what they want and whether what you send matches; this card only shows it and
+// sends your choices. Layout: DealParts.tsx; motion: DealMotion.tsx.
 
 const left = (due: number, day: number) => (due === day ? 'due today' : `${due - day} day${due - day === 1 ? '' : 's'} left`)
+
+/** Status chip, tone, the day line and the money label for each state. */
+function look(q: Request, day: number): { status: string; tone: DealTone; subtitle: string; label: string } {
+  switch (q.status) {
+    case 'open':
+      return { status: 'New', tone: 'waiting', subtitle: `Day ${q.day} · answer by day ${q.dueDay}`, label: 'Offers, paid on delivery' }
+    case 'accepted':
+      return { status: 'Accepted', tone: 'pending', subtitle: `Due day ${q.dueDay} · ${left(q.dueDay, day)}`, label: 'Paid on delivery' }
+    case 'delivered':
+      return q.delivery?.paid
+        ? { status: 'Paid', tone: 'paid', subtitle: `Delivered · Day ${q.delivery.day}`, label: 'Payment received' }
+        : { status: 'Not paid', tone: 'failed', subtitle: `Delivered · Day ${q.delivery?.day ?? q.day}`, label: 'Not paid' }
+    case 'declined':
+      return { status: 'Declined', tone: 'closed', subtitle: `Day ${q.closedDay ?? q.day}`, label: 'Offered' }
+    case 'expired':
+      return { status: 'Expired', tone: 'closed', subtitle: q.acceptedDay !== undefined ? 'You did not deliver in time' : 'You did not answer in time', label: 'Offered' }
+  }
+}
 
 export function RequestCard({
   accountId,
   day,
-  request: q,
+  request,
   regular,
   message,
   items,
+  delay = 0,
+  replayAt = null,
+  still = false,
 }: {
   accountId: string
   day: number
@@ -59,13 +70,22 @@ export function RequestCard({
   regular?: Regular
   message?: Message | null
   items: (VaultItem | null)[]
+  /** Seconds before the card comes in (in the chat: after its bubble). */
+  delay?: number
+  /** In the chat, a settled custom shows how it was settled again, this many seconds in. */
+  replayAt?: number | null
+  /** No entrance of its own: it comes in with the chat (a settled card you already watched settle). */
+  still?: boolean
 }) {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const { data: tags = [] } = useTags()
   const [delivering, setDelivering] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [label, variant] = status(q)
+  // Replaying: shown as still waiting for your delivery until the moment it was paid (or not).
+  const held = useHoldBack(replayAt)
+  const q: Request = held ? { ...request, status: 'accepted', delivery: undefined } : request
+  const l = look(q, day)
   const act = (type: 'request.accept' | 'request.decline') =>
     dispatch.mutateAsync({ type, id: accountId, requestId: q.id }).catch((e) => setError(errorText(e)))
   const celebrate = useCelebration(
@@ -75,25 +95,32 @@ export function RequestCard({
   const pop = { accepted: '✓ Accepted', completed: `✓ Completed · ${money(q.offerCents)} earned`, failed: '✗ Not paid' }
 
   return (
-    <DealCard pulse={q.status === 'open'} celebrate={celebrate}>
-      <Card className="w-full">
-        <CardContent className="flex flex-col gap-3">
-          <Rise delay={0.15} className="flex items-center gap-2">
-            <span className="typography-body-small-14px-semibold mr-auto">
-              Custom request
-              {regular && (
+    <DealCard pulse={q.status === 'open'} celebrate={celebrate} delay={delay} still={still}>
+      <Card className="w-full rounded-2xl">
+        <CardContent className="flex flex-col gap-4">
+          <Rise delay={0.15}>
+            <DealHeader
+              icon={<VideoIcon className="size-6" />}
+              title={
                 <>
-                  {' from '}
-                  <button type="button" className="underline" onClick={() => navigate(`/messages/${regular.id}`)}>
-                    {regular.name}
-                  </button>
+                  Custom request
+                  {regular && (
+                    <>
+                      {' from '}
+                      <button type="button" className="underline" onClick={() => navigate(`/messages/${regular.id}`)}>
+                        {regular.name}
+                      </button>
+                    </>
+                  )}
                 </>
-              )}
-            </span>
-            <Badge variant={variant}>{label}</Badge>
+              }
+              subtitle={l.subtitle}
+              status={l.status}
+              tone={l.tone}
+            />
           </Rise>
           {regular && (
-            <Rise delay={0.23}>
+            <Rise delay={0.2}>
               <p className="text-sm text-content-secondary">{message ? `“${message.text}”` : 'Open the chat to read their message.'}</p>
             </Rise>
           )}
@@ -105,56 +132,43 @@ export function RequestCard({
             ))}
             <Badge leftIcon={<FlameIcon size={16} />}>{q.intensity}</Badge>
           </Rise>
-          <Rise delay={0.31} className="flex flex-wrap items-center gap-x-2 text-sm">
-            <span>
-              Offers <span className="font-semibold">{money(q.offerCents)}</span>, paid on delivery
-              {(q.status === 'open' || q.status === 'accepted') && <span className="text-content-tertiary"> · day {q.dueDay}, {left(q.dueDay, day)}</span>}
-            </span>
-            <Pop celebrate={celebrate} label={celebrate ? pop[celebrate] : ''} />
-          </Rise>
-
-          {q.status === 'delivered' && q.delivery && (
-            <>
-              {/* In the chat the delivery itself shows the items. */}
-              {regular && (
-                <div className="flex flex-wrap gap-1">
-                  {items.map((item, i) => (
-                    <div key={item?.id ?? i} className="w-20">
-                      <MediaTile item={item} />
-                    </div>
-                  ))}
+          {/* On the Requests page the delivery shows here; in the chat your message above shows it. */}
+          {regular && q.status === 'delivered' && (
+            <div className="flex flex-wrap gap-1">
+              {items.map((item, i) => (
+                <div key={item?.id ?? i} className="w-20">
+                  <MediaTile item={item} />
                 </div>
-              )}
-              <div className="text-sm text-content-secondary">
-                {q.delivery.paid
-                  ? `Delivered on day ${q.delivery.day}: they paid ${money(q.offerCents)}${q.delivery.tipCents ? ` and tipped ${money(q.delivery.tipCents)}` : ''}.`
-                  : `Delivered on day ${q.delivery.day}: not paid, ${NOT_PAID[q.delivery.reason]}.`}
-              </div>
-            </>
+              ))}
+            </div>
           )}
-          {q.status === 'expired' && (
-            <div className="text-sm text-content-tertiary">{q.acceptedDay !== undefined ? 'You accepted but did not deliver in time.' : 'You did not answer in time.'}</div>
-          )}
+          <Rise delay={0.31}>
+            <DealAmount label={l.label} cents={q.offerCents} tone={l.tone}>
+              {q.status === 'delivered' && q.delivery?.tipCents ? <span className="text-sm text-success-content">+ {money(q.delivery.tipCents)} tip</span> : null}
+              {q.status === 'delivered' && q.delivery && !q.delivery.paid && <span className="text-sm text-error-content">{NOT_PAID[q.delivery.reason]}</span>}
+              <Pop celebrate={celebrate} label={celebrate ? pop[celebrate] : ''} />
+            </DealAmount>
+          </Rise>
 
           {error && <Alert variant="error">{error}</Alert>}
           <Rise delay={0.39}>
             <Actions step={q.status}>
               {q.status === 'open' && (
                 <div className="flex gap-2">
-                  <Button size="32" variant="brand" loading={dispatch.isPending} onClick={() => act('request.accept')}>
+                  <Button size="40" variant="brand" className="flex-1" loading={dispatch.isPending} onClick={() => act('request.accept')}>
                     Accept
                   </Button>
-                  <Button size="32" variant="secondary" disabled={dispatch.isPending} onClick={() => act('request.decline')}>
+                  <Button size="40" variant="secondary" className="flex-1" disabled={dispatch.isPending} onClick={() => act('request.decline')}>
                     Decline
                   </Button>
                 </div>
               )}
               {q.status === 'accepted' && (
                 <div className="flex gap-2">
-                  <Button size="32" variant="brand" onClick={() => setDelivering(true)}>
+                  <Button size="40" variant="brand" className="flex-1" disabled={held} onClick={() => setDelivering(true)}>
                     Deliver
                   </Button>
-                  <Button size="32" variant="secondary" disabled={dispatch.isPending} onClick={() => act('request.decline')}>
+                  <Button size="40" variant="secondary" className="flex-1" disabled={held || dispatch.isPending} onClick={() => act('request.decline')}>
                     Back out
                   </Button>
                 </div>
@@ -162,7 +176,7 @@ export function RequestCard({
             </Actions>
           </Rise>
         </CardContent>
-        {q.status === 'accepted' && <DeliverDialog accountId={accountId} request={q} open={delivering} onOpenChange={setDelivering} />}
+        {q.status === 'accepted' && !held && <DeliverDialog accountId={accountId} request={q} open={delivering} onOpenChange={setDelivering} />}
       </Card>
     </DealCard>
   )
