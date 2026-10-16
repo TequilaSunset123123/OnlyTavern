@@ -63,8 +63,10 @@ function PageTransition() {
   return (
     <MotionConfig reducedMotion="user">
       <AnimatePresence mode="wait" initial={false} custom={last.dir}>
-        {/* h-full: Messages fills the screen with its own scrolling panes; other pages just run on and <main> scrolls. */}
-        <motion.div key={key} className="h-full" custom={last.dir} variants={PAGE} initial="enter" animate="shown" exit="leave">
+        {/* Messages fills the screen with its own scrolling panes (h-full). Every other page grows with
+            its content (min-h-full), so <main> scrolls it all, its bottom padding above the phone tab bar
+            included: a fixed-height wrapper let pages overflow it and stopped them scrolling on phones. */}
+        <motion.div key={key} className={key === '/messages' ? 'h-full' : 'min-h-full'} custom={last.dir} variants={PAGE} initial="enter" animate="shown" exit="leave">
           {outlet}
         </motion.div>
       </AnimatePresence>

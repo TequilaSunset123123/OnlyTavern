@@ -163,6 +163,8 @@ export type InboxThread = {
   pending: boolean
   /** Cents this fan tipped you in DMs. */
   tipped: number
+  /** You have opened his conversation (or written to him) at least once. */
+  opened: boolean
 }
 
 export type Inbox = { day: number; threads: InboxThread[] }

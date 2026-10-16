@@ -362,6 +362,7 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
           unread: t.messages.slice(t.read).filter((m) => m.from === 'fan').length,
           pending: t.messages.some((m) => m.state === 'pending'),
           tipped: t.messages.reduce((s, m) => s + (m.from === 'fan' ? (m.tipCents ?? 0) : 0), 0),
+          opened: t.read > 0 || t.messages.some((m) => m.from === 'me'),
         }
       })
       const lastDay = (x: InboxThread) => Math.max(x.regular.since, ...account.threads.find((t) => t.regularId === x.regular.id)!.messages.map((m) => m.day))

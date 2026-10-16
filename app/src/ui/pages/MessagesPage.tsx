@@ -23,6 +23,7 @@ import {
   TextField,
   VaultIcon,
 } from '@fanvue/ui'
+import { AnimatePresence, motion } from 'motion/react'
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import type { InboxThread, Meetup, Message, Request, ThreadView } from '../../api'
@@ -30,12 +31,14 @@ import { useActiveAccount, useDispatch } from '../../hooks/useAccounts'
 import { useTags, useVault } from '../../hooks/useContent'
 import { useFanWriter, useInbox, useThread } from '../../hooks/useMessages'
 import { errorText, money } from '../format'
+import { listedBefore, markSeenFans, saveListed, seenFans } from '../messages/arrivals'
 import { BulkPane } from '../messages/BulkPane'
 import { MediaTile } from '../MediaTile'
 import { SoftRise } from '../motion/SoftRise'
 import { celebratedIds, markCelebrated } from '../requests/celebrated'
 import { MeetupCard } from '../requests/MeetupCard'
 import { RequestCard } from '../requests/RequestCard'
+import { useTimeTravel } from '../time/context'
 import { VaultPickerDialog } from '../VaultPickerDialog'
 
 // Layout: Fanzly's Messages (All Chats / Bulk Message, filter chips) with Fastt's
@@ -53,6 +56,55 @@ function whyNot(view: ThreadView, messageId: string): string {
   return d && WHY_NOT[d.reason] ? ` · ${WHY_NOT[d.reason]}` : ''
 }
 
+/**
+ * New regulars in All Chats: fans whose conversation you have never opened and whom this
+ * browser has not shown yet (arrivals.ts). They stay out of the list while time is passing,
+ * then toss in once you are back; after that they are remembered. (Remembering alone made
+ * the first visit after an update file everyone away as seen, new fans included.)
+ */
+function useArrivals(accountId: string | undefined, threads: InboxThread[]) {
+  const { busy } = useTimeTravel()
+  const seen = accountId ? seenFans(accountId) : new Set<string>()
+  const fresh = new Set(threads.filter((t) => !t.opened && !seen.has(t.regular.id)).map((t) => t.regular.id))
+  const key = threads.map((t) => t.regular.id).join(',')
+  useEffect(() => {
+    if (accountId && !busy && key) markSeenFans(accountId, key.split(','))
+  }, [accountId, busy, key])
+  return { fresh, hold: busy }
+}
+
+/**
+ * Regulars who drop out of All Chats because they went dormant (you left them alone too
+ * long): the ones All Chats showed last time (arrivals.ts listedBefore) and that are dormant
+ * now. They are shown once more where they were, then tossed out of the list, after the
+ * time-passing screens if those are up. What All Chats shows is saved once they are gone.
+ */
+function useDepartures(accountId: string | undefined, all: InboxThread[], listed: InboxThread[], enabled: boolean) {
+  const { busy } = useTimeTravel()
+  const [gone, setGone] = useState<string[]>([])
+  const before = accountId && enabled ? listedBefore(accountId) : []
+  const here = new Set(listed.map((t) => t.regular.id))
+  const leaving = all.filter((t) => before.includes(t.regular.id) && !here.has(t.regular.id) && t.regular.status === 'dormant' && !gone.includes(t.regular.id))
+  const leavingKey = leaving.map((t) => t.regular.id).join(',')
+  const listedKey = listed.map((t) => t.regular.id).join(',')
+  useEffect(() => {
+    if (busy || !leavingKey) return
+    const timer = setTimeout(() => setGone((g) => [...g, ...leavingKey.split(',')]), 700)
+    return () => clearTimeout(timer)
+  }, [busy, leavingKey])
+  useEffect(() => {
+    if (accountId && enabled && !busy && !leavingKey && all.length) saveListed(accountId, listedKey ? listedKey.split(',') : [])
+  }, [accountId, enabled, busy, leavingKey, listedKey, all.length])
+  return new Set(leaving.map((t) => t.regular.id))
+}
+
+/** A card tossed onto the pile, and off it (after Motion's spring animations, motion.dev/docs/react-animation). */
+const TOSS = {
+  initial: { opacity: 0, y: -56, x: 28, rotate: -9, scale: 0.86 },
+  animate: { opacity: 1, y: 0, x: 0, rotate: 0, scale: 1 },
+  exit: { opacity: 0, x: 220, y: 36, rotate: 14, scale: 0.82, transition: { duration: 0.45, ease: [0.55, 0, 0.75, 0.2] as const } },
+}
+
 export function MessagesPage() {
   const { regularId } = useParams()
   const navigate = useNavigate()
@@ -61,11 +113,18 @@ export function MessagesPage() {
   const [tab, setTab] = useState(regularId === 'bulk' ? 'bulk' : 'chats')
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('All')
 
-  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
-
-  const threads = (inbox?.threads ?? []).filter((t) =>
+  const listed = (inbox?.threads ?? []).filter((t) =>
     filter === 'Unread' ? t.unread > 0 : filter === 'Tipped' ? t.tipped > 0 : filter === 'Dormant' ? t.regular.status === 'dormant' : t.regular.status === 'active',
   )
+  const arrivals = useArrivals(active?.id, listed)
+  const leaving = useDepartures(active?.id, inbox?.threads ?? [], listed, filter === 'All')
+  // New ones wait out the time-passing screens; fans going dormant stay a moment, in their
+  // place, before they are tossed out.
+  const threads = (inbox?.threads ?? []).filter(
+    (t) => leaving.has(t.regular.id) || (listed.includes(t) && !(arrivals.hold && arrivals.fresh.has(t.regular.id))),
+  )
+
+  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
   const open = regularId && regularId !== 'bulk' ? regularId : undefined
   const showList = !open && tab === 'chats'
 
@@ -98,7 +157,8 @@ export function MessagesPage() {
           )}
         </div>
         {tab === 'chats' && (
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="relative min-h-0 flex-1 overflow-y-auto">
+            {/* relative: popLayout takes a leaving row out of the flow, positioned in here. */}
             {threads.length === 0 && (
               <EmptyState
                 className="p-6"
@@ -106,9 +166,25 @@ export function MessagesPage() {
                 description="Fans who like you start messaging after a while. Keep posting and press Next day."
               />
             )}
-            {threads.map((t) => (
-              <ThreadRow key={t.regular.id} thread={t} active={t.regular.id === open} onClick={() => navigate(`/messages/${t.regular.id}`)} />
-            ))}
+            <AnimatePresence mode="popLayout">
+              {threads.map((t) => {
+                const tossed = arrivals.fresh.has(t.regular.id)
+                const order = [...arrivals.fresh].indexOf(t.regular.id)
+                return (
+                  // layout: the other rows slide to make room for a new one, or close the gap a leaving one leaves.
+                  <motion.div
+                    key={t.regular.id}
+                    layout
+                    initial={tossed ? TOSS.initial : false}
+                    animate={TOSS.animate}
+                    exit={TOSS.exit}
+                    transition={{ type: 'spring', stiffness: 260, damping: 18, delay: tossed ? 0.15 + order * 0.14 : 0 }}
+                  >
+                    <ThreadRow thread={t} active={t.regular.id === open} onClick={() => navigate(`/messages/${t.regular.id}`)} />
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
           </div>
         )}
         {tab === 'bulk' && (

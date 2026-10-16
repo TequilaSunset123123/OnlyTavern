@@ -25,24 +25,48 @@ import {
   TextField,
 } from '@fanvue/ui'
 import { ChartCard } from '@fanvue/ui/charts'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { LedgerEntry, LedgerKind } from '../../api'
 import { useActiveAccount, useDispatch, useStatements } from '../../hooks/useAccounts'
 import { errorText, money } from '../format'
 import { AnimatedNumber } from '../motion/AnimatedNumber'
 import { ClockControl } from '../shell/ClockControl'
 import { useTimeTravel } from '../time/context'
+import { useRevealed } from '../time/shared'
+
+// The numbers you last saw on this page, per account (2026-10-16), so coming back shows
+// them rising to what you have now. Kept in this browser only.
+const seenKey = (accountId: string) => `onlytavern:statementsSeen:${accountId}`
+function lastSeen(accountId: string): Record<string, number> {
+  try {
+    return JSON.parse(localStorage.getItem(seenKey(accountId)) ?? '{}') as Record<string, number>
+  } catch {
+    return {}
+  }
+}
+function saveSeen(accountId: string, name: string, cents: number) {
+  try {
+    localStorage.setItem(seenKey(accountId), JSON.stringify({ ...lastSeen(accountId), [name]: cents }))
+  } catch {
+    // Storage unavailable: the numbers just show as they are.
+  }
+}
 
 /**
- * A balance or total that rolls to its new value when it changes (a new day's earnings, a
- * withdrawal); no roll on first view. While time passes (the shutter, the loader, the
- * report) it holds the old number, so the roll plays when you are back on the page.
+ * A balance or total that rolls to its new value (motion-primitives' Animated number): on
+ * entering the page, from what you saw last time, so you watch your earnings go up; and
+ * whenever it changes while you are here (a new day, a withdrawal). While time passes
+ * (the shutter, the loader, the report) it holds, so the roll plays when you are back.
  */
-function Money({ cents }: { cents: number }) {
+function Money({ accountId, name, cents }: { accountId: string; name: string; cents: number }) {
   const { busy } = useTimeTravel()
-  const [shown, setShown] = useState(cents)
-  if (!busy && shown !== cents) setShown(cents)
-  return <AnimatedNumber value={shown} format={(n) => money(Math.round(n))} springOptions={{ stiffness: 90, damping: 20 }} />
+  const revealed = useRevealed()
+  const [shown, setShown] = useState(() => lastSeen(accountId)[name] ?? cents)
+  if (revealed && !busy && shown !== cents) setShown(cents)
+  useEffect(() => {
+    if (shown === cents) saveSeen(accountId, name, cents)
+  }, [accountId, name, shown, cents])
+  return <AnimatedNumber value={shown} format={(n) => money(Math.round(n))} springOptions={{ stiffness: 70, damping: 20 }} />
 }
 
 // Crowd payments are stored per day and kind, so rows read "from N fans" (plan.md §2.4).
@@ -143,13 +167,13 @@ export function StatementsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="typography-header-heading-xs">
-                    <Money cents={b.available} />
+                    <Money accountId={active.id} name="available" cents={b.available} />
                   </div>
                   <div className="text-content-tertiary">Current balance</div>
                 </div>
                 <div>
                   <div className="typography-header-heading-xs">
-                    <Money cents={b.pending} />
+                    <Money accountId={active.id} name="pending" cents={b.pending} />
                   </div>
                   <div className="text-content-tertiary">Pending balance</div>
                 </div>
@@ -163,14 +187,14 @@ export function StatementsPage() {
             </CardContent>
           </Card>
           <div className="grid grid-cols-2 gap-3">
-            <ChartCard title="Subscriptions" subtitle={<Money cents={totals.subscription.net + totals.renewal.net} />} />
-            <ChartCard title="Tips" subtitle={<Money cents={totals.tip.net} />} />
-            <ChartCard title="Posts" subtitle={<Money cents={totals.post.net} />} />
-            <ChartCard title="Messages" subtitle={<Money cents={totals.message.net} />} />
-            <ChartCard title="Customs" subtitle={<Money cents={totals.custom.net} />} />
-            <ChartCard title="Cash (off platform)" subtitle={<Money cents={b.cash} />} />
-            <ChartCard title="Total earned" subtitle={<Money cents={b.earned} />} />
-            <ChartCard title="Paid out" subtitle={<Money cents={b.paidOut} />} />
+            <ChartCard title="Subscriptions" subtitle={<Money accountId={active.id} name="subscriptions" cents={totals.subscription.net + totals.renewal.net} />} />
+            <ChartCard title="Tips" subtitle={<Money accountId={active.id} name="tips" cents={totals.tip.net} />} />
+            <ChartCard title="Posts" subtitle={<Money accountId={active.id} name="posts" cents={totals.post.net} />} />
+            <ChartCard title="Messages" subtitle={<Money accountId={active.id} name="messages" cents={totals.message.net} />} />
+            <ChartCard title="Customs" subtitle={<Money accountId={active.id} name="customs" cents={totals.custom.net} />} />
+            <ChartCard title="Cash (off platform)" subtitle={<Money accountId={active.id} name="cash" cents={b.cash} />} />
+            <ChartCard title="Total earned" subtitle={<Money accountId={active.id} name="earned" cents={b.earned} />} />
+            <ChartCard title="Paid out" subtitle={<Money accountId={active.id} name="paidOut" cents={b.paidOut} />} />
           </div>
         </div>
       </div>
