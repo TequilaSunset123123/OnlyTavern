@@ -4,6 +4,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  ImageUploadIcon,
   SegmentedControl,
   Select,
   SelectContent,
@@ -19,7 +20,8 @@ import { useSettings } from '../../hooks/useContent'
 import { getConnectionProfiles, getStContext } from '../../bridge/st'
 import { useTheme } from '../../hooks/useTheme'
 import { useRef, useState } from 'react'
-import { type Backdrop, useBackdrop } from '../background'
+import { type Backdrop, GLASS_RANGE, NIGHT_ROOM, useBackdrop } from '../background'
+import { ACCENT } from '../shell/accent'
 import { errorText } from '../format'
 import { PageTitle } from '../shell/PageTitle'
 
@@ -63,6 +65,7 @@ export function SettingsPage() {
         <CardContent className="flex flex-col gap-2">
           <span className="typography-body-small-14px-semibold">Language of fan comments and messages</span>
           <SegmentedControl
+            variant="fill"
             options={FAN_LANGUAGES}
             value={settings?.fanLanguage ?? 'en'}
             onChange={(v) => dispatch.mutate({ type: 'settings.update', patch: { fanLanguage: v as Settings['fanLanguage'] } })}
@@ -159,45 +162,79 @@ function DeveloperCard() {
   )
 }
 
-const BACKDROPS = [
-  { value: 'default', label: 'Night room' },
-  { value: 'none', label: 'None' },
-  { value: 'custom', label: 'My picture' },
-]
-
-/** The picture behind the glass (ui/background.ts): kept in this browser only. */
+/**
+ * The picture behind the glass, and how see-through the glass is (ui/background.ts): kept
+ * in this browser only. Three thumbnails to pick from; "My picture" asks for a file the
+ * first time.
+ */
 function BackdropPicker() {
-  const { kind, hasCustom, choose, upload } = useBackdrop()
+  const { kind, custom, glass, choose, upload, setGlass } = useBackdrop()
   const file = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
+  const percent = Math.round((glass ?? 0.5) * 100)
+  const options: { id: Backdrop; label: string; picture: string | null }[] = [
+    { id: 'default', label: 'Night room', picture: NIGHT_ROOM },
+    { id: 'none', label: 'None', picture: null },
+    { id: 'custom', label: custom ? 'My picture' : 'Upload…', picture: custom },
+  ]
   return (
-    <div className="flex flex-col gap-2">
-      <span className="typography-body-small-14px-semibold">Background</span>
-      <SegmentedControl
-        options={BACKDROPS}
-        value={kind}
-        onChange={(v) => (v === 'custom' && !hasCustom ? file.current?.click() : choose(v as Backdrop))}
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="secondary" size="32" onClick={() => file.current?.click()}>
-          {hasCustom ? 'Change my picture' : 'Upload a picture'}
-        </Button>
-        <span className="text-xs text-content-tertiary">Kept in this browser only. Large pictures are scaled down.</span>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <span className="typography-body-small-14px-semibold">Background</span>
+        <div className="grid grid-cols-3 gap-3">
+          {options.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              className={`flex flex-col gap-2 rounded-2xl p-2 text-left hover:bg-buttons-tertiary-hover ${kind === o.id ? ACCENT : ''}`}
+              onClick={() => (o.id === 'custom' && !custom ? file.current?.click() : choose(o.id))}
+            >
+              <span
+                className="grid aspect-video w-full place-items-center rounded-xl border border-border-primary bg-(--app-backdrop) bg-cover bg-center text-content-tertiary"
+                style={o.picture ? { backgroundImage: `url("${o.picture}")` } : undefined}
+              >
+                {o.id === 'custom' && !custom && <ImageUploadIcon />}
+              </span>
+              <span className="typography-body-small-14px-semibold">{o.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {custom && (
+            <Button variant="tertiary" size="32" leftIcon={<ImageUploadIcon />} onClick={() => file.current?.click()}>
+              Change my picture
+            </Button>
+          )}
+          <span className="text-xs text-content-tertiary">Kept in this browser only. Large pictures are scaled down.</span>
+        </div>
+        <input
+          ref={file}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (!f) return
+            setError(null)
+            upload(f).catch((err) => setError(errorText(err)))
+          }}
+        />
+        {error && <p className="text-sm text-error-content">{error}</p>}
       </div>
-      <input
-        ref={file}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          e.target.value = ''
-          if (!f) return
-          setError(null)
-          upload(f).catch((err) => setError(errorText(err)))
-        }}
-      />
-      {error && <p className="text-sm text-error-content">{error}</p>}
+      <div className="flex flex-col gap-2">
+        <span className="typography-body-small-14px-semibold">Glass opacity: {percent}%</span>
+        <Slider
+          min={GLASS_RANGE.min * 100}
+          max={GLASS_RANGE.max * 100}
+          step={5}
+          value={[percent]}
+          minLabel="Clear"
+          maxLabel="Solid"
+          onValueChange={([v]) => setGlass(v / 100, false)}
+          onValueCommit={([v]) => setGlass(v / 100, true)}
+        />
+      </div>
     </div>
   )
 }

@@ -32,14 +32,17 @@
   --cs-gradient-start: #ff6aa9;
   --cs-gradient-end: #c93dbb;
 
-  /* Glass panels (index.css `glass`) and what shows behind them (ui/background.ts sets the picture) */
-  --glass-bg: rgb(255 255 255 / 0.55);
+  /* Glass panels (index.css `glass`) and what shows behind them. ui/background.ts sets the
+     picture and --glass-alpha (Settings, Appearance: how see-through the glass is). */
+  --glass-bg: rgb(255 255 255 / var(--glass-alpha, 0.55));
   --glass-border: rgb(255 255 255 / 0.6);
   --glass-blur: 18px;
   --app-backdrop: #f4e9f0;
   /* Cards on the glass: see-through layers */
   --color-surface-primary: rgb(255 255 255 / 0.5);
   --color-surface-secondary: rgb(255 255 255 / 0.35);
+  /* The track of segmented controls: a see-through layer too */
+  --color-surface-tertiary: rgb(255 255 255 / 0.45);
 }
 
 .dark {
@@ -49,6 +52,7 @@
   --color-modal-background: #1c101b;
   --color-surface-primary: rgb(255 255 255 / 0.06);
   --color-surface-secondary: rgb(255 255 255 / 0.04);
+  --color-surface-tertiary: rgb(255 255 255 / 0.08);
   --color-border-primary: rgb(255 255 255 / 0.1);
   --color-border-strong: rgb(255 255 255 / 0.16);
   --color-content-tertiary: #a8909f;
@@ -62,7 +66,7 @@
   --color-messages-background-receiver-stroke: rgb(255 255 255 / 0.12);
   --color-messages-user-callout: #f45daa;
 
-  --glass-bg: rgb(30 14 30 / 0.5);
+  --glass-bg: rgb(30 14 30 / var(--glass-alpha, 0.5));
   --glass-border: rgb(255 255 255 / 0.1);
   --app-backdrop: #0f0810;
 }

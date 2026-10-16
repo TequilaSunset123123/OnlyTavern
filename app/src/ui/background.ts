@@ -1,29 +1,41 @@
 // The picture behind the glass panels (2026-10-16): the default night room, none, or one
-// you upload (Settings, Appearance). Kept in this browser, like the theme: a picture is
-// too big for the shared settings. Applied as --app-picture on <html> (index.css body).
+// you upload; and how see-through the glass is (Settings, Appearance). Kept in this
+// browser, like the theme: a picture is too big for the shared settings. Applied as
+// --app-picture (index.css body) and --glass-alpha (theme/fanzly.css) on <html>.
 import { useCallback, useEffect, useState } from 'react'
 import nightRoom from '../assets/backgrounds/night-room.webp'
 
 export type Backdrop = 'default' | 'none' | 'custom'
+/** For the picker's thumbnail. */
+export const NIGHT_ROOM = nightRoom
 
 const KIND_KEY = 'onlytavern:backdrop'
 const PICTURE_KEY = 'onlytavern:backdropPicture'
+const ALPHA_KEY = 'onlytavern:glassOpacity'
+/** How opaque the glass can be set (0–1); the theme's own default applies until you move the slider. */
+export const GLASS_RANGE = { min: 0.15, max: 0.95 }
 /** Uploads are scaled down to this width and saved as JPEG, so they fit in browser storage. */
 const MAX_WIDTH = 1920
 
-function read(): { kind: Backdrop; custom: string | null } {
+type State = { kind: Backdrop; custom: string | null; alpha: number | null }
+
+function read(): State {
   try {
     const kind = localStorage.getItem(KIND_KEY)
     const custom = localStorage.getItem(PICTURE_KEY)
-    return { kind: kind === 'none' || (kind === 'custom' && custom) ? (kind as Backdrop) : 'default', custom }
+    const alpha = Number(localStorage.getItem(ALPHA_KEY))
+    return { kind: kind === 'none' || (kind === 'custom' && custom) ? (kind as Backdrop) : 'default', custom, alpha: alpha > 0 ? alpha : null }
   } catch {
-    return { kind: 'default', custom: null }
+    return { kind: 'default', custom: null, alpha: null }
   }
 }
 
-function apply({ kind, custom }: { kind: Backdrop; custom: string | null }) {
+function apply({ kind, custom, alpha }: State) {
   const src = kind === 'default' ? nightRoom : kind === 'custom' ? custom : null
-  document.documentElement.style.setProperty('--app-picture', src ? `url("${src}")` : 'none')
+  const root = document.documentElement.style
+  root.setProperty('--app-picture', src ? `url("${src}")` : 'none')
+  if (alpha === null) root.removeProperty('--glass-alpha')
+  else root.setProperty('--glass-alpha', String(alpha))
 }
 
 /** Scales a picture file down and returns it as a data URL. */
@@ -73,8 +85,19 @@ export function useBackdrop() {
     } catch {
       throw new Error('This browser has no room to keep that picture; try a smaller one')
     }
-    setState({ kind: 'custom', custom })
+    setState((s) => ({ ...s, kind: 'custom', custom }))
   }, [])
 
-  return { kind: state.kind, hasCustom: !!state.custom, choose, upload }
+  /** How opaque the glass panels are, 0–1; `save` once the slider is let go. */
+  const setGlass = useCallback((alpha: number, save: boolean) => {
+    setState((s) => ({ ...s, alpha }))
+    if (!save) return
+    try {
+      localStorage.setItem(ALPHA_KEY, String(alpha))
+    } catch {
+      // No storage: it still applies until the app is reopened.
+    }
+  }, [])
+
+  return { kind: state.kind, custom: state.custom, glass: state.alpha, choose, upload, setGlass }
 }
