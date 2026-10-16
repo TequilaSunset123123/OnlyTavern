@@ -103,6 +103,20 @@ export const MIGRATIONS: Record<number, Migration> = {
       meetups: meetups.map((m) => (m.status === 'done' ? { ...m, outcome: 'smooth', paidCents: m.offerCents } : m)),
     }
   },
+  // v9 -> v10 (2026-10-15): stalker incidents; a hater remembers how loyal he was when he turned.
+  9: (doc) => {
+    const P = personas.loyalty.points
+    type Turned = { from: keyof typeof personas.segments; day: number; trait?: string }
+    return {
+      ...doc,
+      incidents: [],
+      regulars: (doc.regulars as { loyalty: number; turned?: Turned }[]).map((r) =>
+        r.turned
+          ? { ...r, turned: { ...r.turned, level: Math.min(personas.segments[r.turned.from].fan.loyaltyCap, P.filter((x) => r.loyalty >= x).length) } }
+          : r,
+      ),
+    }
+  },
 }
 
 export class SaveError extends Error {}

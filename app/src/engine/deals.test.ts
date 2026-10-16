@@ -26,6 +26,7 @@ function view(a: Account, r: Regular) {
     creator: { name: 'TestCreator', handle: 'test', accountType: 'paid' as const, priceCents: 999, subscribers: 100, direction: 'an amateur creator' },
     loyalty: { points: 0, level: 1, cap: 5, name: 'Curious', from: 0, next: 5 },
     away: null,
+    incidents: [],
     traits: [],
     requests: a.requests,
     meetups: a.meetups,

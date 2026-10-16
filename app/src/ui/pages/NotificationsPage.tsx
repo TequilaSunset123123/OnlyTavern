@@ -66,7 +66,21 @@ function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: st
     case 'meetup-expired':
       return `${fan(e.regularId)}'s invitation expired`
     case 'regular-turned':
-      return `${fan(e.regularId)} got tired of being ignored and turned on you`
+      return `${fan(e.regularId)} turned on you${(e.level ?? 1) >= 4 ? '. He was one of your most devoted fans, so he will hate you for longer' : ''}`
+    case 'hater-left':
+      return `${fan(e.regularId)} got bored of hating you and went quiet`
+    case 'incident':
+      return e.kind === 'courtship' ? `${fan(e.regularId)} is courting you` : `${fan(e.regularId)} will not leave you alone`
+    case 'incident-done':
+      return {
+        gift: `You played along with ${fan(e.regularId)}: he sent you ${money(e.gross ?? 0)}`,
+        ok: `${fan(e.regularId)} took no for an answer`,
+        turned: `${fan(e.regularId)} did not take no for an answer and turned on you`,
+        calmed: `You calmed ${fan(e.regularId)} down`,
+        escalated: `${fan(e.regularId)} lost it and posted about you: ${count(e.lost ?? 0)} subscriber${s(e.lost ?? 0)} left`,
+        blocked: `You blocked ${fan(e.regularId)}`,
+        backlash: `You blocked ${fan(e.regularId)}, but he made a scene first: ${count(e.lost ?? 0)} subscriber${s(e.lost ?? 0)} left`,
+      }[e.result]
     case 'regular-back':
       return e.reason === 'wife' ? `${fan(e.regularId)} is back after lying low` : `${fan(e.regularId)} has warmed up to you again`
     case 'direction':
@@ -99,13 +113,16 @@ const FILTERS: Record<string, EngineEvent['type'][]> = {
     'meetup-expired',
     'regular-turned',
     'regular-back',
+    'hater-left',
+    'incident',
+    'incident-done',
     'loyalty-up',
     'direction',
     'level-up',
   ],
   subscriptions: ['subscribers', 'churn', 'milestone', 'direction', 'level-up'],
   tips: ['tips', 'dm-tip'],
-  messages: ['regular', 'dm', 'dm-purchase', 'mass', 'regular-turned', 'regular-back', 'loyalty-up'],
+  messages: ['regular', 'dm', 'dm-purchase', 'mass', 'regular-turned', 'regular-back', 'hater-left', 'incident', 'incident-done', 'loyalty-up'],
   posts: ['post', 'purchases'],
   requests: ['request', 'request-paid', 'request-unpaid', 'request-expired', 'meetup', 'meetup-done', 'meetup-expired'],
 }

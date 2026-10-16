@@ -113,6 +113,7 @@ describe('custom requests', () => {
       creator: { name: 'Mia', handle: 'mia', accountType: 'free' as const, priceCents: 0, subscribers: 100, direction: 'an anime e-girl' },
       loyalty: { points: 0, level: 1, cap: 5, name: 'Curious', from: 0, next: 5 },
       away: null,
+      incidents: [],
       traits: [],
       requests: a.requests,
       meetups: [],

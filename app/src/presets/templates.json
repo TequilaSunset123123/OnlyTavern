@@ -33,6 +33,18 @@
       "Things finally calmed down at home. I missed you so fucking much.",
       "I'm back. Couldn't stop thinking about you the whole time.",
       "Sorry I vanished. She's off my back now, I need to see you again."
+    ],
+    "incidentGift": [
+      "You actually said yes?? I'm the luckiest man alive. Here, for my girl.",
+      "Best day of my life. Spoil yourself, baby, you're mine now."
+    ],
+    "incidentOk": [
+      "Fine. I get it. Doesn't change how I feel about you.",
+      "Ok. I'll wait. I'm not going anywhere."
+    ],
+    "incidentCalmed": [
+      "Sorry. I got carried away. I just can't stop thinking about you.",
+      "You're right, I went too far. I'll back off. Please don't block me."
     ]
   },
   "zh": {
@@ -69,6 +81,18 @@
       "家里总算消停了，想死你了。",
       "我回来了，这段时间满脑子都是你。",
       "抱歉消失了这么久，她不盯着我了，我还想见你。"
+    ],
+    "incidentGift": [
+      "你真答应了？？我是世界上最幸运的男人，给我的宝贝。",
+      "这辈子最开心的一天，随便花，你现在是我的了。"
+    ],
+    "incidentOk": [
+      "行，我懂了。但我对你的感觉不会变。",
+      "好吧，我等你。我哪儿也不去。"
+    ],
+    "incidentCalmed": [
+      "对不起，我太冲动了，就是控制不住想你。",
+      "你说得对，我过分了，我收敛点，别拉黑我。"
     ]
   }
 }

@@ -38,6 +38,7 @@ export function createAccount({ id, seed, now, name, handle, direction }: NewAcc
     massMessages: [],
     requests: [],
     meetups: [],
+    incidents: [],
     ledger: [],
     events: [],
     history: [],

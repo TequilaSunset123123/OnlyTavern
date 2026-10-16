@@ -25,6 +25,8 @@ const dms = () => import('../engine/regulars')
 const mass = () => import('../engine/massMessages')
 const requests = () => import('../engine/requests')
 const meetups = () => import('../engine/meetups')
+const incidents = () => import('../engine/incidents')
+const timeline = () => import('../engine/report')
 
 export type Env = {
   now(): number
@@ -107,14 +109,17 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
     async 'clock.advance'({ id, days }) {
       if (!Number.isInteger(days) || days < 1 || days > 90) throw new SaveError('days must be 1–90')
       const { simulate } = await engine()
+      const { periodReport } = await timeline()
       const settings = await storage.loadSettings()
       let events: DispatchResult['events'] = []
+      let report: DispatchResult['report']
       await update(id, (a) => {
         const r = simulate(a, days, a.meta.seed, settings)
         events = r.events
+        report = periodReport(a, r.account, r.events)
         return r.account
       })
-      return { delta: [`account:${id}`], events }
+      return { delta: [`account:${id}`], events, report }
     },
 
     async 'payout.request'({ id, amount }) {
@@ -237,10 +242,23 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       return { delta: [`account:${id}`], events: [] }
     },
 
-    async 'direction.set'({ id, direction }) {
+    async 'incident.resolve'({ id, incidentId, choice }) {
+      const { resolveIncident } = await incidents()
       let events: DispatchResult['events'] = []
       await update(id, (a) => {
-        const r = setDirection(a, DirectionIdSchema.parse(direction), a.meta.seed)
+        const r = resolveIncident(a, incidentId, choice, a.meta.seed)
+        events = r.events
+        return r.account
+      })
+      return { delta: [`account:${id}`], events }
+    },
+
+    async 'direction.set'({ id, direction }) {
+      let events: DispatchResult['events'] = []
+      // The announcement is written in your fans' language (mixed: English).
+      const language = (await storage.loadSettings()).fanLanguage === 'zh' ? 'zh' : 'en'
+      await update(id, (a) => {
+        const r = setDirection(a, DirectionIdSchema.parse(direction), a.meta.seed, language)
         events = r.events
         return r.account
       })
@@ -366,10 +384,11 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
           direction: directionPrompt(account),
         },
         loyalty: loyaltyInfo(regular),
-        away: !awayNow(regular, account.clock.day) ? null : regular.away?.until === undefined ? 'gone' : 'lyingLow',
+        away: !awayNow(regular, account.clock.day) ? null : regular.away?.reason === 'blocked' ? 'blocked' : regular.away?.until === undefined ? 'gone' : 'lyingLow',
         traits: regular.traits.map((id) => ({ id, label: traitLabel(id), prompt: traitPrompt(id) })),
         requests: account.requests.filter((q) => q.regularId === regularId),
         meetups: account.meetups.filter((m) => m.regularId === regularId),
+        incidents: account.incidents.filter((x) => x.regularId === regularId),
       }
     },
     async getMassMessages(id) {
@@ -386,6 +405,26 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
     },
     async getDirectionOptions() {
       return DIRECTIONS.map((id) => ({ id, label: SPECS[id].label, blurb: SPECS[id].blurb }))
+    },
+    async getIncidents(id) {
+      const account = await mustLoad(id)
+      const { incidentOdds, incidentStory, INCIDENT_OPTIONS } = await incidents()
+      return account.incidents
+        .filter((x) => x.status === 'open')
+        .map((incident) => {
+          const regular = account.regulars.find((r) => r.id === incident.regularId)!
+          const odds = incidentOdds(account, incident)
+          return {
+            incident,
+            regular,
+            story: incidentStory(incident).replaceAll('{name}', regular.name),
+            options: INCIDENT_OPTIONS[incident.kind].map((choice) => ({ choice, chance: odds[choice] ?? 0 })),
+          }
+        })
+    },
+    async getLapsing(id, days) {
+      const { lapsing } = await timeline()
+      return lapsing(await mustLoad(id), days)
     },
     async getRequests(id) {
       const account = await mustLoad(id)

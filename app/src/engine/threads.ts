@@ -24,10 +24,10 @@ export function pendingMessage(id: string, day: number, intent: Intent, tip?: nu
   return { id, day, from: 'fan', text: '', state: 'pending', intent, ...(tip ? { tipCents: tip } : {}) }
 }
 
-/** Adds a fan message of his own (not a reply) to his thread. */
-export function addFanMessage(account: Account, regularId: string, day: number, intent: Intent): Account {
+/** Adds a fan message of his own (not a reply) to his thread, with his tip if he sends one. */
+export function addFanMessage(account: Account, regularId: string, day: number, intent: Intent, tip?: number): Account {
   const t = threadOf(account, regularId)
-  return withThread(account, { ...t, messages: [...t.messages, pendingMessage(`${regularId}-m${t.messages.length}`, day, intent)] })
+  return withThread(account, { ...t, messages: [...t.messages, pendingMessage(`${regularId}-m${t.messages.length}`, day, intent, tip)] })
 }
 
 /** Fan messages since your last one. */

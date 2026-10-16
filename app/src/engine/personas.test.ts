@@ -40,7 +40,19 @@ describe('fan personas', () => {
   })
 
   it('obsessed fans and haters keep writing when ignored; obsessed fans and stalkers want to meet', () => {
-    expect(behaviour(['pet_names'])).toEqual({ dmFactor: 1, maxUnanswered: 2, ignoredFactor: 0.3, meetupFactor: 1, meetupMinLoyalty: 5, events: {}, turnsHater: null })
+    expect(behaviour(['pet_names'])).toEqual({
+      dmFactor: 1,
+      maxUnanswered: 2,
+      ignoredFactor: 0.3,
+      meetupFactor: 1,
+      meetupMinLoyalty: 5,
+      events: {},
+      turnsHater: null,
+      haterHalfLifeDays: null,
+      fame: 1,
+      incidents: 0,
+      comesBackAs: [],
+    })
     expect(behaviour(['pet_names', 'stalker'])).toMatchObject({ maxUnanswered: 4, meetupFactor: 2.5 })
     expect(behaviour(['obsessive']).meetupFactor).toBe(2)
     expect(behaviour(['misogynist']).maxUnanswered).toBe(3)
@@ -61,8 +73,9 @@ describe('fan personas', () => {
 })
 
 describe('ignored fans turn on you', () => {
-  it('creepy and obsessed fans you ignore become haters; others do not; talking to them again wins them back', () => {
+  it('ignored fans become haters, obsessed ones much sooner; talking to them again wins them back', () => {
     let turned = 0
+    let hornyTurned = 0
     for (const seed of ['a', 'b', 'c', 'd', 'e', 'f']) {
       let a = simulate(createAccount({ id: 'x', seed, now: 0, name: 'Mia', handle: 'mia' }), 60, seed).account
       // Half of them obsessed, half just horny; nobody gets an answer.
@@ -72,12 +85,9 @@ describe('ignored fans turn on you', () => {
       const after = simulate(a, 25, seed).account
       // Only the fans set up above: new ones may arrive meanwhile with any traits.
       for (const r of after.regulars.filter((x) => ids.has(x.id) || horny.has(x.id))) {
-        if (horny.has(r.id)) {
-          expect(r.turned).toBeUndefined()
-          continue
-        }
         if (!r.turned) continue
-        turned++
+        if (horny.has(r.id)) hornyTurned++
+        else turned++
         expect(r).toMatchObject({ segment: 'hater', turned: { from: 'simp' } })
         expect(r.traits).toContain('misogynist')
         const t = after.threads.find((x) => x.regularId === r.id)!
@@ -90,12 +100,14 @@ describe('ignored fans turn on you', () => {
           b = simulate(sendDm(b, r.id, { text: 'sorry, missed you' }, seed).account, 1, seed).account
         }
         const back = b.regulars.find((x) => x.id === r.id)!
-        expect(back).toMatchObject({ segment: 'simp', traits: ['obsessive'] })
+        expect(back).toMatchObject({ segment: 'simp', traits: horny.has(r.id) ? ['horny_direct'] : ['obsessive'] })
         expect(back.turned).toBeUndefined()
         expect(b.events.some((e) => e.type === 'regular-back' && e.regularId === r.id)).toBe(true)
       }
     }
     expect(turned).toBeGreaterThan(0)
+    // A plain simp turns too (after two weeks), but obsessed ones far more often.
+    expect(turned).toBeGreaterThan(hornyTurned * 2)
   })
 })
 

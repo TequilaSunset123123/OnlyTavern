@@ -12,6 +12,9 @@ export type {
   Intent,
   MassMessage,
   Meetup,
+  Incident,
+  IncidentChoice,
+  IncidentResult,
   Member,
   Message,
   Mood,
@@ -31,10 +34,12 @@ export type { DmInput } from '../engine/regulars'
 export type { MassInput } from '../engine/massMessages'
 export type { DirectionInfo } from '../engine/directions'
 export type { LoyaltyInfo, MeetupOutcome } from '../engine/fans'
+export type { Lapse, MeetupReport, PeriodReport } from '../engine/report'
 import type { Comment } from '../engine/comments'
 import type { PostInput, VaultInput } from '../engine/content'
 import type { DirectionInfo } from '../engine/directions'
 import type { LoyaltyInfo } from '../engine/fans'
+import type { Lapse, PeriodReport } from '../engine/report'
 import type { MassInput } from '../engine/massMessages'
 import type { DmInput } from '../engine/regulars'
 import type {
@@ -45,6 +50,8 @@ import type {
   EngineEvent,
   LedgerEntry,
   LedgerKind,
+  Incident,
+  IncidentChoice,
   MassMessage,
   Meetup,
   Message,
@@ -93,6 +100,8 @@ export type Action =
   | { type: 'meetup.cancel'; id: string; meetupId: string }
   /** Keep a meetup from co-creators (or not). */
   | { type: 'meetup.hide'; id: string; meetupId: string; hidden: boolean }
+  /** What you do about a stalker incident; the engine rolls how it goes. */
+  | { type: 'incident.resolve'; id: string; incidentId: string; choice: IncidentChoice }
 
 /** What changed, so the UI knows which queries to refetch. */
 export type Topic = 'accounts' | 'settings' | `account:${string}`
@@ -103,6 +112,8 @@ export type DispatchResult = {
   events: EngineEvent[]
   /** Id of whatever the action created (account, vault item, post), if any. */
   id?: string
+  /** clock.advance: what happened over those days, for the report popup. */
+  report?: PeriodReport
 }
 
 /** All amounts in cents. */
@@ -162,13 +173,15 @@ export type ThreadView = {
   creator: { name: string; handle: string; accountType: Profile['accountType']; priceCents: number; subscribers: number; direction: string }
   /** How loyal he is (engine/fans.ts): level 1–5, his type's ceiling, and points toward the next level. */
   loyalty: LoyaltyInfo
-  /** Since his wife caught you two: gone for good, lying low for a while, or neither. You cannot write to him meanwhile. */
-  away: 'gone' | 'lyingLow' | null
+  /** Since his wife caught you two: gone for good or lying low for a while; or you blocked him. You cannot write to him meanwhile. */
+  away: 'gone' | 'lyingLow' | 'blocked' | null
   /** How this fan writes and behaves: a short label for the UI, the description for the model. */
   traits: { id: string; label: string; prompt: string }[]
   /** This fan's custom requests and meetup invitations. */
   requests: Request[]
   meetups: Meetup[]
+  /** Stalker incidents with him (engine/incidents.ts). */
+  incidents: Incident[]
 }
 
 export type RequestRow = {
@@ -194,6 +207,16 @@ export type Directions = {
   all: DirectionInfo[]
 }
 
+/** A stalker incident waiting for you to decide (engine/incidents.ts). */
+export type IncidentView = {
+  incident: Incident
+  regular: Regular
+  /** The story, with his name in it. */
+  story: string
+  /** Your options in order, with the chance each goes well (0–1). */
+  options: { choice: IncidentChoice; chance: number }[]
+}
+
 export interface Api {
   listAccounts(): Promise<AccountIndex>
   getAccount(id: string): Promise<Account | null>
@@ -213,6 +236,10 @@ export interface Api {
   getMassMessages(id: string): Promise<MassMessage[]>
   getRequests(id: string): Promise<Requests>
   getDirections(id: string): Promise<Directions>
+  /** Stalker incidents waiting for your decision, oldest first. */
+  getIncidents(id: string): Promise<IncidentView[]>
+  /** What would lapse if you skipped `days` days ahead now. */
+  getLapsing(id: string, days: number): Promise<Lapse[]>
   /** The directions you can pick, for a new account. */
   getDirectionOptions(): Promise<{ id: DirectionId; label: string; blurb: string }[]>
   dispatch(action: Action): Promise<DispatchResult>

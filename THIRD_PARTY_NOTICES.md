@@ -10,6 +10,7 @@ It includes work from the projects below, under their own licenses.
 | `app/src/hooks/useTheme.ts` | [Fastt](https://github.com/BlackPhoenixSlo/inflowwkiller) (`app/hooks/useTheme.ts`), Copyright (c) 2026 Fastt contributors | MIT, `licenses/fastt-MIT.txt` |
 | `app/src/llm/connection_utils.js` | [EchoText](https://github.com/mattjaybe/SillyTavern-EchoText) (`connection_utils.js`), Copyright (c) 2026 mattjaybe | MIT, `licenses/echotext-MIT.txt` |
 | `index.js` (`addLaunchButton`) | [SillyTavern-Chess](https://github.com/SillyTavern/SillyTavern-Chess) | AGPL-3.0, same as this project |
+| `app/src/ui/motion/SlidingNumber.tsx`, `app/src/ui/motion/AnimatedNumber.tsx` | [motion-primitives](https://github.com/ibelick/motion-primitives) (`components/core/sliding-number.tsx`, `animated-number.tsx`), Copyright (c) 2024 ibelick | MIT, `licenses/motion-primitives-MIT.txt` |
 
 ## Bundled into `dist/`
 
@@ -17,4 +18,4 @@ It includes work from the projects below, under their own licenses.
 |---|---|
 | [@fanvue/ui](https://github.com/fanvue/fanv-ui), Copyright 2026 Shift Holdings Ltd | Apache-2.0, `licenses/fanvue-ui-Apache-2.0.txt`; its own notices: `licenses/fanvue-ui-THIRD-PARTY-NOTICES.md` |
 | [Inter](https://github.com/rsms/inter) typeface via @fontsource/inter, Copyright 2016 The Inter Project Authors | SIL Open Font License 1.1, `licenses/inter-OFL-1.1.txt` |
-| React, React Router, TanStack Query, Zod, Radix UI, Recharts, Motion, react-day-picker, date-fns, seedrandom, jsonrepair and their dependencies | MIT / ISC / BSD / 0BSD; full texts in `licenses/bundled.txt` |
+| React, React Router, TanStack Query, Zod, Radix UI, Recharts, Motion, react-use-measure, react-day-picker, date-fns, seedrandom, jsonrepair and their dependencies | MIT / ISC / BSD / 0BSD; full texts in `licenses/bundled.txt` |

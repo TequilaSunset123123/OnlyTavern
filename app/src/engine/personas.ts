@@ -84,6 +84,14 @@ type Behaviour = {
   /** Multiplies the chances of what happens at a meetup (presets/personas.json fan.meetup.events). */
   events?: Record<string, number>
   turnsHater?: { afterDays: number; daily: number }
+  /** As a hater, half of them give up within this many days (instead of his type's). */
+  haterHalfLifeDays?: number
+  /** How much damage he does to your name as a hater (× the base per hater). */
+  fame?: number
+  /** Stalker incidents (engine/incidents.ts): × the daily chance; none without it. */
+  incidents?: number
+  /** The trait he comes back with when you win him back after he turned. */
+  comesBackAs?: string
 }
 const STYLES = personas.styles as Record<string, { label: string; prompt: string; behaviour?: Behaviour }>
 
@@ -91,13 +99,11 @@ const STYLES = personas.styles as Record<string, { label: string; prompt: string
 export const traitPrompt = (id: string) => STYLES[id]?.prompt ?? ''
 export const traitLabel = (id: string) => STYLES[id]?.label ?? id
 
-/** When ignored fans give up on you, how fast you can win them back (presets/personas.json). */
-export const WIN_BACK = personas.winBack
-
 /**
  * What his traits do: how often he messages you, how many unanswered messages he
  * sends in a row, how much being ignored slows him down, how keen he is to meet,
- * and whether ignoring him for long can turn him into a hater.
+ * whether ignoring him for long can turn him into a hater, what kind of hater he makes
+ * (engine/haters.ts) and whether he has stalker incidents (engine/incidents.ts).
  */
 export function behaviour(traits: string[]) {
   const own = traits.map((t) => STYLES[t]?.behaviour).filter((x) => !!x)
@@ -115,5 +121,9 @@ export function behaviour(traits: string[]) {
     }, {}),
     /** The quickest way he turns, if any of his traits can. */
     turnsHater: turns.sort((a, b) => a.afterDays - b.afterDays || b.daily - a.daily)[0] ?? null,
+    haterHalfLifeDays: Math.max(0, ...own.map((x) => x.haterHalfLifeDays ?? 0)) || null,
+    fame: Math.max(1, ...own.map((x) => x.fame ?? 1)),
+    incidents: Math.max(0, ...own.map((x) => x.incidents ?? 0)),
+    comesBackAs: own.map((x) => x.comesBackAs).filter((x): x is string => !!x),
   }
 }

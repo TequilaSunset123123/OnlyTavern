@@ -7,18 +7,19 @@
 //   creep    he gets too pushy and you leave early with half; he may fixate on you (stalker);
 //   wife     his wife catches him: nothing, a scandal costs you subscribers. He goes quiet:
 //            for good up to Loyal (level 3); a Devoted or Fanatic fan is back in 2–4 weeks.
-// Cash is off the platform: no fee, not in the platform balance. How an invitation
-// starts is deals.ts.
+// A stalker may follow it up with an incident (incidents.ts). Cash is off the platform:
+// no fee, not in the platform balance. How an invitation starts is deals.ts.
 import preset from '../presets/audience.json'
 import type { Account, EngineEvent, LedgerEntry, Meetup, Regular } from '../store/schema'
-import { SEGMENTS } from '../store/schema'
 import { pickWeighted } from './comments'
+import { loseSubscribers } from './audience'
 import { ContentError } from './content'
 import { meetupOpen as isOpen } from './deals'
 import { addPoints, directionEffects, meetupPoints } from './directions'
 import { paymentLine as line } from './economy'
 import { addLoyalty, fanProfile, loyaltyLevel, type MeetupOutcome } from './fans'
-import { binomial, type Rng, rngFor } from './rng'
+import { afterMeetup } from './incidents'
+import { type Rng, rngFor } from './rng'
 import { addFanMessage, updateRegular } from './threads'
 
 const M = preset.meetups
@@ -64,22 +65,13 @@ function meet(rng: Rng, account: Account, m: Meetup, day: number): { account: Ac
   }
   if (outcome === 'wife') {
     // A scandal: some subscribers leave, and he goes quiet (and drops whatever else he had going with you).
-    lost = 0
-    const cohorts = Object.fromEntries(
-      SEGMENTS.map((s) => [
-        s,
-        a.audience.cohorts[s].map((n) => {
-          const leave = binomial(rng, n, O.wifeLoss)
-          lost! += leave
-          return n - leave
-        }),
-      ]),
-    ) as Account['audience']['cohorts']
+    const scandal = loseSubscribers(rng, a.audience, O.wifeLoss)
+    lost = scandal.lost
     const cur = a.regulars.find((x) => x.id === r.id)!
     returns = loyaltyLevel(cur) >= O.wifeBackFromLevel
     const [lo, hi] = O.wifeQuietDays
     const until = returns ? day + lo + Math.floor(rng() * (hi - lo + 1)) : undefined
-    a = updateRegular({ ...a, audience: { cohorts } }, { ...cur, status: 'dormant', away: { reason: 'wife', day, ...(until !== undefined ? { until } : {}) } })
+    a = updateRegular({ ...a, audience: scandal.audience }, { ...cur, status: 'dormant', away: { reason: 'wife', day, ...(until !== undefined ? { until } : {}) } })
     a = {
       ...a,
       requests: a.requests.map((q) => (q.regularId === r.id && (q.status === 'open' || q.status === 'accepted') ? { ...q, status: 'expired' as const, closedDay: day } : q)),
@@ -87,8 +79,11 @@ function meet(rng: Rng, account: Account, m: Meetup, day: number): { account: Ac
     }
   }
   a = addFanMessage(a, r.id, day, { kind: 'opener', deal: { kind: 'meetup', step: 'met', id: m.id } })
+  // A stalker may not let it end there (incidents.ts).
+  const incident = afterMeetup(rng, a, a.regulars.find((x) => x.id === r.id)!, m.id, outcome, day)
+  a = incident.account
   const extra = { ...(lost !== undefined ? { lost } : {}), ...(returns !== undefined ? { returns } : {}) }
-  return { account: a, events: [{ day, type: 'meetup-done', regularId: r.id, gross: paid, outcome, ...extra }], ledger }
+  return { account: a, events: [{ day, type: 'meetup-done', regularId: r.id, gross: paid, outcome, ...extra }, ...incident.events], ledger }
 }
 
 /** One simulated day: meetings that are due happen (and something happens at them); unanswered invitations lapse. */

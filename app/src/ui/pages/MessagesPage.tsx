@@ -311,6 +311,7 @@ function Extras({ accountId, view, message: m }: { accountId: string; view: Thre
 const AWAY = {
   gone: 'He blocked you after his wife found out. He will not be back.',
   lyingLow: 'He is lying low since his wife found out. He was devoted enough to come back once things calm down.',
+  blocked: 'You blocked him.',
 }
 
 function Composer({ accountId, regularId }: { accountId: string; regularId: string }) {
@@ -415,7 +416,7 @@ function FanDetails({ view }: { view: ThreadView }) {
         <dt className="text-content-tertiary">Regular since</dt>
         <dd className="text-right">Day {r.since}</dd>
         <dt className="text-content-tertiary">Status</dt>
-        <dd className="text-right">{view.away === 'gone' ? 'Blocked you' : view.away === 'lyingLow' ? 'Lying low' : r.status === 'active' ? 'Active' : 'Dormant'}</dd>
+        <dd className="text-right">{view.away === 'gone' ? 'Blocked you' : view.away === 'lyingLow' ? 'Lying low' : view.away === 'blocked' ? 'Blocked' : r.status === 'active' ? 'Active' : 'Dormant'}</dd>
       </dl>
       <div className="flex flex-col gap-2">
         <span className="typography-body-small-14px-semibold">Likes</span>

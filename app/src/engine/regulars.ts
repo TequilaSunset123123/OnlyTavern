@@ -25,11 +25,12 @@ import { ContentError } from './content'
 import { paymentLine as line } from './economy'
 import { answerDeal, askedFor } from './deals'
 import { directionEffects } from './directions'
-import { behaviour, makePersona, pickLanguage, WIN_BACK } from './personas'
+import { dormantAfterDays } from './haters'
+import { behaviour, makePersona, pickLanguage } from './personas'
 import { intensityMatch } from './posts'
 import { logNormal, type Rng, rngFor } from './rng'
 import { addLoyalty, awayNow, fanProfile, loyaltyEffects } from './fans'
-import { addFanMessage, pendingMessage, recentMine, threadOf, unanswered, updateRegular, withReply, withThread } from './threads'
+import { addFanMessage, pendingMessage, threadOf, unanswered, updateRegular, withReply, withThread } from './threads'
 
 const R = preset.regulars
 
@@ -80,7 +81,8 @@ export type RegularsDay = { account: Account; events: EngineEvent[] }
 
 /**
  * One simulated day: maybe a crowd fan becomes a regular (and says hi), active
- * regulars sometimes message you on their own, ignored ones go dormant.
+ * regulars sometimes message you on their own, ignored ones go dormant. Who turns
+ * into a hater is haters.ts.
  */
 export function simulateRegularsDay(account: Account, audience: Audience, seed: string, day: number, settings: Settings): RegularsDay {
   let a = account
@@ -96,42 +98,14 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     events.push({ day, type: 'regular-back', regularId: r.id, reason: 'wife' })
   }
 
-  // Creepy and obsessed fans you ignore for long enough turn on you; talk to them
-  // again and they may come round.
-  for (const r of a.regulars) {
-    if (r.status !== 'active') continue
-    const t = threadOf(a, r.id)
-    const lastMine = Math.max(r.since, ...t.messages.filter((m) => m.from === 'me').map((m) => m.day))
-    const rr = rngFor(seed, day, `regulars:mood:${r.id}`)
-    if (r.turned) {
-      if (day - r.turned.day >= WIN_BACK.afterDays && recentMine(t, day) >= WIN_BACK.messages && rr() < WIN_BACK.daily) {
-        const { turned, ...back } = r
-        a = updateRegular(a, { ...back, segment: turned.from, traits: r.traits.filter((x) => x !== turned.trait) })
-        events.push({ day, type: 'regular-back', regularId: r.id })
-      }
-      continue
-    }
-    const turns = behaviour(r.traits).turnsHater
-    if (!turns || r.segment === 'hater' || unanswered(t) === 0 || day - lastMine < turns.afterDays || rr() >= turns.daily) continue
-    const trait = r.traits.includes('misogynist') ? undefined : 'misogynist'
-    a = updateRegular(a, { ...r, segment: 'hater', traits: trait ? [...r.traits, trait] : r.traits, turned: { from: r.segment, day, ...(trait ? { trait } : {}) } })
-    // Whatever he was offering is off; he lets you know what he thinks of you.
-    a = {
-      ...a,
-      requests: a.requests.map((q) => (q.regularId === r.id && q.status === 'open' ? { ...q, status: 'expired' as const, closedDay: day } : q)),
-      meetups: a.meetups.map((m) => (m.regularId === r.id && m.status === 'open' ? { ...m, status: 'expired' as const, closedDay: day } : m)),
-    }
-    a = withThread(a, { ...t, messages: [...t.messages, pendingMessage(`${r.id}-m${t.messages.length}`, day, { kind: 'opener', topic: 'harass' })] })
-    events.push({ day, type: 'regular-turned', regularId: r.id })
-  }
-
-  // Dormant: you have not written to them for a long time (since he came back, if he was away).
+  // Dormant: you have not written to them for a long time (since he came back, if he was
+  // away); loyal fans wait longer. Turned haters give up on their own (haters.ts).
   a = {
     ...a,
     regulars: a.regulars.map((r) => {
       const t = a.threads.find((x) => x.regularId === r.id)
       const lastMine = Math.max(r.since, r.away?.until ?? r.since, ...(t?.messages.filter((m) => m.from === 'me').map((m) => m.day) ?? []))
-      return r.status === 'active' && day - lastMine > R.dormantAfterDays ? { ...r, status: 'dormant' as const } : r
+      return r.status === 'active' && !r.turned && day - lastMine > dormantAfterDays(r) ? { ...r, status: 'dormant' as const } : r
     }),
   }
 
@@ -239,7 +213,11 @@ export function sendDm(
   const regular = account.regulars.find((r) => r.id === regularId)
   if (!regular) throw new ContentError('Conversation not found')
   const day = account.clock.day
-  if (awayNow(regular, day)) throw new ContentError(regular.away?.until === undefined ? 'He blocked you after his wife found out' : 'He is lying low since his wife found out')
+  if (awayNow(regular, day)) {
+    throw new ContentError(
+      regular.away?.reason === 'blocked' ? 'You blocked him' : regular.away?.until === undefined ? 'He blocked you after his wife found out' : 'He is lying low since his wife found out',
+    )
+  }
   const thread = threadOf(account, regularId)
   const myId = `${regularId}-m${thread.messages.length}`
   const rng = rngFor(seed, day, `dm:${myId}`)
@@ -315,6 +293,10 @@ function templateText(rng: Rng, account: Account, regular: Regular, intent: Inte
   const d = intent.deal
   if (d?.kind === 'custom' && d.step === 'late') return pick(rng, t.requestLate)
   if (d?.kind === 'meetup' && d.step === 'back') return pick(rng, t.meetupBack)
+  if (intent.incident) {
+    const result = account.incidents.find((x) => x.id === intent.incident)?.result
+    return pick(rng, result === 'gift' ? t.incidentGift : result === 'calmed' ? t.incidentCalmed : t.incidentOk)
+  }
   if (d?.kind === 'meetup' && d.step === 'met') {
     const outcome = account.meetups.find((x) => x.id === d.id)?.outcome
     return pick(rng, outcome === 'noShow' ? t.meetupNoShow : outcome === 'creep' ? t.meetupCreep : outcome === 'wife' ? t.meetupWife : t.meetupAfter)

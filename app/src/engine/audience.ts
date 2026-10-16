@@ -2,7 +2,7 @@
 // on day d, bucket d % 30 comes up for renewal; new subscribers join that bucket.
 import preset from '../presets/audience.json'
 import { type Audience, type Profile, SEGMENTS, type Segment } from '../store/schema'
-import { binomial, logNormal, rngFor } from './rng'
+import { binomial, logNormal, type Rng, rngFor } from './rng'
 
 type SegmentParams = (typeof preset.segments)[Segment]
 
@@ -18,6 +18,22 @@ export type AudienceDay = {
 export function subscriberCount(audience: Audience, segment?: Segment): number {
   const segs: readonly Segment[] = segment ? [segment] : SEGMENTS
   return segs.reduce((sum, s) => sum + audience.cohorts[s].reduce((a, b) => a + b, 0), 0)
+}
+
+/** A scandal: each subscriber leaves with chance `share`. */
+export function loseSubscribers(rng: Rng, audience: Audience, share: number): { audience: Audience; lost: number } {
+  let lost = 0
+  const cohorts = Object.fromEntries(
+    SEGMENTS.map((s) => [
+      s,
+      audience.cohorts[s].map((n) => {
+        const leave = binomial(rng, n, share)
+        lost += leave
+        return n - leave
+      }),
+    ]),
+  ) as Audience['cohorts']
+  return { audience: { cohorts }, lost }
 }
 
 /** Chance that one visitor of this segment subscribes at the current price. */

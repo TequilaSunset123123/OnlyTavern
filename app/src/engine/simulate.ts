@@ -6,6 +6,8 @@ import { simulateAudienceDay, subscriberCount } from './audience'
 import { simulateDealsDay } from './deals'
 import { directionEffects } from './directions'
 import { ledgerLine } from './economy'
+import { haterFame, simulateHatersDay } from './haters'
+import { simulateIncidentsDay } from './incidents'
 import { simulateMassDay } from './massMessages'
 import { simulateMeetupsDay } from './meetups'
 import { activityFactor, simulatePostsDay } from './posts'
@@ -38,7 +40,8 @@ export function simulate(
       extraVisitors: pd.extraVisitors,
       renewalFactor: activityFactor(acc, day),
       mixFactors: fx.mix,
-      visitorFactor: fx.visitors,
+      // Haters badmouthing you keep some visitors away (haters.ts).
+      visitorFactor: fx.visitors * haterFame(acc),
     })
     const after = subscriberCount(r.audience)
 
@@ -51,12 +54,15 @@ export function simulate(
     ].filter((l) => l.gross > 0)
     acc = { ...acc, audience: r.audience, ledger: [...acc.ledger, ...lines] }
 
-    // Regulars come last: they react to today's crowd. Then their customs and meetups.
-    const rd = simulateRegularsDay(acc, acc.audience, seed, day, settings)
+    // Regulars come last: they react to today's crowd. Who turns on you (or comes round)
+    // first, then the rest of them; then customs, meetups and stalker incidents.
+    const hd = simulateHatersDay(acc, seed, day)
+    const rd = simulateRegularsDay(hd.account, acc.audience, seed, day, settings)
     const qd = simulateRequestsDay(rd.account, day)
     const od = simulateMeetupsDay(qd.account, seed, day)
     const dd = simulateDealsDay(od.account, seed, day)
-    acc = dd.account
+    const id = simulateIncidentsDay(dd.account, seed, day)
+    acc = id.account
 
     const net = Object.fromEntries(LedgerKindSchema.options.map((k) => [k, 0])) as DailyStat['net']
     for (const l of acc.ledger) if (l.day === day) net[l.kind] += l.net
@@ -83,7 +89,7 @@ export function simulate(
     for (const m of economy.milestones) {
       if (before < m && after >= m) events.push({ day, type: 'milestone', subscribers: m })
     }
-    events.push(...rd.events, ...qd.events, ...od.events, ...dd.events)
+    events.push(...hd.events, ...rd.events, ...qd.events, ...od.events, ...dd.events, ...id.events)
   }
 
   const today = account.clock.day + days

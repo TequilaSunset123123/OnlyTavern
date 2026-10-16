@@ -72,17 +72,25 @@ function dealLine(view: ThreadView, d: NonNullable<Intent['deal']>): string {
     : `She delivered [${got}] for your custom, but ${NOT_PAID[q.delivery?.reason ?? 'tags']}; you are not paying.`
 }
 
+/** How a stalker incident you two had turned out (engine/incidents.ts); turning on her is a plain "harass" message. */
+const INCIDENT_LINE: Partial<Record<NonNullable<ThreadView['incidents'][number]['result']>, string>> = {
+  gift: 'You asked her to be yours and she played along; you are over the moon.',
+  ok: 'You asked her to be yours and she gently turned you down; you take it, for now.',
+  calmed: 'You would not leave her alone; she talked you down, and you apologize.',
+}
+
 /** What happens now: one line each, only for what is happening. */
 function happening(view: ThreadView, i: Intent): string[] {
   const lines: string[] = []
   if (i.kind === 'reply') lines.push('Answer her latest message(s).')
-  else if (!i.deal) lines.push(`You message her on your own: you ${TOPICS[i.topic ?? 'chat']}.`)
+  else if (!i.deal && !i.incident) lines.push(`You message her on your own: you ${TOPICS[i.topic ?? 'chat']}.`)
   for (const d of i.ppv ?? []) {
     const m = view.messages.find((x) => x.id === d.messageId)
     const desc = m ? describeItems(view, m) : ''
     lines.push(d.bought ? `You bought her paid message${desc}; react to what you got.` : `You did not buy her paid message${desc}: ${NOT_BOUGHT[d.reason]}.`)
   }
   if (i.deal) lines.push(dealLine(view, i.deal))
+  if (i.incident) lines.push(INCIDENT_LINE[view.incidents.find((x) => x.id === i.incident)?.result ?? 'ok'] ?? '')
   if (i.tip) lines.push(`You send her a ${money(i.tip)} tip with this message.`)
   return lines.filter(Boolean)
 }

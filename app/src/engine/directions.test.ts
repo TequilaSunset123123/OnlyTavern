@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import D from '../presets/directions.json'
 import tags from '../presets/tags.json'
+import transitions from '../presets/transitions.json'
 import { createAccount } from '../store/account'
 import { migrate } from '../store/migrate'
 import { type Account, DIRECTIONS, type DirectionId } from '../store/schema'
 import { subscriberCount } from './audience'
+import { generateComments } from './comments'
 import { addVaultItem, publishPost } from './content'
 import { directionEffects, directionInfo, levelOf, setDirection } from './directions'
 import { makePersona } from './personas'
@@ -56,6 +58,35 @@ describe('directions', () => {
     expect(switched.events).toEqual([{ day: 60, type: 'direction', direction: 'porn_star', lost: before - after }])
     expect(switched.account.direction.points.escort).toBe(40)
     expect(setDirection(switched.account, 'porn_star', 's').account).toBe(switched.account)
+  })
+
+  it('switching posts an announcement for you, and fans comment on the switch', () => {
+    const base = simulate(createAccount({ id: 'x', seed: 's', now: 0, name: 'Mia', handle: 'mia' }), 40, 's').account
+    const picked = setDirection(base, 'girl_next_door', 's').account
+    expect(picked.posts).toHaveLength(base.posts.length) // the first pick is not a switch
+    for (const language of ['en', 'zh'] as const) {
+      const switched = setDirection(picked, 'escort', 's', language).account
+      const post = switched.posts[0]
+      expect(post).toMatchObject({ day: base.clock.day, vaultIds: [], access: 'free', transition: { from: 'girl_next_door', to: 'escort' } })
+      expect(transitions.posts[language]['girl_next_door>escort']).toContain(post.text)
+      // A few days later the comments (say 30 of them) are about the switch.
+      const later = simulate(switched, 3, 's').account
+      const seen = later.posts.find((p) => p.id === post.id)!
+      expect(seen.stats.views).toBeGreaterThan(0)
+      const comments = generateComments(later, { ...seen, stats: { ...seen.stats, comments: 30 } }, { fanLanguage: language })
+      expect(comments).toHaveLength(30)
+      const c = transitions.comments[language]
+      const switchLines = new Set([...c.to.escort, ...c.from.girl_next_door, ...c.hate.escort, ...c.pair['girl_next_door>escort']])
+      expect(comments.filter((x) => switchLines.has(x.text)).length / comments.length).toBeGreaterThan(0.8)
+    }
+    // Every switch has its posts and remarks, in both languages.
+    for (const from of DIRECTIONS) for (const to of DIRECTIONS) {
+      if (from === to) continue
+      for (const language of ['en', 'zh'] as const) {
+        expect(transitions.posts[language][`${from}>${to}` as keyof (typeof transitions.posts)['en']].length).toBeGreaterThanOrEqual(3)
+        expect(transitions.comments[language].pair[`${from}>${to}` as keyof (typeof transitions.comments)['en']['pair']].length).toBeGreaterThanOrEqual(3)
+      }
+    }
   })
 
   it('effects grow with the level', () => {

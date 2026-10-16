@@ -2,11 +2,16 @@
 // e-girl, high-end escort, couple account. Pick one; it shifts who visits, which fans
 // become regulars, and how often customs and meetups come. What you do for it (posts
 // with its tags, customs, meetups) earns points; levels make its effects stronger.
-// Switching after your first pick loses part of your subscribers.
+// Switching after your first pick loses part of your subscribers, and posts an
+// announcement for you that fans comment on (presets/transitions.json, one set of
+// posts per switch, from any direction to any other).
 import D from '../presets/directions.json'
+import transitions from '../presets/transitions.json'
 import type { Account, DirectionId, EngineEvent, Post, Segment } from '../store/schema'
 import { DIRECTIONS, SEGMENTS } from '../store/schema'
-import { binomial, rngFor } from './rng'
+import { loseSubscribers } from './audience'
+import type { Language } from './personas'
+import { rngFor } from './rng'
 
 type Spec = {
   label: string
@@ -102,30 +107,38 @@ export function meetupPoints(): Partial<Record<DirectionId, number>> {
   return Object.fromEntries(DIRECTIONS.map((d) => [d, SPECS[d].meetupPoints]))
 }
 
+/** The post announcing your switch, in your fans' language (their comments are comments.ts). */
+function switchPost(account: Account, from: DirectionId, to: DirectionId, seed: string, language: Language): Post {
+  const day = account.clock.day
+  const pool = transitions.posts[language][`${from}>${to}` as keyof (typeof transitions.posts)['en']]
+  const rng = rngFor(seed, day, `switch-post:${to}`)
+  return {
+    id: `switch-${day}-${account.posts.length}`,
+    day,
+    text: pool[Math.floor(rng() * pool.length)],
+    vaultIds: [],
+    transition: { from, to },
+    access: 'free',
+    priceCents: 0,
+    author: 'owner',
+    stats: { views: 0, likes: 0, comments: 0, purchases: 0, earned: 0 },
+  }
+}
+
 /**
  * Pick a direction. The first pick is free; switching after that makes part of your
- * subscribers leave (they came for what you did before).
+ * subscribers leave (they came for what you did before), and posts your announcement.
  */
-export function setDirection(account: Account, id: DirectionId, seed: string): { account: Account; events: EngineEvent[] } {
+export function setDirection(account: Account, id: DirectionId, seed: string, language: Language = 'en'): { account: Account; events: EngineEvent[] } {
   const { direction } = account
   if (direction.id === id && direction.chosen) return { account, events: [] }
   if (!direction.chosen) return { account: { ...account, direction: { ...direction, id, chosen: true } }, events: [] }
   const day = account.clock.day
-  const rng = rngFor(seed, day, `switch:${id}`)
-  let lost = 0
-  const cohorts = Object.fromEntries(
-    SEGMENTS.map((s) => [
-      s,
-      account.audience.cohorts[s].map((n) => {
-        const leave = binomial(rng, n, D.switchLoss)
-        lost += leave
-        return n - leave
-      }),
-    ]),
-  ) as Account['audience']['cohorts']
+  const { audience, lost } = loseSubscribers(rngFor(seed, day, `switch:${id}`), account.audience, D.switchLoss)
   const event: EngineEvent = { day, type: 'direction', direction: id, lost }
+  const post = switchPost(account, direction.id, id, seed, language)
   return {
-    account: { ...account, audience: { cohorts }, direction: { ...direction, id }, events: [...account.events, event] },
+    account: { ...account, audience, direction: { ...direction, id }, posts: [post, ...account.posts], events: [...account.events, event] },
     events: [event],
   }
 }

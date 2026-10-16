@@ -1126,7 +1126,11 @@
     "meetupMinLoyalty": 1,
     "events": {
      "creep": 3
-    }
+    },
+    "haterHalfLifeDays": 30,
+    "fame": 1.5,
+    "incidents": 1,
+    "comesBackAs": "unhinged"
    }
   },
   "misogynist": {
@@ -1145,6 +1149,27 @@
     "dmFactor": 1,
     "maxUnanswered": 3,
     "ignoredFactor": 0.6
+   }
+  },
+  "unhinged": {
+   "label": "Unhinged",
+   "prompt": "unhinged and possessive: swings between worshipping her and threatening her, talks as if she belongs to him, mentions places she has been and that he is always watching; deeply unsettling",
+   "behaviour": {
+    "dmFactor": 1.8,
+    "maxUnanswered": 5,
+    "ignoredFactor": 1,
+    "meetupFactor": 2.5,
+    "meetupMinLoyalty": 1,
+    "events": {
+     "creep": 2.5
+    },
+    "turnsHater": {
+     "afterDays": 7,
+     "daily": 0.2
+    },
+    "haterHalfLifeDays": 30,
+    "fame": 2,
+    "incidents": 2
    }
   }
  },
@@ -1236,6 +1261,18 @@
       "creep": 8,
       "wife": 10
      }
+    },
+    "ghosted": {
+     "afterDays": 21,
+     "daily": 0.03
+    },
+    "asHater": {
+     "halfLifeDays": 6,
+     "winBack": {
+      "messages": 3,
+      "afterDays": 3,
+      "daily": 0.25
+     }
     }
    }
   },
@@ -1302,6 +1339,15 @@
       "noShow": 35,
       "creep": 10,
       "wife": 5
+     }
+    },
+    "ghosted": null,
+    "asHater": {
+     "halfLifeDays": 4,
+     "winBack": {
+      "messages": 2,
+      "afterDays": 3,
+      "daily": 0.3
      }
     }
    }
@@ -1376,6 +1422,18 @@
       "creep": 15,
       "wife": 5
      }
+    },
+    "ghosted": {
+     "afterDays": 14,
+     "daily": 0.05
+    },
+    "asHater": {
+     "halfLifeDays": 10,
+     "winBack": {
+      "messages": 3,
+      "afterDays": 3,
+      "daily": 0.25
+     }
     }
    }
   },
@@ -1449,6 +1507,18 @@
       "creep": 5,
       "wife": 15
      }
+    },
+    "ghosted": {
+     "afterDays": 21,
+     "daily": 0.03
+    },
+    "asHater": {
+     "halfLifeDays": 8,
+     "winBack": {
+      "messages": 6,
+      "afterDays": 7,
+      "daily": 0.12
+     }
     }
    }
   },
@@ -1508,7 +1578,9 @@
      "median": 0,
      "minLoyalty": 5,
      "events": {}
-    }
+    },
+    "ghosted": null,
+    "asHater": null
    }
   },
   "freeloader": {
@@ -1561,14 +1633,21 @@
      "median": 0,
      "minLoyalty": 5,
      "events": {}
+    },
+    "ghosted": {
+     "afterDays": 10,
+     "daily": 0.05
+    },
+    "asHater": {
+     "halfLifeDays": 4,
+     "winBack": {
+      "messages": 2,
+      "afterDays": 3,
+      "daily": 0.3
+     }
     }
    }
   }
- },
- "winBack": {
-  "messages": 3,
-  "afterDays": 3,
-  "daily": 0.25
  },
  "loyalty": {
   "points": [
@@ -1613,7 +1692,60 @@
    "tip": 1,
    "custom": 3,
    "meetup": 4,
-   "creepMeetup": 1
+   "creepMeetup": 1,
+   "playAlong": 3,
+   "calmed": 1
+  },
+  "ghostTurn": [
+   1,
+   0.6,
+   0.35,
+   0.15,
+   0.08
+  ],
+  "ghostPatience": [
+   0,
+   0,
+   4,
+   8,
+   14
+  ]
+ },
+ "haters": {
+  "devotedAt": 4,
+  "devotedHalfLife": 2,
+  "fame": {
+   "perHater": 0.03,
+   "max": 0.3
+  }
+ },
+ "incidents": {
+  "daily": 0.06,
+  "afterMeetup": 0.5,
+  "cooldownDays": 7,
+  "courtshipShare": 0.7,
+  "unhingedCourtshipShare": 0.3,
+  "courtship": {
+   "playAlong": {
+    "giftFactor": 3
+   },
+   "letDown": {
+    "ok": 0.4,
+    "perLevel": 0.1
+   }
+  },
+  "clingy": {
+   "calm": {
+    "ok": 0.35,
+    "perLevel": 0.1,
+    "hater": -0.2,
+    "loss": 0.02
+   },
+   "block": {
+    "ok": 0.7,
+    "unhinged": -0.2,
+    "loss": 0.03
+   }
   }
  }
 }

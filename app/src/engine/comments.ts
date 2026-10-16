@@ -4,6 +4,7 @@
 import preset from '../presets/audience.json'
 import enCorpus from '../presets/corpus/en.json'
 import zhCorpus from '../presets/corpus/zh.json'
+import transitions from '../presets/transitions.json'
 import { type Account, MOODS, type Mood, type Post, SEGMENTS, type Segment, type Settings } from '../store/schema'
 import { fanIdentity, type Language, pickLanguage } from './personas'
 import { postTags } from './posts'
@@ -39,6 +40,27 @@ const COMMENTER_WEIGHTS = Object.fromEntries(
   SEGMENTS.map((s) => [s, preset.segments[s].mix * preset.segments[s].commentRate]),
 ) as Record<Segment, number>
 
+type SwitchLines = (typeof transitions.comments)['en']
+
+/**
+ * Under the post announcing a direction switch (directions.ts), fans talk about the
+ * switch: haters sneer at the new direction, unhappy fans miss the old one, happy ones
+ * cheer the new one, and some remark on this very switch.
+ */
+function switchLines(rng: Rng, lines: SwitchLines, post: Post, segment: Segment, mood: Mood): string[] {
+  const { from, to } = post.transition!
+  const own = {
+    to: lines.to[to as keyof SwitchLines['to']] ?? [],
+    from: lines.from[from as keyof SwitchLines['from']] ?? [],
+    hate: lines.hate[to as keyof SwitchLines['hate']] ?? [],
+    pair: lines.pair[`${from}>${to}` as keyof SwitchLines['pair']] ?? [],
+  }
+  if (segment === 'hater') return own.hate
+  if (mood === 'negative') return own.from
+  if (mood === 'praise' || mood === 'flirty') return rng() < 0.7 ? own.to : own.pair
+  return rng() < 0.6 ? own.from : own.pair
+}
+
 export function generateComments(account: Account, post: Post, settings: Pick<Settings, 'fanLanguage'>): Comment[] {
   const tags = postTags(post, account).filter((t) => CORPUS.en.tags[t] || CORPUS.zh.tags[t])
   const lastDay = Math.max(post.day + 1, Math.min(account.clock.day, post.day + preset.post.heat.length))
@@ -55,7 +77,11 @@ export function generateComments(account: Account, post: Post, settings: Pick<Se
     const language = pickLanguage(rng, settings.fanLanguage)
     const corpus = CORPUS[language]
     const tagLines = tags.length ? corpus.tags[pick(rng, tags)] : undefined
-    const lines = tagLines?.length && rng() < preset.post.tagCommentShare ? tagLines : corpus.segments[segment][mood]
+    const lines = post.transition
+      ? switchLines(rng, transitions.comments[language], post, segment, mood)
+      : tagLines?.length && rng() < preset.post.tagCommentShare
+        ? tagLines
+        : corpus.segments[segment][mood]
 
     const { name, handle } = fanIdentity(rng, language)
     // Unused lines of the chosen kind, else the same mood from other fan types (haters only

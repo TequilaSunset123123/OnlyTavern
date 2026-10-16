@@ -3,7 +3,7 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 9
+export const SCHEMA_VERSION = 10
 
 export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
 export const SegmentSchema = z.enum(SEGMENTS)
@@ -38,6 +38,8 @@ export const PostSchema = z.object({
   day: z.number().int(),
   text: z.string(),
   vaultIds: z.array(z.string()),
+  /** Posted for you when you change direction (engine/directions.ts): fans comment on the change. */
+  transition: z.object({ from: z.string(), to: z.string() }).optional(),
   /** Locked = pay-per-view post (free pages only, like real OF). */
   access: z.enum(['free', 'locked']),
   priceCents: Cents.nonnegative(),
@@ -74,13 +76,17 @@ export const RegularSchema = z.object({
   /** Total cents spent on you: paid messages, tips, custom requests and meetups. */
   spent: Cents.nonnegative(),
   status: z.enum(['active', 'dormant']),
-  /** He turned into a hater because you ignored him: what he was, since when, and the trait that came with it. */
-  turned: z.object({ from: SegmentSchema, day: z.number().int(), trait: z.string().optional() }).optional(),
   /**
-   * Gone quiet after a scandal (his wife caught you two): since `day`, back on `until`,
-   * never if it is missing. You cannot write to him until then (engine/meetups.ts).
+   * He turned into a hater (you ignored him, or turned him down): what he was, since when,
+   * the trait that came with it, and his loyalty level then (Devoted or more hate longer).
    */
-  away: z.object({ reason: z.enum(['wife']), day: z.number().int(), until: z.number().int().optional() }).optional(),
+  turned: z.object({ from: SegmentSchema, day: z.number().int(), trait: z.string().optional(), level: z.number().int() }).optional(),
+  /**
+   * Out of reach since `day`: his wife caught you two (engine/meetups.ts), or you blocked
+   * him (engine/incidents.ts). Back on `until`, never if it is missing. You cannot write
+   * to him until then.
+   */
+  away: z.object({ reason: z.enum(['wife', 'blocked']), day: z.number().int(), until: z.number().int().optional() }).optional(),
 })
 
 /** Engine decisions the model has to act out in a fan message (plan.md §2.3). */
@@ -99,6 +105,8 @@ export const IntentSchema = z.object({
    * `id` is the Request or Meetup it is about (none for "no").
    */
   deal: z.object({ kind: z.enum(['custom', 'meetup']), step: z.enum(['ask', 'no', 'delivered', 'late', 'met', 'back']), id: z.string().optional() }).optional(),
+  /** He reacts to how a stalker incident turned out (Incident id; engine/incidents.ts). */
+  incident: z.string().optional(),
 })
 
 export const MessageSchema = z.object({
@@ -182,6 +190,32 @@ export const MeetupSchema = z.object({
   messageId: z.string(),
 })
 
+export const INCIDENT_CHOICES = ['playAlong', 'letDown', 'calm', 'block'] as const
+export const INCIDENT_RESULTS = ['gift', 'ok', 'turned', 'calmed', 'escalated', 'blocked', 'backlash'] as const
+
+/**
+ * A stalker incident (2026-10-15): he courts you (courtship) or will not leave you alone
+ * (clingy), on an ordinary day or after you met him. You choose what to do in a popup;
+ * the engine rolls how it turns out (engine/incidents.ts).
+ */
+export const IncidentSchema = z.object({
+  id: z.string(),
+  regularId: z.string(),
+  day: z.number().int(),
+  kind: z.enum(['courtship', 'clingy']),
+  /** The meetup that set it off, if any. */
+  meetupId: z.string().optional(),
+  /** Which story it is (presets/incidents.json). */
+  story: z.number().int().nonnegative(),
+  status: z.enum(['open', 'done']),
+  choice: z.enum(INCIDENT_CHOICES).optional(),
+  result: z.enum(INCIDENT_RESULTS).optional(),
+  /** His gift (playing along), or subscribers lost when it blew up. */
+  gross: Cents.nonnegative().optional(),
+  lost: Count.optional(),
+  closedDay: z.number().int().optional(),
+})
+
 /** 'offline' is cash from meetups: no fee, never part of the platform balance. */
 export const LedgerKindSchema = z.enum(['subscription', 'renewal', 'tip', 'post', 'message', 'custom', 'offline', 'payout'])
 
@@ -237,7 +271,19 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
   }),
   z.object({ day: z.number().int(), type: z.literal('loyalty-up'), regularId: z.string(), level: z.number().int() }),
   z.object({ day: z.number().int(), type: z.literal('meetup-expired'), regularId: z.string() }),
-  z.object({ day: z.number().int(), type: z.literal('regular-turned'), regularId: z.string() }),
+  z.object({ day: z.number().int(), type: z.literal('regular-turned'), regularId: z.string(), level: z.number().int().optional() }),
+  /** A hater got bored and stopped (engine/haters.ts). */
+  z.object({ day: z.number().int(), type: z.literal('hater-left'), regularId: z.string() }),
+  z.object({ day: z.number().int(), type: z.literal('incident'), regularId: z.string(), incidentId: z.string(), kind: z.enum(['courtship', 'clingy']) }),
+  z.object({
+    day: z.number().int(),
+    type: z.literal('incident-done'),
+    regularId: z.string(),
+    incidentId: z.string(),
+    result: z.enum(INCIDENT_RESULTS),
+    gross: Cents.nonnegative().optional(),
+    lost: Count.optional(),
+  }),
   /** He came round after turning on you, or (wife) is back after lying low. */
   z.object({ day: z.number().int(), type: z.literal('regular-back'), regularId: z.string(), reason: z.enum(['wife']).optional() }),
   z.object({ day: z.number().int(), type: z.literal('direction'), direction: DirectionIdSchema, lost: Count }),
@@ -285,6 +331,7 @@ export const AccountSchema = z.object({
   massMessages: z.array(MassMessageSchema),
   requests: z.array(RequestSchema),
   meetups: z.array(MeetupSchema),
+  incidents: z.array(IncidentSchema),
   ledger: z.array(LedgerEntrySchema),
   /** Recent engine events (the last `eventDays` days), for notifications. */
   events: z.array(EngineEventSchema),
@@ -308,6 +355,9 @@ export type Thread = z.infer<typeof ThreadSchema>
 export type MassMessage = z.infer<typeof MassMessageSchema>
 export type Request = z.infer<typeof RequestSchema>
 export type Meetup = z.infer<typeof MeetupSchema>
+export type Incident = z.infer<typeof IncidentSchema>
+export type IncidentChoice = (typeof INCIDENT_CHOICES)[number]
+export type IncidentResult = (typeof INCIDENT_RESULTS)[number]
 export type DeliveryReason = z.infer<typeof DeliveryReasonSchema>
 export type Audience = z.infer<typeof AudienceSchema>
 export type LedgerKind = z.infer<typeof LedgerKindSchema>
