@@ -81,6 +81,15 @@
     }
   },
   {
+    "id": "femdom",
+    "en": "Femdom",
+    "zh": "女王",
+    "intensity": 4,
+    "attracts": {
+      "submissive": 2
+    }
+  },
+  {
     "id": "romantic",
     "en": "Romantic",
     "zh": "浪漫",

@@ -35,7 +35,7 @@ describe('loyalty', () => {
   it('a fanatic buys anything; a cold fan is picky', () => {
     let a = addVaultItem(grown('b'), 'v0', { description: 'tame selfie', tags: [], intensity: 1, cast: 'me' })
     const id = a.regulars[0].id
-    a = set(a, id, { segment: 'whale', loyalty: 1000 })
+    a = set(a, id, { segment: 'whale', loyalty: 1000, conditions: [] })
     expect(loyaltyEffects(reg(a, id)).buysAnything).toBe(true)
     for (let i = 0; i < 10; i++) {
       // A tame $200 selfie, nothing he likes: only a fanatic would buy it.
@@ -55,7 +55,7 @@ describe('loyalty', () => {
       const a = grown(seed)
       const id = a.regulars[0].id
       // Like Rick: a simp with obsessive + stalker traits and a few of your messages behind him.
-      let acc = set(a, id, { segment: 'simp', personality: 'pet_names', behaviours: ['obsessive', 'stalker'], loyalty: 7, status: 'active', relationship: 'single' })
+      let acc = set(a, id, { segment: 'simp', personality: 'pet_names', behaviours: ['obsessive', 'stalker'], conditions: [], loyalty: 7, status: 'active', relationship: 'single' })
       for (let d = 0; d < 30 && !acc.meetups.some((m) => m.regularId === id); d++) {
         if (d % 7 === 0) acc = sendDm(acc, id, { text: 'hey' }, seed).account
         acc = simulate(acc, 1, seed).account

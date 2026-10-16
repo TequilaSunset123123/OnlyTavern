@@ -88,7 +88,7 @@ function meet(rng: Rng, account: Account, m: Meetup, day: number): { account: Ac
   // A stalker may not let it end there (incidents.ts).
   const incident = afterMeetup(rng, a, a.regulars.find((x) => x.id === r.id)!, m.id, outcome, day)
   a = incident.account
-  const extra = { ...(lost !== undefined ? { lost } : {}), ...(returns !== undefined ? { returns } : {}) }
+  const extra = { ...(lost !== undefined ? { lost } : {}), ...(returns !== undefined ? { returns } : {}), ...(m.terms ? { terms: m.terms } : {}) }
   return { account: a, events: [{ day, type: 'meetup-done', regularId: r.id, gross: paid, outcome, ...extra }, ...incident.events], ledger }
 }
 

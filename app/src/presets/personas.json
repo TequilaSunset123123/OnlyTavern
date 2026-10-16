@@ -1053,7 +1053,12 @@
   },
   "dominant": {
    "label": "Bossy",
-   "prompt": "bossy and demanding, gives her orders about what to wear and do, expects to be obeyed"
+   "prompt": "bossy and demanding, gives her orders about what to wear and do, expects to be obeyed",
+   "likes": {
+    "domination": 6,
+    "bdsm": 4,
+    "degradation": 2
+   }
   },
   "shy": {
    "label": "Awkward",
@@ -1061,11 +1066,18 @@
   },
   "submissive": {
    "label": "Submissive",
-   "prompt": "submissive: begs to obey and serve her, calls her goddess or mistress, asks her permission for everything, wants to be told what to do and put in his place, eager to pay tribute"
+   "prompt": "submissive: begs to obey and serve her, calls her goddess or mistress, asks her permission for everything, wants to be told what to do and put in his place, eager to pay tribute",
+   "likes": {
+    "femdom": 8,
+    "bdsm": 3
+   }
   },
   "negging": {
    "label": "Negging",
-   "prompt": "backhanded compliments, acts like she has to earn his attention and his money"
+   "prompt": "backhanded compliments, acts like she has to earn his attention and his money",
+   "likes": {
+    "degradation": 2
+   }
   },
   "minimal": {
    "label": "Quiet",
@@ -1073,7 +1085,12 @@
   },
   "misogynist": {
    "label": "Misogynist",
-   "prompt": "misogynistic: holds her and women in general in contempt, calls her a whore or a slut, talks down to her like a thing he owns or pays for, crude and degrading even when he is being nice"
+   "prompt": "misogynistic: holds her and women in general in contempt, calls her a whore or a slut, talks down to her like a thing he owns or pays for, crude and degrading even when he is being nice",
+   "likes": {
+    "degradation": 6,
+    "domination": 4,
+    "bdsm": 2
+   }
   },
   "troll": {
    "label": "Troll",
@@ -1544,8 +1561,8 @@
     "meetup": {
      "daily": 0.1,
      "asked": {
-      "accept": 0.9,
-      "free": 0.3
+      "accept": 0.5,
+      "free": 0.2
      },
      "median": 1500,
      "minLoyalty": 2,
@@ -1817,7 +1834,12 @@
   "lowballDollars": [
    2,
    20
-  ]
+  ],
+  "worship": {
+   "personalities": [
+    "submissive"
+   ]
+  }
  },
  "incidents": {
   "daily": 0.06,

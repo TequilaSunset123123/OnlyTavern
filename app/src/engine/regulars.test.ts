@@ -196,5 +196,9 @@ describe('fan message prompt and parsing', () => {
     expect(parseFanMessage('[You] *smiles* sure thing')).toBe('sure thing')
     expect(parseFanMessage('<message>unclosed reply')).toBe('unclosed reply')
     expect(() => parseFanMessage('<message></message>')).toThrow(/empty/)
+    // A sentence that starts with "You" keeps it (Robert, 2026-10-16); a speaker tag does not.
+    expect(parseFanMessage("<message>You haven't answered me for hours, baby...</message>")).toBe("You haven't answered me for hours, baby...")
+    expect(parseFanMessage('Fan: miss you')).toBe('miss you')
+    expect(parseFanMessage('<message>\n    hey   baby,\n\n\n\n   miss you  </message>')).toBe('hey baby,\n\nmiss you')
   })
 })

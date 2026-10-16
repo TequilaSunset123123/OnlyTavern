@@ -85,6 +85,18 @@ describe('fan personas', () => {
   })
 })
 
+describe('what fans like (2026-10-16)', () => {
+  it('bossy and misogynist fans like domination, degradation and BDSM; submissive ones femdom', () => {
+    const a = simulate(createAccount({ id: 'x', seed: 'k', now: 0, name: 'Mia', handle: 'mia' }), 200, 'k', { fanLanguage: 'en', connectionProfile: null }).account
+    const kink = (r: (typeof a.regulars)[number]) => r.likes.some((t) => ['bdsm', 'degradation', 'domination', 'femdom'].includes(t))
+    const into = a.regulars.filter((r) => ['dominant', 'misogynist', 'submissive'].includes(r.personality))
+    const rest = a.regulars.filter((r) => !['dominant', 'misogynist', 'submissive', 'negging'].includes(r.personality))
+    expect(into.length).toBeGreaterThan(2)
+    expect(into.filter(kink).length / into.length).toBeGreaterThan(0.6)
+    expect(into.filter(kink).length / into.length).toBeGreaterThan(rest.filter(kink).length / Math.max(1, rest.length))
+  })
+})
+
 describe('ignored fans turn on you', () => {
   it('ignored fans become haters, obsessed ones much sooner; talking to them again wins them back', () => {
     let turned = 0

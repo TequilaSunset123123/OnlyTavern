@@ -241,6 +241,100 @@
    "meetupPoints": 0,
    "partnerContent": true,
    "meetupEvents": {}
+  },
+  "sub": {
+   "label": "Sub",
+   "zh": "臣服系",
+   "blurb": "You get put in your place on camera. Lots of traffic, and lots of men who think that is all you are worth: haters, freeloaders and regulars who like to give orders.",
+   "prompt": "a submissive creator whose content is about being dominated, degraded and put in her place",
+   "titles": [
+    "Eager pet",
+    "Good girl",
+    "Obedient toy",
+    "Owned",
+    "Total submissive"
+   ],
+   "signatureTags": [
+    "bdsm",
+    "degradation",
+    "domination",
+    "roleplay",
+    "joi"
+   ],
+   "audience": {
+    "hater": 2,
+    "freeloader": 1.8,
+    "regular": 1.4,
+    "lurker": 1,
+    "simp": 0.7,
+    "whale": 0.8
+   },
+   "visitors": 1.3,
+   "attracts": {
+    "misogynist": 2.5,
+    "dominant": 2,
+    "negging": 1.5
+   },
+   "requests": {
+    "rate": 1.4,
+    "offer": 0.9
+   },
+   "meetups": {
+    "rate": 0.8,
+    "offer": 0.8
+   },
+   "meetupPoints": 0,
+   "meetupEvents": {
+    "creep": 1.5
+   }
+  },
+  "domme": {
+   "label": "Dominatrix",
+   "zh": "女王",
+   "blurb": "You give the orders and they pay for the privilege. Whales and simps who want to serve you, and creeps who get far too attached.",
+   "prompt": "a dominatrix who orders men around, humiliates them and makes them pay tribute",
+   "titles": [
+    "Bratty domme",
+    "Mistress",
+    "Strict mistress",
+    "Goddess",
+    "Queen"
+   ],
+   "signatureTags": [
+    "femdom",
+    "bdsm",
+    "feet",
+    "roleplay",
+    "voice_note"
+   ],
+   "audience": {
+    "whale": 3.2,
+    "simp": 2.2,
+    "regular": 0.8,
+    "lurker": 0.9,
+    "hater": 0.9,
+    "freeloader": 0.5
+   },
+   "visitors": 0.9,
+   "attracts": {
+    "submissive": 3,
+    "creepy_compliments": 1.8,
+    "obsessive": 1.5,
+    "older_gentleman": 1.3
+   },
+   "requests": {
+    "rate": 1.3,
+    "offer": 1.6
+   },
+   "meetups": {
+    "rate": 1.2,
+    "offer": 1.5
+   },
+   "meetupPoints": 0,
+   "meetupEvents": {
+    "creep": 1.3,
+    "bonus": 1.3
+   }
   }
  }
 }

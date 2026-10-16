@@ -1,7 +1,7 @@
 // Time passing, for the UI (2026-10-15): what would lapse if you skip ahead (asked before
 // "+7"), and what happened while the days went by (the report popup afterwards). Built
 // from the day snapshots and the engine events; nothing new is rolled here.
-import type { Account, DirectionId, EngineEvent, LedgerKind } from '../store/schema'
+import type { Account, DirectionId, EngineEvent, LedgerKind, MeetupTerms } from '../store/schema'
 import { subscriberCount } from './audience'
 import { requestOpen } from './deals'
 import type { MeetupOutcome } from './fans'
@@ -24,7 +24,7 @@ export function lapsing(account: Account, days: number): Lapse[] {
   ].sort((a, b) => a.deadline - b.deadline)
 }
 
-export type MeetupReport = { regularId: string; name: string; day: number; outcome: MeetupOutcome; paid: number; lost?: number; returns?: boolean }
+export type MeetupReport = { regularId: string; name: string; day: number; outcome: MeetupOutcome; paid: number; lost?: number; returns?: boolean; terms?: MeetupTerms }
 
 export type PeriodReport = {
   /** First and last simulated day. */
@@ -73,7 +73,7 @@ export function periodReport(before: Account, after: Account, events: EngineEven
     regulars: { new: n('regular'), messages: n('dm'), levelUps: n('loyalty-up'), turned: n('regular-turned'), back: n('regular-back'), left: n('hater-left') },
     meetups: events.flatMap((e) =>
       e.type === 'meetup-done'
-        ? [{ regularId: e.regularId, name: name(e.regularId), day: e.day, outcome: e.outcome ?? 'smooth', paid: e.gross, ...(e.lost !== undefined ? { lost: e.lost } : {}), ...(e.returns !== undefined ? { returns: e.returns } : {}) }]
+        ? [{ regularId: e.regularId, name: name(e.regularId), day: e.day, outcome: e.outcome ?? 'smooth', paid: e.gross, ...(e.lost !== undefined ? { lost: e.lost } : {}), ...(e.returns !== undefined ? { returns: e.returns } : {}), ...(e.terms ? { terms: e.terms } : {}) }]
         : [],
     ),
     incidents: n('incident'),

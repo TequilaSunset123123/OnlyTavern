@@ -64,8 +64,11 @@ function dealLine(view: ThreadView, d: NonNullable<Intent['deal']>): string {
     if (d.step === 'back') return 'Weeks ago your wife caught you meeting her and you went quiet; things have calmed down and you are writing to her again.'
     if (d.step === 'met') {
       const paid = money(m?.paidCents ?? m?.offerCents ?? 0)
-      if (m?.terms === 'free' && (m.outcome === 'smooth' || m.outcome === 'bonus' || m.outcome === 'creep'))
-        return `You met her in person today, as she offered, and did not pay her anything${m.outcome === 'creep' ? '; you got too pushy and she left early' : ''}; write to her afterwards.`
+      const tookIt = m?.outcome === 'smooth' || m?.outcome === 'bonus' || m?.outcome === 'creep'
+      const pushy = m?.outcome === 'creep' ? ' You got too pushy with her first.' : ''
+      if (m?.terms === 'worship' && tookIt) return `You met her in person today, as she offered; you worshipped her and thanked her over and over, but did not pay her anything.${pushy} Write to her afterwards.`
+      if (m?.terms === 'free' && tookIt) return `You met her in person today, as she offered, then pulled your pants up and left without paying her anything.${pushy} Write to her afterwards.`
+      if (m?.terms === 'lowball' && tookIt) return `You met her in person today, as she offered, and tossed her ${paid} on your way out, because that is all you think a cheap girl like her is worth.${pushy} Write to her afterwards.`
       return {
         smooth: `You met her in person today and paid ${paid} in cash; write to her afterwards.`,
         bonus: `You met her in person today and loved it so much you paid ${paid} instead of ${money(m?.offerCents ?? 0)}; write to her afterwards.`,
@@ -75,6 +78,7 @@ function dealLine(view: ThreadView, d: NonNullable<Intent['deal']>): string {
       }[m?.outcome ?? 'smooth']
     }
     if (m?.askedBy === 'you') {
+      if (m.terms === 'worship') return 'She offered to meet you in person. You are overjoyed and say yes, grovelling with thanks, but you do not offer her any money.'
       if (m.terms === 'free') return 'She offered to meet you in person. You take her up on it, but you will not pay her anything: she offered herself, so she should be grateful.'
       if (m.terms === 'lowball') return `She offered to meet you in person. You take her up on it, but offer only ${money(m.offerCents)} in cash, to show her that is all she is worth.`
       return `She asked to meet you in person for a night; you say yes and offer ${money(m.offerCents)} in cash.`
@@ -160,11 +164,18 @@ export function parseFanMessage(raw: string, name?: string): string {
   if (tagged.length) text = tagged[tagged.length - 1]
   text = text
     .replace(/<\/?[a-z_]+>/gi, '')
-    .replace(/^\s*(\[?(you|fan|me|her)\]?|\[[^\]]+\])\s*:?\s*/i, '')
+    // A speaker tag the model added: "[You]", "Fan:", "[Robert]". Not a sentence that starts with "You ...".
+    .replace(/^\s*(\[(you|fan|me|her)\]|(you|fan|me|her)\s*[:：]|\[[^\]]+\])\s*[:：]?\s*/i, '')
     .trim()
   if (name) text = text.replace(new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[:：]\\s*`), '')
   text = text.replace(/^\*[^*]+\*\s*/g, '').replace(/\s*\*[^*]+\*$/g, '')
   text = text.replace(/^["“「](.*)["”」]$/s, '$1').trim()
+  // Stray indentation and runs of spaces from the model.
+  text = text
+    .split('\n')
+    .map((line) => line.replace(/[ \t\u00a0\u3000]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
   if (!text) throw new Error('The model returned an empty message')
   return text.length > 800 ? `${text.slice(0, 800)}…` : text
 }

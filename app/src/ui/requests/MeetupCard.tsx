@@ -20,7 +20,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import type { Meetup, Message, Regular } from '../../api'
 import { useDispatch } from '../../hooks/useAccounts'
-import { errorText, money } from '../format'
+import { errorText, freebieText, money } from '../format'
 import { useCelebration, useHoldBack } from './celebration'
 import { Actions, DealCard, Pop, Rise } from './DealMotion'
 import { DealAmount, DealHeader, type DealTone } from './DealParts'
@@ -55,7 +55,7 @@ const OUTCOME: Record<NonNullable<Meetup['outcome']>, (m: Meetup) => string> = {
 }
 
 /** What he offered: as a client, or (you asked, he does not think you worth it) a few dollars or nothing. */
-const OFFER_LABEL = { paid: 'Cash offered, no platform fee', lowball: 'All he thinks you are worth', free: 'He wants it for free' }
+const OFFER_LABEL = { paid: 'Cash offered, no platform fee', lowball: 'All he thinks you are worth', free: 'He wants it for free', worship: 'He is thrilled, but will not pay' }
 
 /** Status chip, tone, the day line and the money label for each state. */
 function look(m: Meetup, day: number): { status: string; tone: DealTone; subtitle: string; label: string; cents: number } {
@@ -63,10 +63,10 @@ function look(m: Meetup, day: number): { status: string; tone: DealTone; subtitl
     case 'open':
       return { status: m.askedBy ? 'You asked' : 'Invitation', tone: 'waiting', subtitle: `Day ${m.day} · answer by day ${m.replyBy}`, label: OFFER_LABEL[m.terms ?? 'paid'], cents: m.offerCents }
     case 'accepted':
-      return { status: 'Accepted', tone: 'pending', subtitle: `Meeting on day ${m.meetDay} · ${inDays(m.meetDay ?? day, day)}`, label: m.terms === 'free' ? 'He will not pay' : 'Cash on the day', cents: m.offerCents }
+      return { status: 'Accepted', tone: 'pending', subtitle: `Meeting on day ${m.meetDay} · ${inDays(m.meetDay ?? day, day)}`, label: m.terms === 'free' || m.terms === 'worship' ? 'He will not pay' : 'Cash on the day', cents: m.offerCents }
     case 'done': {
       const paid = m.paidCents ?? m.offerCents
-      if (m.terms === 'free' && m.outcome !== 'noShow' && m.outcome !== 'wife') return { status: 'Freebie', tone: 'failed', subtitle: `Met on day ${m.meetDay}`, label: 'He paid nothing', cents: 0 }
+      if ((m.terms === 'free' || m.terms === 'worship') && m.outcome !== 'noShow' && m.outcome !== 'wife') return { status: 'Freebie', tone: 'failed', subtitle: `Met on day ${m.meetDay}`, label: 'He paid nothing', cents: 0 }
       return paid
         ? { status: 'Paid', tone: 'paid', subtitle: `Met on day ${m.meetDay}`, label: 'Cash received', cents: paid }
         : { status: m.outcome === 'noShow' ? 'No-show' : 'No money', tone: 'failed', subtitle: `Day ${m.meetDay}`, label: 'Cash offered', cents: m.offerCents }
@@ -150,7 +150,7 @@ export function MeetupCard({
           {m.status === 'done' && m.outcome && (
             <Rise delay={0.23}>
               <p className="text-sm text-content-secondary">
-                {OUTCOME[m.outcome](m)}
+                {freebieText(m.terms, m.outcome, m.paidCents ?? 0)?.line ?? OUTCOME[m.outcome](m)}
                 {m.outcome === 'wife' ? afterScandal(regular, day) : ''}
               </p>
             </Rise>

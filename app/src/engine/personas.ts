@@ -107,13 +107,39 @@ type Modifiers = {
   /** The condition he comes back with when you win him back after he turned. */
   comesBackAs?: string
 }
-type Layer = { label: string; prompt: string; modifiers?: Modifiers; loveHate?: { label: string; prompt: string } }
+type Layer = { label: string; prompt: string; modifiers?: Modifiers; likes?: Record<string, number>; loveHate?: { label: string; prompt: string } }
 const PERSONALITIES = personas.personalities as Record<string, Layer>
 const BEHAVIOURS = personas.behaviours as Record<string, Layer>
 const CONDITIONS = personas.conditions as Record<string, Layer>
 
 export type LayerInfo = { id: string; label: string; prompt: string }
 const info = (list: Record<string, Layer>, id: string): LayerInfo => ({ id, label: list[id]?.label ?? id, prompt: list[id]?.prompt ?? '' })
+
+/**
+ * Content his personality and behaviours make him want (presets/personas.json `likes`,
+ * 2026-10-16): a bossy man wants domination, a misogynist degradation, a submissive one
+ * femdom. Extra weight on top of the tags his type likes (engine/regulars.ts), and on what
+ * he orders as a custom (engine/deals.ts).
+ */
+export function likeWeights(r: Pick<Regular, 'personality' | 'behaviours'>): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const layer of [PERSONALITIES[r.personality], ...r.behaviours.map((id) => BEHAVIOURS[id])]) {
+    for (const [tag, w] of Object.entries(layer?.likes ?? {})) out[tag] = (out[tag] ?? 0) + w
+  }
+  return out
+}
+
+/** Picks up to `n` different keys, each by weight. */
+export function pickDistinct(rng: Rng, weights: Record<string, number>, n: number): string[] {
+  const left = { ...weights }
+  const out: string[] = []
+  while (out.length < n && Object.values(left).some((w) => w > 0)) {
+    const k = weighted(rng, left)
+    out.push(k)
+    delete left[k]
+  }
+  return out
+}
 
 /** His three layers as labels (for the UI) and descriptions (for the model). */
 export function fanLayers(r: Regular) {

@@ -409,7 +409,11 @@ function MessageBubble({
         </span>
       )}
       {m.delivery && <Delivery view={view} delivery={m.delivery} />}
-      {m.text && <ChatMessage user={user} message={m.text} time={time} showAvatar={m.from === 'fan' && avatar && !card} avatarFallback={view.regular.name.slice(0, 1)} />}
+      {m.text && (
+        // [&_p]:grow: the library lays text and time out with flex-wrap + justify-end, so a
+        // line of text that wraps above the time got pushed to the right. Growing keeps it left.
+        <ChatMessage className="[&_p]:grow" user={user} message={m.text} time={time} showAvatar={m.from === 'fan' && avatar && !card} avatarFallback={view.regular.name.slice(0, 1)} />
+      )}
       {m.writtenBy === 'corpus' && <span className="pl-12 text-xs text-content-tertiary">Preset line: the model was not available</span>}
       {m.tipCents ? <Badge className={m.from === 'fan' ? 'ml-12' : ''} variant="success">💰 Tipped {money(m.tipCents)}</Badge> : null}
       {card && (

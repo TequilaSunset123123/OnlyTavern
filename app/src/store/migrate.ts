@@ -154,6 +154,11 @@ export const MIGRATIONS: Record<number, Migration> = {
     }
     return { ...doc, regulars: (doc.regulars as Old[]).map(upgradeOne) }
   },
+  // v11 -> v12 (2026-10-16): two new directions, Sub and Dominatrix, with no points yet.
+  11: (doc) => {
+    const direction = doc.direction as { points: Record<string, number> }
+    return { ...doc, direction: { ...direction, points: { ...noPoints(), ...direction.points } } }
+  },
 }
 
 export class SaveError extends Error {}

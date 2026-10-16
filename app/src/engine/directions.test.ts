@@ -117,6 +117,31 @@ describe('directions', () => {
     expect(obsessed(directionEffects(withPoints(fresh('egirl'), 200)).attracts)).toBeGreaterThan(obsessed({}) * 1.3)
   })
 
+  it('subs draw haters, freeloaders and misogynists; dominatrixes whales, simps and submissive men (2026-10-16)', () => {
+    const subs = (d: DirectionId, s: Parameters<typeof subscriberCount>[1]) => {
+      let n = 0
+      for (const seed of ['a', 'b', 'c']) n += subscriberCount(simulate(withPoints(fresh(d, seed), 200), 90, seed).account.audience, s)
+      return n
+    }
+    const share = (d: DirectionId, s: Parameters<typeof subscriberCount>[1]) => subs(d, s) / subs(d, undefined)
+    expect(share('sub', 'hater')).toBeGreaterThan(share('girl_next_door', 'hater') * 1.5)
+    expect(share('sub', 'freeloader')).toBeGreaterThan(share('girl_next_door', 'freeloader') * 1.4)
+    expect(share('domme', 'whale')).toBeGreaterThan(share('girl_next_door', 'whale') * 1.6)
+    expect(share('domme', 'simp')).toBeGreaterThan(share('girl_next_door', 'simp') * 1.5)
+    const styles = (d: DirectionId, segment: 'regular' | 'simp', id: string) =>
+      Array.from({ length: 400 }, (_, i) => makePersona(rngFor('s', i, 'p'), segment, 'en', directionEffects(withPoints(fresh(d), 200)).attracts)).filter((p) => p.personality === id || p.behaviours.includes(id)).length
+    expect(styles('sub', 'regular', 'misogynist')).toBeGreaterThan(styles('girl_next_door', 'regular', 'misogynist') * 2)
+    expect(styles('domme', 'simp', 'submissive')).toBeGreaterThan(styles('girl_next_door', 'simp', 'submissive') * 2)
+    expect(styles('domme', 'simp', 'creepy_compliments')).toBeGreaterThan(styles('girl_next_door', 'simp', 'creepy_compliments') * 1.4)
+  })
+
+  it('saves from before Sub and Dominatrix get them with no points (schema 12)', () => {
+    const a = withPoints(fresh('escort'), 40)
+    const { sub: _, domme: __, ...old } = a.direction.points
+    const up = migrate({ ...a, meta: { ...a.meta, schemaVersion: 11 }, direction: { ...a.direction, points: old } })
+    expect(up.direction.points).toMatchObject({ escort: 40, sub: 0, domme: 0 })
+  })
+
   it('older saves start as girl next door, not yet chosen, with no points', () => {
     const { direction: _, ...rest } = fresh()
     const up = migrate({ ...rest, meta: { ...rest.meta, schemaVersion: 6 } })

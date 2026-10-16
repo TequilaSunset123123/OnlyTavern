@@ -4,7 +4,8 @@
 //   - you bring one up in a message: he says yes or no, rolled when you send it. Asked to
 //     meet, men nearly always say yes; but unless he is devoted to you (loyalty, a simp,
 //     obsessed, old money) he takes you for a freebie: he offers nothing, or a few dollars
-//     to put you down (personas.json askedMeetups).
+//     to put you down; a submissive man never insults you, he just grovels and does not
+//     pay (personas.json askedMeetups).
 // Everything with a number is decided here, like a game mechanic; the numbers per fan
 // type are in presets/personas.json (engine/fans.ts). The model only gets one line
 // saying what happened (llm/fanMessage.ts). What happens next (accept, deliver, meet)
@@ -14,6 +15,7 @@ import tags from '../presets/tags.json'
 import type { Account, EngineEvent, Intent, Meetup, Regular, Request } from '../store/schema'
 import personas from '../presets/personas.json'
 import { actingType } from './conditions'
+import { likeWeights, pickDistinct } from './personas'
 import { directionEffects } from './directions'
 import { fanProfile, loyaltyEffects, loyaltyLevel } from './fans'
 import { logNormal, type Rng, rngFor } from './rng'
@@ -86,6 +88,7 @@ export function paysWhenAsked(r: Regular): boolean {
 /** What he offers: like a client (around his type's median, × loyalty and direction), or, when you asked and he does not pay, a few dollars or nothing. */
 function meetupOffer(rng: Rng, account: Account, r: Regular, youAsked: boolean): { offerCents: number; terms?: Meetup['terms'] } {
   if (youAsked && !paysWhenAsked(r)) {
+    if (ASKED.worship.personalities.includes(r.personality)) return { offerCents: 0, terms: 'worship' }
     if (rng() < fanProfile(r).meetup.asked.free) return { offerCents: 0, terms: 'free' }
     const [lo, hi] = ASKED.lowballDollars
     return { offerCents: (lo + Math.floor(rng() * (hi - lo + 1))) * 100, terms: 'lowball' }
@@ -99,13 +102,10 @@ function open(rng: Rng, account: Account, r: Regular, kind: DealKind, day: numbe
   const f = fanProfile(r)
   const fx = directionEffects(account)
   if (kind === 'custom') {
-    // One or two of the things he likes; as explicit as the most explicit of them.
-    const likes = [...r.likes]
-    for (let i = likes.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1))
-      ;[likes[i], likes[j]] = [likes[j], likes[i]]
-    }
-    const wanted = likes.slice(0, rng() < 0.5 ? 1 : 2)
+    // One or two of the things he likes, the ones his personality wants first (a bossy man
+    // orders domination and BDSM: likeWeights); as explicit as the most explicit of them.
+    const kink = likeWeights(r)
+    const wanted = pickDistinct(rng, Object.fromEntries(r.likes.map((t) => [t, 1 + (kink[t] ?? 0)])), rng() < 0.5 ? 1 : 2)
     const intensity = Math.max(1, ...wanted.map((id) => tags.find((x) => x.id === id)?.intensity ?? 1))
     const median = f.custom.median * fx.requests.offer * loyaltyEffects(r).spend
     const offerCents = Math.min(Q.maxCents, Math.max(Q.minCents, Math.round(logNormal(rng, median, Q.spread)) * 100))

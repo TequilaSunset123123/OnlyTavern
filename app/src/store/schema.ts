@@ -3,13 +3,13 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 11
+export const SCHEMA_VERSION = 12
 
 export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
 export const SegmentSchema = z.enum(SEGMENTS)
 
 /** What kind of creator you are building (presets/directions.json; 2026-10-15). */
-export const DIRECTIONS = ['girl_next_door', 'porn_star', 'egirl', 'escort', 'couple'] as const
+export const DIRECTIONS = ['girl_next_door', 'porn_star', 'egirl', 'escort', 'couple', 'sub', 'domme'] as const
 export const DirectionIdSchema = z.enum(DIRECTIONS)
 
 /** All money is integer cents. */
@@ -183,6 +183,10 @@ export const RequestSchema = z.object({
 })
 
 /** An offline job: a regular pays you cash to meet in person (plan.md §4.3; step 5). Off the platform. */
+/** You asked him to meet and he did not pay like a client (engine/deals.ts). */
+export const MeetupTermsSchema = z.enum(['lowball', 'free', 'worship'])
+export type MeetupTerms = z.infer<typeof MeetupTermsSchema>
+
 export const MeetupSchema = z.object({
   id: z.string(),
   regularId: z.string(),
@@ -203,8 +207,11 @@ export const MeetupSchema = z.object({
   messageId: z.string(),
   /** You brought it up (engine/deals.ts), not him. */
   askedBy: z.literal('you').optional(),
-  /** You asked and he did not think you worth paying: a few dollars to put you down, or nothing at all. */
-  terms: z.enum(['lowball', 'free']).optional(),
+  /**
+   * You asked and he did not pay like a client: a few dollars to put you down (lowball),
+   * nothing at all (free), or nothing but grovelling thanks (worship: a submissive man).
+   */
+  terms: MeetupTermsSchema.optional(),
 })
 
 export const INCIDENT_CHOICES = ['playAlong', 'letDown', 'calm', 'block'] as const
@@ -281,7 +288,7 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
     meetupId: z.string(),
     /** You asked him; what he offered then. */
     askedBy: z.literal('you').optional(),
-    terms: z.enum(['lowball', 'free']).optional(),
+    terms: MeetupTermsSchema.optional(),
     offerCents: Cents.optional(),
   }),
   z.object({
@@ -294,6 +301,8 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
     lost: Count.optional(),
     /** After a scandal: whether he will be back one day (loyal enough) or is gone for good. */
     returns: z.boolean().optional(),
+    /** You asked him and he took you for a freebie (Meetup.terms). */
+    terms: MeetupTermsSchema.optional(),
   }),
   z.object({ day: z.number().int(), type: z.literal('loyalty-up'), regularId: z.string(), level: z.number().int() }),
   z.object({ day: z.number().int(), type: z.literal('meetup-expired'), regularId: z.string() }),

@@ -4,7 +4,7 @@ import type { DirectionId, EngineEvent } from '../../api'
 import { useActiveAccount } from '../../hooks/useAccounts'
 import { useFeed, useNotifications } from '../../hooks/useContent'
 import { useInbox } from '../../hooks/useMessages'
-import { count, money } from '../format'
+import { count, freebieText, money } from '../format'
 import { ClockControl } from '../shell/ClockControl'
 
 const s = (n: number) => (n === 1 ? '' : 's')
@@ -14,6 +14,8 @@ const DIRECTION_LABEL: Record<DirectionId, string> = {
   egirl: 'an anime e-girl',
   escort: 'a high-end escort',
   couple: 'a couple account',
+  sub: 'a sub',
+  domme: 'a dominatrix',
 }
 
 // Notification texts are templates over engine events (plan.md §4.5); no model involved.
@@ -53,12 +55,16 @@ function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: st
       return e.accepted ? `You missed the deadline for ${fan(e.regularId)}'s custom` : `${fan(e.regularId)}'s custom request expired`
     case 'meetup':
       if (!e.askedBy) return `${fan(e.regularId)} invited you to meet in person`
-      return e.terms === 'free'
+      return e.terms === 'worship'
+        ? `${fan(e.regularId)} begged to meet you and thanked you like a goddess, but he will not pay`
+        : e.terms === 'free'
         ? `${fan(e.regularId)} said yes to meeting you, but he will not pay: you offered yourself`
         : e.terms === 'lowball'
           ? `${fan(e.regularId)} said yes to meeting you, for ${money(e.offerCents ?? 0)}: that is all he thinks you are worth`
           : `${fan(e.regularId)} said yes to meeting you: ${money(e.offerCents ?? 0)} in cash`
-    case 'meetup-done':
+    case 'meetup-done': {
+      const freebie = freebieText(e.terms, e.outcome, e.gross)
+      if (freebie) return `${freebie.title(fan(e.regularId))}: ${freebie.line}`
       return {
         smooth: `You met ${fan(e.regularId)}: ${money(e.gross)} in cash`,
         bonus: `You met ${fan(e.regularId)} and he paid extra: ${money(e.gross)} in cash`,
@@ -66,6 +72,7 @@ function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: st
         creep: `${fan(e.regularId)} got creepy, you left early with ${money(e.gross)}`,
         wife: `${fan(e.regularId)}'s wife caught you: no money, ${count(e.lost ?? 0)} subscriber${s(e.lost ?? 0)} left over the scandal. ${e.returns ? 'He is lying low for now' : 'He blocked you'}`,
       }[e.outcome ?? 'smooth']
+    }
     case 'loyalty-up':
       return `${fan(e.regularId)} is now a level ${e.level} fan`
     case 'meetup-expired':

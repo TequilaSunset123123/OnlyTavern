@@ -51,7 +51,7 @@ describe('deals: one way in, decided by the engine', () => {
   it('when you bring up a custom, he says yes or no by the odds; yes opens it on his reply with a card, no does not', () => {
     let yes = 0
     let no = 0
-    for (const seed of ['a', 'b', 'c', 'd', 'e', 'f']) {
+    for (const seed of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l']) {
       const base = grown(seed)
       const r0 = base.regulars[0]
       if (!r0) continue
@@ -136,6 +136,21 @@ describe('deals: one way in, decided by the engine', () => {
     ])
   })
 
+  it('a fan whose personality wants domination, degradation or femdom orders it (2026-10-16)', () => {
+    const a = grown('a')
+    const r0 = { ...a.regulars[0], status: 'active' as const, conditions: [], segment: 'simp' as const, behaviours: [] }
+    let kinky = 0
+    for (let i = 0; i < 40; i++) {
+      const r = { ...r0, personality: 'submissive', likes: ['femdom', 'feet', 'cosplay'] }
+      const acc = { ...a, requests: [], regulars: a.regulars.map((x) => (x.id === r.id ? r : x)) }
+      const sent = sendDm(acc, r.id, { text: 'want a custom made just for you?' }, `k${i}`).account
+      const q = sent.requests.find((x) => x.regularId === r.id)
+      if (q?.tags.includes('femdom')) kinky++
+    }
+    // femdom weighs 1 + 4 against 1 and 1: it is in nearly every custom he orders.
+    expect(kinky).toBeGreaterThan(20)
+  })
+
   describe('you ask him to meet (2026-10-16)', () => {
     const P = personas.loyalty.points
     const fan = (seed: string, patch: Partial<Regular>) => {
@@ -157,6 +172,9 @@ describe('deals: one way in, decided by the engine', () => {
       expect(dealChance(a, r, 'meetup', true)).toBe(0.9)
       expect(dealChance(a, { ...r, loyalty: P[3] }, 'meetup', true)).toBeCloseTo(0.9 + 0.07 * 0.75)
       expect(dealChance(a, { ...r, segment: 'freeloader' }, 'meetup', true)).toBeGreaterThan(0.9)
+      // A whale who barely knows you often says no; he warms up as his loyalty grows.
+      expect(dealChance(a, { ...r, segment: 'whale' }, 'meetup', true)).toBe(0.5)
+      expect(dealChance(a, { ...r, segment: 'whale', loyalty: P[2] }, 'meetup', true)).toBeCloseTo(0.5 + 0.47 * 0.5)
       // A Devoted regular says yes nearly every time, even right after a meetup.
       const yes = seeds.filter((s) => ask(s, { segment: 'regular', loyalty: P[3] }).deal.step === 'ask').length
       expect(yes).toBeGreaterThan(34)
@@ -173,6 +191,10 @@ describe('deals: one way in, decided by the engine', () => {
       expect(casual.filter((m) => m.terms === 'free').length).toBeGreaterThan(casual.length * 0.4)
       // A freeloader nearly always wants it free.
       expect(terms({ segment: 'freeloader', loyalty: 0 }).filter((m) => m.terms === 'free').length).toBeGreaterThan(28)
+      // A submissive man never insults you: he just does not pay.
+      const subs = terms({ segment: 'regular', personality: 'submissive', loyalty: 0 })
+      expect(subs.length).toBeGreaterThan(30)
+      expect(subs.every((m) => m.terms === 'worship' && m.offerCents === 0)).toBe(true)
       // Devoted, a simp, obsessed or old money: he pays like a client.
       for (const patch of [{ segment: 'regular' as const, loyalty: P[3] }, { segment: 'simp' as const, loyalty: 0 }, { segment: 'regular' as const, behaviours: ['obsessive'] }, { segment: 'whale' as const, behaviours: ['older_gentleman'] }]) {
         const paid = terms(patch)
@@ -189,7 +211,7 @@ describe('deals: one way in, decided by the engine', () => {
       expect(done.paidCents).toBe(0)
       const msg = threadOf(after, r.id).messages.at(-1)!
       const lines = buildFanPrompt(view(after, r), msg.id)[1].content
-      if (done.outcome === 'smooth' || done.outcome === 'bonus') expect(lines).toContain('did not pay her anything')
+      if (done.outcome === 'smooth' || done.outcome === 'bonus') expect(lines).toContain('without paying her anything')
     })
   })
 })

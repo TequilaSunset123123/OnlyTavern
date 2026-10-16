@@ -1,6 +1,6 @@
 import { Button, Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@fanvue/ui'
 import type { MeetupReport } from '../../api'
-import { count, money } from '../format'
+import { count, freebieText, money } from '../format'
 import { AnimatedNumber } from '../motion/AnimatedNumber'
 import { BLUR, OUTCOME, SPRING, useRevealed } from './shared'
 
@@ -17,7 +17,8 @@ const AFTER: Record<MeetupReport['outcome'], (m: MeetupReport) => string> = {
 
 export function MeetupResultDialog({ meetup: m, onClose }: { meetup: MeetupReport; onClose: () => void }) {
   const shown = useRevealed()
-  const o = OUTCOME[m.outcome]
+  const freebie = freebieText(m.terms, m.outcome, m.paid)
+  const o = freebie ?? OUTCOME[m.outcome]
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="sm" mobilePresentation="card" overlayProps={BLUR}>
@@ -34,7 +35,7 @@ export function MeetupResultDialog({ meetup: m, onClose }: { meetup: MeetupRepor
             format={(n) => money(Math.round(n))}
             springOptions={SPRING}
           />
-          <p className="text-sm text-content-secondary">{AFTER[m.outcome](m)}</p>
+          <p className="text-sm text-content-secondary">{freebie?.line ?? AFTER[m.outcome](m)}</p>
         </DialogBody>
         <DialogFooter>
           <Button variant="brand" onClick={onClose}>

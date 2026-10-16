@@ -27,7 +27,7 @@ import { answerDeal, askedFor } from './deals'
 import { directionEffects } from './directions'
 import { dormantAfterDays } from './haters'
 import { actingType, awayNow, conditionOf, hasCondition, loveHate, withoutCondition } from './conditions'
-import { makePersona, pickLanguage } from './personas'
+import { likeWeights, makePersona, pickDistinct, pickLanguage } from './personas'
 import { intensityMatch, postTags } from './posts'
 import { logNormal, type Rng, rngFor } from './rng'
 import { addLoyalty, fanProfile, loyaltyEffects } from './fans'
@@ -64,17 +64,27 @@ export function tipCents(rng: Rng, r: Regular): number {
 /** His chance to tip: his type's, scaled by his loyalty. */
 const tipChance = (r: Regular) => Math.min(0.9, fanProfile(r).tip.chance * loyaltyEffects(r).tip)
 
+/**
+ * Three tags he likes: any tag about as explicit as his type prefers (weight 1 each), plus
+ * what his personality and behaviours want, whatever its explicitness (likeWeights: a
+ * bossy man leans to domination and BDSM, a submissive one to femdom).
+ */
+function pickLikes(rng: Rng, segment: Segment, who: Pick<Regular, 'personality' | 'behaviours'>): string[] {
+  const pref = preset.segments[segment].preferredIntensity
+  const weights: Record<string, number> = Object.fromEntries(tags.filter((t) => Math.abs(t.intensity - pref) <= 1).map((t) => [t.id, 1]))
+  for (const [tag, w] of Object.entries(likeWeights(who))) weights[tag] = (weights[tag] ?? 0) + w
+  return pickDistinct(rng, weights, 3)
+}
+
 function newRegular(rng: Rng, id: string, segment: Segment, day: number, settings: Settings, attracts: Record<string, number>): Regular {
   const language = pickLanguage(rng, settings.fanLanguage)
-  const pref = preset.segments[segment].preferredIntensity
-  const near = tags.filter((t) => Math.abs(t.intensity - pref) <= 1)
-  const likes = [...new Set([pick(rng, near), pick(rng, near), pick(rng, near)].map((t) => t.id))]
+  const persona = makePersona(rng, segment, language, attracts)
   return {
     id,
     segment,
-    ...makePersona(rng, segment, language, attracts),
+    ...persona,
     language,
-    likes,
+    likes: pickLikes(rng, segment, persona),
     since: day,
     spent: 0,
     status: 'active',
@@ -98,7 +108,7 @@ export function tagAttracts(account: Account, day: number): Record<string, numbe
     const strongest: Record<string, number> = {}
     for (const t of tags) {
       if (!ids.has(t.id) || !('attracts' in t)) continue
-      for (const [id, m] of Object.entries(t.attracts as Record<string, number>)) strongest[id] = Math.max(strongest[id] ?? 1, m)
+      for (const [id, m] of Object.entries(t.attracts as Record<string, number | undefined>)) strongest[id] = Math.max(strongest[id] ?? 1, m ?? 1)
     }
     for (const [id, m] of Object.entries(strongest)) pull.set(id, (pull.get(id) ?? 0) + (m - 1))
   }
