@@ -21,6 +21,8 @@ import { useNavigate } from 'react-router'
 import type { Meetup, Message, Regular } from '../../api'
 import { useDispatch } from '../../hooks/useAccounts'
 import { errorText, money } from '../format'
+import { useCelebration } from './celebration'
+import { Actions, DealCard, Pop, Rise } from './DealMotion'
 
 // An offline meetup (plan.md §4.3, step 5): cash, off the platform. Shown under
 // the fan's invitation in the chat and on the Requests page.
@@ -63,80 +65,95 @@ export function MeetupCard({
   const [error, setError] = useState<string | null>(null)
   const [label, variant] = STATUS[m.status]
   const run = (action: Parameters<typeof dispatch.mutateAsync>[0]) => dispatch.mutateAsync(action).catch((e) => setError(errorText(e)))
+  const celebrate = useCelebration(m.status, m.status === 'accepted' ? 'accepted' : m.status === 'done' ? (m.paidCents ? 'completed' : 'failed') : null)
+  const pop = { accepted: '✓ Accepted', completed: `✓ Completed · ${money(m.paidCents ?? 0)} cash`, failed: '✗ No money' }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <span className="typography-body-small-14px-semibold mr-auto">
-            Meetup
-            {regular && (
-              <>
-                {' with '}
-                <button type="button" className="underline" onClick={() => navigate(`/messages/${regular.id}`)}>
-                  {regular.name}
-                </button>
-              </>
-            )}
-          </span>
-          {m.hidden && m.status !== 'declined' && <Badge>Hidden</Badge>}
-          <Badge variant={variant}>{label}</Badge>
-        </div>
-        {regular && <p className="text-sm text-content-secondary">{message ? `“${message.text}”` : 'Open the chat to read their message.'}</p>}
-        <div className="text-sm">
-          Offers <span className="font-semibold">{money(m.offerCents)}</span> in cash, off the platform (no fee)
-          {m.status === 'open' && <span className="text-content-tertiary"> · answer by day {m.replyBy}</span>}
-        </div>
-        {m.status === 'accepted' && m.meetDay !== undefined && (
-          <div className="text-sm">
-            Meeting on day {m.meetDay} ({inDays(m.meetDay, day)})
-          </div>
-        )}
-        {m.status === 'done' && (
-          <div className="text-sm text-content-secondary">
-            {
+    <DealCard pulse={m.status === 'open'} celebrate={celebrate}>
+      <Card className="w-full">
+        <CardContent className="flex flex-col gap-3">
+          <Rise delay={0.15} className="flex items-center gap-2">
+            <span className="typography-body-small-14px-semibold mr-auto">
+              Meetup
+              {regular && (
+                <>
+                  {' with '}
+                  <button type="button" className="underline" onClick={() => navigate(`/messages/${regular.id}`)}>
+                    {regular.name}
+                  </button>
+                </>
+              )}
+            </span>
+            {m.hidden && m.status !== 'declined' && <Badge>Hidden</Badge>}
+            <Badge variant={variant}>{label}</Badge>
+          </Rise>
+          {regular && (
+            <Rise delay={0.23}>
+              <p className="text-sm text-content-secondary">{message ? `“${message.text}”` : 'Open the chat to read their message.'}</p>
+            </Rise>
+          )}
+          <Rise delay={0.31} className="flex flex-wrap items-center gap-x-2 text-sm">
+            <span>
+              Offers <span className="font-semibold">{money(m.offerCents)}</span> in cash, off the platform (no fee)
+              {m.status === 'open' && <span className="text-content-tertiary"> · answer by day {m.replyBy}</span>}
+            </span>
+            <Pop celebrate={celebrate} label={celebrate ? pop[celebrate] : ''} />
+          </Rise>
+          {m.status === 'accepted' && m.meetDay !== undefined && (
+            <div className="text-sm">
+              Meeting on day {m.meetDay} ({inDays(m.meetDay, day)})
+            </div>
+          )}
+          {m.status === 'done' && (
+            <div className="text-sm text-content-secondary">
               {
-                smooth: `Met on day ${m.meetDay}: ${money(m.paidCents ?? m.offerCents)} cash.`,
-                bonus: `Met on day ${m.meetDay}: he paid extra, ${money(m.paidCents ?? 0)} cash.`,
-                noShow: `Day ${m.meetDay}: he did not show up. No money.`,
-                creep: `Day ${m.meetDay}: he got creepy and you left early with ${money(m.paidCents ?? 0)}. He may fixate on you now.`,
-                wife: `Day ${m.meetDay}: his wife caught you. No money, and the scandal cost you subscribers.${afterScandal(regular, day)}`,
-              }[m.outcome ?? 'smooth']
-            }
-          </div>
-        )}
-        {m.status === 'cancelled' && <div className="text-sm text-content-tertiary">You cancelled.</div>}
-        {m.status === 'expired' && <div className="text-sm text-content-tertiary">You did not answer in time.</div>}
+                {
+                  smooth: `Met on day ${m.meetDay}: ${money(m.paidCents ?? m.offerCents)} cash.`,
+                  bonus: `Met on day ${m.meetDay}: he paid extra, ${money(m.paidCents ?? 0)} cash.`,
+                  noShow: `Day ${m.meetDay}: he did not show up. No money.`,
+                  creep: `Day ${m.meetDay}: he got creepy and you left early with ${money(m.paidCents ?? 0)}. He may fixate on you now.`,
+                  wife: `Day ${m.meetDay}: his wife caught you. No money, and the scandal cost you subscribers.${afterScandal(regular, day)}`,
+                }[m.outcome ?? 'smooth']
+              }
+            </div>
+          )}
+          {m.status === 'cancelled' && <div className="text-sm text-content-tertiary">You cancelled.</div>}
+          {m.status === 'expired' && <div className="text-sm text-content-tertiary">You did not answer in time.</div>}
 
-        {error && <Alert variant="error">{error}</Alert>}
-        {m.status === 'open' && (
-          <div className="flex gap-2">
-            <Button size="32" variant="brand" onClick={() => setAccepting(true)}>
-              Accept
-            </Button>
-            <Button size="32" variant="secondary" disabled={dispatch.isPending} onClick={() => run({ type: 'meetup.decline', id: accountId, meetupId: m.id })}>
-              Decline
-            </Button>
-          </div>
-        )}
-        {m.status === 'accepted' && (
-          <>
-            <SwitchField
-              size="small"
-              label="Keep it from co-creators"
-              helperText={HIDE_HELP}
-              checked={m.hidden}
-              disabled={dispatch.isPending}
-              onCheckedChange={(hidden) => run({ type: 'meetup.hide', id: accountId, meetupId: m.id, hidden })}
-            />
-            <Button size="32" variant="secondary" className="self-start" disabled={dispatch.isPending} onClick={() => run({ type: 'meetup.cancel', id: accountId, meetupId: m.id })}>
-              Cancel meeting
-            </Button>
-          </>
-        )}
-      </CardContent>
-      {m.status === 'open' && <AcceptDialog accountId={accountId} day={day} meetup={m} open={accepting} onOpenChange={setAccepting} />}
-    </Card>
+          {error && <Alert variant="error">{error}</Alert>}
+          <Rise delay={0.39}>
+            <Actions step={m.status}>
+              {m.status === 'open' && (
+                <div className="flex gap-2">
+                  <Button size="32" variant="brand" onClick={() => setAccepting(true)}>
+                    Accept
+                  </Button>
+                  <Button size="32" variant="secondary" disabled={dispatch.isPending} onClick={() => run({ type: 'meetup.decline', id: accountId, meetupId: m.id })}>
+                    Decline
+                  </Button>
+                </div>
+              )}
+              {m.status === 'accepted' && (
+                <div className="flex flex-col gap-3">
+                  <SwitchField
+                    size="small"
+                    label="Keep it from co-creators"
+                    helperText={HIDE_HELP}
+                    checked={m.hidden}
+                    disabled={dispatch.isPending}
+                    onCheckedChange={(hidden) => run({ type: 'meetup.hide', id: accountId, meetupId: m.id, hidden })}
+                  />
+                  <Button size="32" variant="secondary" className="self-start" disabled={dispatch.isPending} onClick={() => run({ type: 'meetup.cancel', id: accountId, meetupId: m.id })}>
+                    Cancel meeting
+                  </Button>
+                </div>
+              )}
+            </Actions>
+          </Rise>
+        </CardContent>
+        {m.status === 'open' && <AcceptDialog accountId={accountId} day={day} meetup={m} open={accepting} onOpenChange={setAccepting} />}
+      </Card>
+    </DealCard>
   )
 }
 

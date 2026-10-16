@@ -1053,7 +1053,9 @@
     },
     "events": {
      "creep": 1.5
-    }
+    },
+    "meetupFactor": 1.8,
+    "meetupMinLoyalty": 1
    }
   },
   "pet_names": {
@@ -1684,6 +1686,13 @@
    1.5,
    2,
    3
+  ],
+  "meetup": [
+   0.6,
+   1,
+   1.5,
+   2.5,
+   4
   ],
   "buysAnythingAt": 5,
   "gain": {

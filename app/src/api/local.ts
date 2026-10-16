@@ -422,6 +422,13 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
           }
         })
     },
+    async getDeliveryCheck(id, requestId, vaultIds) {
+      const account = await mustLoad(id)
+      const q = account.requests.find((x) => x.id === requestId)
+      if (!q) throw new SaveError('Request not found')
+      const { checkDelivery } = await requests()
+      return checkDelivery(account, q, vaultIds.filter((v) => account.vault.some((i) => i.id === v)))
+    },
     async getLapsing(id, days) {
       const { lapsing } = await timeline()
       return lapsing(await mustLoad(id), days)

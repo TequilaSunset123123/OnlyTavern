@@ -38,10 +38,10 @@ export function loyaltyLevel(r: Regular): number {
   return Math.min(personas.segments[r.segment].fan.loyaltyCap, L.points.filter((p) => r.loyalty >= p).length)
 }
 
-/** How his loyalty scales what he does: buying, tipping, customs and meetups. */
+/** How his loyalty scales what he does: buying, tipping, customs (deal) and meetups. */
 export function loyaltyEffects(r: Regular) {
   const level = loyaltyLevel(r)
-  return { level, buy: L.buy[level - 1], tip: L.tip[level - 1], deal: L.deal[level - 1], buysAnything: level >= L.buysAnythingAt }
+  return { level, buy: L.buy[level - 1], tip: L.tip[level - 1], deal: L.deal[level - 1], meetup: L.meetup[level - 1], buysAnything: level >= L.buysAnythingAt }
 }
 
 export type LoyaltyInfo = { points: number; level: number; cap: number; name: string; from: number; next: number | null }

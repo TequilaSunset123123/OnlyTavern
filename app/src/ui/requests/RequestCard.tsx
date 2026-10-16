@@ -17,11 +17,13 @@ import {
 } from '@fanvue/ui'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import type { Message, Regular, Request, VaultItem } from '../../api'
+import type { Message, Regular, Request, Tag, VaultItem } from '../../api'
 import { useDispatch } from '../../hooks/useAccounts'
-import { useTags, useVault } from '../../hooks/useContent'
+import { useDeliveryCheck, useTags, useVault } from '../../hooks/useContent'
 import { errorText, money } from '../format'
 import { MediaTile } from '../MediaTile'
+import { useCelebration } from './celebration'
+import { Actions, DealCard, Pop, Rise } from './DealMotion'
 import { NOT_PAID } from './labels'
 
 // A custom request (plan.md §4.3, step 5), shown under the fan's message in the
@@ -66,89 +68,139 @@ export function RequestCard({
   const [label, variant] = status(q)
   const act = (type: 'request.accept' | 'request.decline') =>
     dispatch.mutateAsync({ type, id: accountId, requestId: q.id }).catch((e) => setError(errorText(e)))
+  const celebrate = useCelebration(
+    `${q.status}:${q.delivery?.paid ?? ''}`,
+    q.status === 'accepted' ? 'accepted' : q.status === 'delivered' ? (q.delivery?.paid ? 'completed' : 'failed') : null,
+  )
+  const pop = { accepted: '✓ Accepted', completed: `✓ Completed · ${money(q.offerCents)} earned`, failed: '✗ Not paid' }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <span className="typography-body-small-14px-semibold mr-auto">
-            Custom request
-            {regular && (
-              <>
-                {' from '}
-                <button type="button" className="underline" onClick={() => navigate(`/messages/${regular.id}`)}>
-                  {regular.name}
-                </button>
-              </>
-            )}
-          </span>
-          <Badge variant={variant}>{label}</Badge>
-        </div>
-        {regular && <p className="text-sm text-content-secondary">{message ? `“${message.text}”` : 'Open the chat to read their message.'}</p>}
-        <div className="flex flex-wrap items-center gap-1">
-          {q.tags.map((id) => (
-            <Badge key={id} variant="brandLight">
-              {tags.find((t) => t.id === id)?.en ?? id}
-            </Badge>
-          ))}
-          <Badge leftIcon={<FlameIcon size={16} />}>{q.intensity}</Badge>
-        </div>
-        <div className="text-sm">
-          Offers <span className="font-semibold">{money(q.offerCents)}</span>, paid on delivery
-          {(q.status === 'open' || q.status === 'accepted') && <span className="text-content-tertiary"> · day {q.dueDay}, {left(q.dueDay, day)}</span>}
-        </div>
+    <DealCard pulse={q.status === 'open'} celebrate={celebrate}>
+      <Card className="w-full">
+        <CardContent className="flex flex-col gap-3">
+          <Rise delay={0.15} className="flex items-center gap-2">
+            <span className="typography-body-small-14px-semibold mr-auto">
+              Custom request
+              {regular && (
+                <>
+                  {' from '}
+                  <button type="button" className="underline" onClick={() => navigate(`/messages/${regular.id}`)}>
+                    {regular.name}
+                  </button>
+                </>
+              )}
+            </span>
+            <Badge variant={variant}>{label}</Badge>
+          </Rise>
+          {regular && (
+            <Rise delay={0.23}>
+              <p className="text-sm text-content-secondary">{message ? `“${message.text}”` : 'Open the chat to read their message.'}</p>
+            </Rise>
+          )}
+          <Rise delay={0.23} className="flex flex-wrap items-center gap-1">
+            {q.tags.map((id) => (
+              <Badge key={id} variant="brandLight">
+                {tags.find((t) => t.id === id)?.en ?? id}
+              </Badge>
+            ))}
+            <Badge leftIcon={<FlameIcon size={16} />}>{q.intensity}</Badge>
+          </Rise>
+          <Rise delay={0.31} className="flex flex-wrap items-center gap-x-2 text-sm">
+            <span>
+              Offers <span className="font-semibold">{money(q.offerCents)}</span>, paid on delivery
+              {(q.status === 'open' || q.status === 'accepted') && <span className="text-content-tertiary"> · day {q.dueDay}, {left(q.dueDay, day)}</span>}
+            </span>
+            <Pop celebrate={celebrate} label={celebrate ? pop[celebrate] : ''} />
+          </Rise>
 
-        {q.status === 'delivered' && q.delivery && (
-          <>
-            {/* In the chat the delivery itself shows the items. */}
-            {regular && (
-              <div className="flex flex-wrap gap-1">
-                {items.map((item, i) => (
-                  <div key={item?.id ?? i} className="w-20">
-                    <MediaTile item={item} />
-                  </div>
-                ))}
+          {q.status === 'delivered' && q.delivery && (
+            <>
+              {/* In the chat the delivery itself shows the items. */}
+              {regular && (
+                <div className="flex flex-wrap gap-1">
+                  {items.map((item, i) => (
+                    <div key={item?.id ?? i} className="w-20">
+                      <MediaTile item={item} />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="text-sm text-content-secondary">
+                {q.delivery.paid
+                  ? `Delivered on day ${q.delivery.day}: they paid ${money(q.offerCents)}${q.delivery.tipCents ? ` and tipped ${money(q.delivery.tipCents)}` : ''}.`
+                  : `Delivered on day ${q.delivery.day}: not paid, ${NOT_PAID[q.delivery.reason]}.`}
               </div>
-            )}
-            <div className="text-sm text-content-secondary">
-              {q.delivery.paid
-                ? `Delivered on day ${q.delivery.day}: they paid ${money(q.offerCents)}${q.delivery.tipCents ? ` and tipped ${money(q.delivery.tipCents)}` : ''}.`
-                : `Delivered on day ${q.delivery.day}: not paid, ${NOT_PAID[q.delivery.reason]}.`}
-            </div>
-          </>
-        )}
-        {q.status === 'expired' && (
-          <div className="text-sm text-content-tertiary">{q.acceptedDay !== undefined ? 'You accepted but did not deliver in time.' : 'You did not answer in time.'}</div>
-        )}
+            </>
+          )}
+          {q.status === 'expired' && (
+            <div className="text-sm text-content-tertiary">{q.acceptedDay !== undefined ? 'You accepted but did not deliver in time.' : 'You did not answer in time.'}</div>
+          )}
 
-        {error && <Alert variant="error">{error}</Alert>}
-        {q.status === 'open' && (
-          <div className="flex gap-2">
-            <Button size="32" variant="brand" loading={dispatch.isPending} onClick={() => act('request.accept')}>
-              Accept
-            </Button>
-            <Button size="32" variant="secondary" disabled={dispatch.isPending} onClick={() => act('request.decline')}>
-              Decline
-            </Button>
-          </div>
-        )}
-        {q.status === 'accepted' && (
-          <div className="flex gap-2">
-            <Button size="32" variant="brand" onClick={() => setDelivering(true)}>
-              Deliver
-            </Button>
-            <Button size="32" variant="secondary" disabled={dispatch.isPending} onClick={() => act('request.decline')}>
-              Back out
-            </Button>
-          </div>
-        )}
-      </CardContent>
-      {q.status === 'accepted' && <DeliverDialog accountId={accountId} request={q} open={delivering} onOpenChange={setDelivering} />}
-    </Card>
+          {error && <Alert variant="error">{error}</Alert>}
+          <Rise delay={0.39}>
+            <Actions step={q.status}>
+              {q.status === 'open' && (
+                <div className="flex gap-2">
+                  <Button size="32" variant="brand" loading={dispatch.isPending} onClick={() => act('request.accept')}>
+                    Accept
+                  </Button>
+                  <Button size="32" variant="secondary" disabled={dispatch.isPending} onClick={() => act('request.decline')}>
+                    Decline
+                  </Button>
+                </div>
+              )}
+              {q.status === 'accepted' && (
+                <div className="flex gap-2">
+                  <Button size="32" variant="brand" onClick={() => setDelivering(true)}>
+                    Deliver
+                  </Button>
+                  <Button size="32" variant="secondary" disabled={dispatch.isPending} onClick={() => act('request.decline')}>
+                    Back out
+                  </Button>
+                </div>
+              )}
+            </Actions>
+          </Rise>
+        </CardContent>
+        {q.status === 'accepted' && <DeliverDialog accountId={accountId} request={q} open={delivering} onOpenChange={setDelivering} />}
+      </Card>
+    </DealCard>
   )
 }
 
-/** Pick what to send. Shows what was asked for next to what you picked; the fan judges on sending. */
+const tagName = (tags: Tag[], id: string) => tags.find((t) => t.id === id)?.en ?? id
+
+/** Before you send: will he pay? The same fixed rule the engine applies on delivery (requests.ts). */
+function Verdict({ accountId, request: q, picked, chosen }: { accountId: string; request: Request; picked: string[]; chosen: VaultItem[] }) {
+  const { data: tags = [] } = useTags()
+  const { data: check } = useDeliveryCheck(accountId, q.id, picked)
+  if (!picked.length || !check) return null
+  if (check.paid) {
+    return (
+      <Alert variant="success">
+        He will pay {money(q.offerCents)}.{check.score >= 0.9 ? ' A perfect match: he may tip on top.' : check.level !== q.intensity ? ` Close enough on explicitness (${check.level} for ${q.intensity}).` : ''}
+      </Alert>
+    )
+  }
+  const has = [...new Set(chosen.flatMap((v) => v.tags))]
+  const problems = [
+    check.missing.length > 0 &&
+      `Missing ${check.missing.map((id) => tagName(tags, id)).join(' + ')}${has.length ? `: what you picked is tagged ${has.map((id) => tagName(tags, id)).join(', ')}` : ': what you picked has no tags'}.`,
+    check.intensity < 0.8 && `Explicitness ${check.level}; he asked for ${q.intensity}.`,
+    check.reused.length > 0 && `He has seen ${check.reused.map((id) => `“${chosen.find((v) => v.id === id)?.description ?? 'it'}”`).join(', ')} before (posted, mass-messaged or sent to him).`,
+  ].filter(Boolean)
+  return (
+    <Alert variant="warning" title="He will not pay for this">
+      <ul className="list-disc pl-4 text-sm">
+        {problems.map((p) => (
+          <li key={p as string}>{p}</li>
+        ))}
+      </ul>
+    </Alert>
+  )
+}
+
+/** Pick what to send. Shows what was asked for next to what you picked, and whether he will pay. */
 function DeliverDialog({ accountId, request: q, open, onOpenChange }: { accountId: string; request: Request; open: boolean; onOpenChange: (open: boolean) => void }) {
   const navigate = useNavigate()
   const dispatch = useDispatch()
@@ -204,6 +256,7 @@ function DeliverDialog({ accountId, request: q, open, onOpenChange }: { accountI
               ))}
             </div>
           )}
+          <Verdict accountId={accountId} request={q} picked={picked} chosen={chosen} />
           <TextArea label="Message (optional)" value={text} onChange={(e) => setText(e.target.value)} rows={2} />
           {error && <Alert variant="error">{error}</Alert>}
         </DialogBody>

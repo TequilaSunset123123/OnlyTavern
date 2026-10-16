@@ -31,6 +31,7 @@ export type {
 export type { Comment } from '../engine/comments'
 export type { PostInput, VaultInput } from '../engine/content'
 export type { DmInput } from '../engine/regulars'
+export type { DeliveryCheck } from '../engine/requests'
 export type { MassInput } from '../engine/massMessages'
 export type { DirectionInfo } from '../engine/directions'
 export type { LoyaltyInfo, MeetupOutcome } from '../engine/fans'
@@ -42,6 +43,7 @@ import type { LoyaltyInfo } from '../engine/fans'
 import type { Lapse, PeriodReport } from '../engine/report'
 import type { MassInput } from '../engine/massMessages'
 import type { DmInput } from '../engine/regulars'
+import type { DeliveryCheck } from '../engine/requests'
 import type {
   Account,
   AccountIndex,
@@ -240,6 +242,8 @@ export interface Api {
   getIncidents(id: string): Promise<IncidentView[]>
   /** What would lapse if you skipped `days` days ahead now. */
   getLapsing(id: string, days: number): Promise<Lapse[]>
+  /** Would he pay if you delivered these items for his custom? A fixed rule, so it can be shown before you send. */
+  getDeliveryCheck(id: string, requestId: string, vaultIds: string[]): Promise<DeliveryCheck>
   /** The directions you can pick, for a new account. */
   getDirectionOptions(): Promise<{ id: DirectionId; label: string; blurb: string }[]>
   dispatch(action: Action): Promise<DispatchResult>

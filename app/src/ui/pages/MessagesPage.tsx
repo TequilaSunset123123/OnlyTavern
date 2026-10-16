@@ -32,6 +32,7 @@ import { useFanWriter, useInbox, useThread } from '../../hooks/useMessages'
 import { errorText, money } from '../format'
 import { BulkPane } from '../messages/BulkPane'
 import { MediaTile } from '../MediaTile'
+import { SoftRise } from '../motion/SoftRise'
 import { MeetupCard } from '../requests/MeetupCard'
 import { NOT_PAID } from '../requests/labels'
 import { RequestCard } from '../requests/RequestCard'
@@ -213,11 +214,7 @@ function Conversation({ accountId, regularId, onBack }: { accountId: string; reg
           </DialogContent>
         </Dialog>
         <div className="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto p-4">
-          <div className="flex flex-col gap-3">
-            {view.messages.map((m) => (
-              <MessageBubble key={m.id} accountId={accountId} view={view} message={m} writer={writer} />
-            ))}
-          </div>
+          <MessageList accountId={accountId} view={view} writer={writer} />
         </div>
         {view.away ? (
           <div className="border-t border-border-primary p-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)]">
@@ -228,6 +225,30 @@ function Conversation({ accountId, regularId, onBack }: { accountId: string; reg
         )}
       </div>
       <FanPanel view={view} />
+    </div>
+  )
+}
+
+/** How many of the latest bubbles come in one after another when you open a chat (older ones are off screen). */
+const STAGGERED = 12
+const STAGGER_S = 0.045
+
+/**
+ * Every bubble (with its avatar) soft-rises in. When you open the chat the latest ones
+ * come in one after another, top to bottom; later ones rise as they arrive, including a
+ * fan reply replacing its "typing" dots.
+ */
+function MessageList({ accountId, view, writer }: { accountId: string; view: ThreadView; writer: ReturnType<typeof useFanWriter> }) {
+  const key = (m: Message) => `${m.id}:${m.state}`
+  const [opened] = useState(() => new Set(view.messages.map(key)))
+  const first = view.messages.length - STAGGERED
+  return (
+    <div className="flex flex-col gap-3">
+      {view.messages.map((m, i) => (
+        <SoftRise key={key(m)} delay={opened.has(key(m)) ? Math.max(0, i - first) * STAGGER_S : 0}>
+          <MessageBubble accountId={accountId} view={view} message={m} writer={writer} />
+        </SoftRise>
+      ))}
     </div>
   )
 }

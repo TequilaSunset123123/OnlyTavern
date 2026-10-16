@@ -9,7 +9,7 @@ import { addVaultItem, publishPost } from './content'
 import { balances } from './economy'
 import { acceptMeetup, cancelMeetup, declineMeetup, hideMeetup } from './meetups'
 import { fallbackText, sendDm } from './regulars'
-import { acceptRequest, deliverRequest } from './requests'
+import { acceptRequest, checkDelivery, deliverRequest } from './requests'
 import { simulate } from './simulate'
 
 const SETTINGS = { fanLanguage: 'en' as const, connectionProfile: null }
@@ -99,6 +99,34 @@ describe('custom requests', () => {
     expect(late.requests.find((x) => x.id === q.id)).toMatchObject({ status: 'expired', acceptedDay: a.clock.day })
     const said = late.threads.find((t) => t.regularId === q.regularId)!.messages.some((m) => m.intent?.deal?.step === 'late')
     expect(said).toBe(true)
+  })
+
+  it('a custom tagged wrong is not paid, and the fan is told exactly what was wrong (Mira, 2026-10-15)', () => {
+    const { a, q: asked } = withRequest()
+    // He wants Girl/Girl at 4; the item is described as yuri but tagged Boy/Girl.
+    const q = { ...asked, tags: ['girl_girl'], intensity: 4, status: 'accepted' as const }
+    let acc = addVaultItem({ ...a, requests: a.requests.map((x) => (x.id === q.id ? q : x)) }, 'y2', { description: 'yuri 2', tags: ['boy_girl'], intensity: 4, cast: 'me' })
+    expect(checkDelivery(acc, q, ['y2'])).toMatchObject({ paid: false, reason: 'tags', missing: ['girl_girl'], level: 4 })
+    acc = deliverRequest(acc, q.id, ['y2'], 'for you', 's').account
+    const t = acc.threads.find((x) => x.regularId === q.regularId)!
+    const reply = t.messages.at(-1)!
+    const view = {
+      day: acc.clock.day,
+      regular: acc.regulars.find((r) => r.id === q.regularId)!,
+      messages: t.messages,
+      read: 0,
+      items: { y2: acc.vault.find((v) => v.id === 'y2')! },
+      creator: { name: 'Mia', handle: 'mia', accountType: 'free' as const, priceCents: 0, subscribers: 100, direction: 'an anime e-girl' },
+      loyalty: { points: 0, level: 1, cap: 5, name: 'Curious', from: 0, next: 5 },
+      away: null,
+      incidents: [],
+      traits: [],
+      requests: acc.requests,
+      meetups: [],
+    }
+    const [, user] = buildFanPrompt(view, reply.id)
+    expect(user.content).toContain('but it is Boy/Girl, not the Girl/Girl you asked for; you are not paying.')
+    expect(user.content).not.toMatch(/explicit(ness)? \d of 5, (tamer|further)/)
   })
 
   it('the prompt and the fallback line carry what was asked and offered', () => {

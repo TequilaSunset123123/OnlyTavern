@@ -47,6 +47,7 @@ const loyalEnough = (r: Regular, kind: DealKind) => loyaltyLevel(r) >= fanProfil
 /**
  * The chance: per day that he brings it up himself, or that he says yes when you do.
  * His type's rate × his loyalty × your direction (× his traits for meetups; × 0.5 after a custom that went badly).
+ * Loyalty counts more for meetups (×2.5 at Devoted, ×4 at Fanatic) than for customs.
  */
 export function dealChance(account: Account, r: Regular, kind: DealKind, youAsked: boolean): number {
   const f = fanProfile(r)
@@ -58,7 +59,7 @@ export function dealChance(account: Account, r: Regular, kind: DealKind, youAske
     return Math.min(0.95, base * loyal * fx.requests.rate * (last && wentBadly(last) ? Q.upsetFactor : 1))
   }
   const base = youAsked ? f.meetup.accept : f.meetup.daily
-  return Math.min(0.95, base * loyal * fx.meetups.rate * f.meetup.factor)
+  return Math.min(0.95, base * loyaltyEffects(r).meetup * fx.meetups.rate * f.meetup.factor)
 }
 
 /** Opens a deal on his message `messageId`: what he wants and offers, decided now. */
@@ -93,12 +94,15 @@ function open(rng: Rng, account: Account, r: Regular, kind: DealKind, day: numbe
   }
 }
 
-/** Once a day: loyal enough fans may bring up a custom or a meetup on their own (at most one a day each). */
+/**
+ * Once a day: loyal enough fans may bring up a meetup or a custom on their own (at most one
+ * a day each). Meetups are rolled first: fans who order customs often used to crowd them out.
+ */
 export function simulateDealsDay(account: Account, seed: string, day: number): { account: Account; events: EngineEvent[] } {
   let a = account
   const events: EngineEvent[] = []
   for (const r of a.regulars) {
-    for (const kind of ['custom', 'meetup'] as const) {
+    for (const kind of ['meetup', 'custom'] as const) {
       if (!eligible(a, r, kind, day, false) || !loyalEnough(r, kind)) continue
       const rng = rngFor(seed, day, `deals:${kind}:${r.id}`)
       if (rng() >= dealChance(a, r, kind, false)) continue

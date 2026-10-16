@@ -24,13 +24,6 @@ const TOPICS = {
   obsess: 'cannot stop thinking about her and want her attention',
 }
 const NOT_BOUGHT = { liked: '', price: 'too expensive for you', taste: 'not your taste', mood: 'not in the mood right now' }
-const NOT_PAID = {
-  liked: '',
-  tags: 'it is not what you asked for',
-  tame: 'it is tamer than what you asked for',
-  explicit: 'it goes further than you wanted',
-  reused: 'you have seen it before, so it was not made for you',
-}
 
 const money = (cents: number) => `$${(cents / 100).toFixed(2)}`
 const tagLabel = (id: string) => tags.find((t) => t.id === id)?.en ?? id
@@ -40,6 +33,27 @@ function describeItems(view: ThreadView, m: Message): string {
   if (m.delivery) return ` [your custom: ${describe(view, m.delivery.vaultIds)}]`
   if (!m.ppv) return ''
   return ` [paid message, ${money(m.ppv.priceCents)}: ${describe(view, m.ppv.vaultIds)}]`
+}
+
+/** Exactly what was wrong with a custom he did not pay for (requests.ts decided it), so the model does not guess. */
+function notPaid(view: ThreadView, q: ThreadView['requests'][number]): string {
+  const items = (q.delivery?.vaultIds ?? []).map((id) => view.items[id]).filter((x) => !!x)
+  const has = [...new Set(items.flatMap((i) => i.tags))]
+  const missing = q.tags.filter((t) => !has.includes(t))
+  const level = Math.max(1, ...items.map((i) => i.intensity))
+  switch (q.delivery?.reason) {
+    case 'reused':
+      return 'you have seen it before (on her page or in your messages), so it was not made for you'
+    case 'tame':
+      return `it is only explicitness ${level} of 5, tamer than the ${q.intensity} you asked for`
+    case 'explicit':
+      return `it is explicitness ${level} of 5, further than the ${q.intensity} you wanted`
+    default: {
+      const wanted = missing.map(tagLabel).join(' + ') || 'what'
+      const got = has.filter((t) => !q.tags.includes(t)).map(tagLabel).join(' + ')
+      return got ? `it is ${got}, not the ${wanted} you asked for` : `it has no ${wanted}, which you asked for`
+    }
+  }
 }
 
 /** The one line for a deal the engine decided (deals.ts, requests.ts, meetups.ts). */
@@ -69,7 +83,7 @@ function dealLine(view: ThreadView, d: NonNullable<Intent['deal']>): string {
   const got = describe(view, q.delivery?.vaultIds ?? [])
   return q.delivery?.paid
     ? `She delivered your custom [${got}]; it is what you wanted and you paid ${money(q.offerCents)}. React to it.`
-    : `She delivered [${got}] for your custom, but ${NOT_PAID[q.delivery?.reason ?? 'tags']}; you are not paying.`
+    : `She delivered [${got}] for your custom, but ${notPaid(view, q)}; you are not paying.`
 }
 
 /** How a stalker incident you two had turned out (engine/incidents.ts); turning on her is a plain "harass" message. */

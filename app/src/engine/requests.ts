@@ -67,6 +67,10 @@ export type DeliveryCheck = {
   score: number
   paid: boolean
   reason: DeliveryReason
+  /** Wanted tags none of the items has. */
+  missing: string[]
+  /** Explicitness of what you picked (its most explicit item). */
+  level: number
 }
 
 /** Would the fan accept this as their custom? score = tags × explicitness; reused content never passes. */
@@ -79,7 +83,8 @@ export function checkDelivery(account: Account, request: Request, vaultIds: stri
   const score = covered * match
   const paid = reused.length === 0 && score >= Q.passScore
   const reason: DeliveryReason = paid ? 'liked' : reused.length ? 'reused' : covered <= match ? 'tags' : level < request.intensity ? 'tame' : 'explicit'
-  return { tags: covered, intensity: match, reused, score, paid, reason }
+  const missing = request.tags.filter((t) => !items.some((i) => i.tags.includes(t)))
+  return { tags: covered, intensity: match, reused, score, paid, reason, missing, level }
 }
 
 /**
