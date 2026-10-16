@@ -42,6 +42,10 @@ export function fanProfile(r: Regular) {
       asked: torn ? own.meetup.asked : f.meetup.asked,
       factor: b.meetupFactor,
       minLoyalty: Math.min(f.meetup.minLoyalty, b.meetupMinLoyalty),
+      // An entitled fan asks for his freebies far more than his type would (conditions.entitled);
+      // once he turns hostile he stops asking.
+      daily: hasCondition(r, 'hostile') ? f.meetup.daily : Math.max(f.meetup.daily, b.meetupDaily),
+      cooldownDays: Number.isFinite(b.meetupCooldownDays) ? b.meetupCooldownDays : null,
     },
     /** Chances of what happens when you meet: his type's, times his behaviours'; "wife" only for married men. */
     events: Object.fromEntries(
@@ -81,10 +85,10 @@ export function loyaltyInfo(r: Regular): LoyaltyInfo {
   return { points: r.loyalty, level, cap, name: L.names[level - 1], from: L.points[level - 1], next: level < cap ? L.points[level] : null }
 }
 
-/** Something you two did together; notes when he reaches a new level. */
+/** Something you two did together; notes when he reaches a new level. An entitled fan takes it all for granted: no loyalty. */
 export function addLoyalty(account: Account, regularId: string, gain: LoyaltyGain): Account {
   const r = account.regulars.find((x) => x.id === regularId)
-  if (!r) return account
+  if (!r || hasCondition(r, 'entitled')) return account
   const after = { ...r, loyalty: r.loyalty + L.gain[gain] }
   const up = loyaltyLevel(after) > loyaltyLevel(r)
   const event: EngineEvent[] = up ? [{ day: account.clock.day, type: 'loyalty-up', regularId, level: loyaltyLevel(after) }] : []

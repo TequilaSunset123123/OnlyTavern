@@ -95,6 +95,10 @@ type Modifiers = {
   meetupFactor?: number
   /** Asks to meet from this loyalty level on (lower than his type's). */
   meetupMinLoyalty?: number
+  /** Asks to meet himself at least this often a day, whatever his type's rate (an entitled fan wants his freebies). */
+  meetupDaily?: number
+  /** Asks again this many days after the last meetup (instead of meetups.cooldownDays). */
+  meetupCooldownDays?: number
   /** Multiplies the chances of what happens at a meetup (presets/personas.json fan.meetup.events). */
   events?: Record<string, number>
   turnsHater?: { afterDays: number; daily: number }
@@ -167,6 +171,8 @@ export function modifiers(r: Pick<Regular, 'behaviours' | 'conditions'>) {
     ignoredFactor: Math.max(0, ...own.map((x) => x.ignoredFactor ?? 0)),
     meetupFactor: Math.max(1, ...own.map((x) => x.meetupFactor ?? 1)),
     meetupMinLoyalty: Math.min(5, ...own.map((x) => x.meetupMinLoyalty ?? 5)),
+    meetupDaily: Math.max(0, ...own.map((x) => x.meetupDaily ?? 0)),
+    meetupCooldownDays: Math.min(...own.map((x) => x.meetupCooldownDays ?? Infinity)),
     /** Product of all their meetup event factors. */
     events: own.reduce<Record<string, number>>((acc, x) => {
       for (const [k, v] of Object.entries(x.events ?? {})) acc[k] = (acc[k] ?? 1) * v

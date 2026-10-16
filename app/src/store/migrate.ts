@@ -154,6 +154,20 @@ export const MIGRATIONS: Record<number, Migration> = {
     }
     return { ...doc, regulars: (doc.regulars as Old[]).map(upgradeOne) }
   },
+  // v12 -> v13 (2026-10-16): an entitled fan is a freeloader now (he keeps Entitled), and
+  // the notice remembers what he was.
+  12: (doc) => {
+    type Old = { id: string; segment: string; conditions: { id: string }[] } & Record<string, unknown>
+    type Ev = { type: string; regularId?: string } & Record<string, unknown>
+    const was: Record<string, string> = {}
+    const regulars = (doc.regulars as Old[]).map((r) => {
+      if (!r.conditions.some((c) => c.id === 'entitled')) return r
+      was[r.id] = r.segment
+      return { ...r, segment: 'freeloader' }
+    })
+    const events = (doc.events as Ev[]).map((e) => (e.type === 'regular-entitled' ? { ...e, from: was[e.regularId ?? ''] ?? 'regular' } : e))
+    return { ...doc, regulars, events }
+  },
   // v11 -> v12 (2026-10-16): two new directions, Sub and Dominatrix, with no points yet.
   11: (doc) => {
     const direction = doc.direction as { points: Record<string, number> }

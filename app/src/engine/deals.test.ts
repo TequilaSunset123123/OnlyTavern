@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { buildFanPrompt } from '../llm/fanMessage'
 import { createAccount } from '../store/account'
 import { migrate } from '../store/migrate'
-import type { Account, Regular } from '../store/schema'
+import type { Account, EngineEvent, Regular } from '../store/schema'
 import personas from '../presets/personas.json'
-import { askedFor, dealChance } from './deals'
-import { acceptMeetup, simulateMeetupsDay } from './meetups'
-import { sendDm } from './regulars'
+import { askedFor, dealChance, simulateDealsDay } from './deals'
+import { acceptMeetup, declineMeetup, simulateMeetupsDay } from './meetups'
+import { ghostRule } from './haters'
+import { freebieRumour, sendDm } from './regulars'
 import { simulate } from './simulate'
 import { threadOf } from './threads'
 
@@ -200,6 +201,76 @@ describe('deals: one way in, decided by the engine', () => {
         const paid = terms(patch)
         expect(paid.every((m) => !m.terms && m.offerCents >= 10000)).toBe(true)
       }
+    })
+
+    it('three freebies make him an entitled freeloader: no more loyalty, always free, one no and he turns (2026-10-16)', () => {
+      const { a, r } = fan('a', { segment: 'regular', loyalty: 10, relationship: 'single' })
+      let acc: Account = a
+      const events: EngineEvent[] = []
+      const meet = (n: number) => {
+        const m = { id: `mf${n}`, regularId: r.id, day: acc.clock.day, offerCents: 500, replyBy: acc.clock.day + 5, status: 'open' as const, hidden: false, messageId: 'x', askedBy: 'you' as const, terms: 'lowball' as const }
+        acc = acceptMeetup({ ...acc, meetups: [...acc.meetups, m] }, m.id, acc.clock.day + 1, false)
+        const day = simulateMeetupsDay(acc, `e${n}`, acc.clock.day + 1)
+        events.push(...day.events)
+        acc = { ...day.account, clock: { day: acc.clock.day + 1 } }
+        return acc.meetups.find((x) => x.id === m.id)!
+      }
+      const me = () => acc.regulars.find((x) => x.id === r.id)!
+      let showed = 0
+      for (let n = 0; showed < 3 && n < 20; n++) if (meet(n).outcome !== 'noShow') showed++
+      expect(me().conditions.map((c) => c.id)).toContain('entitled')
+      expect(me().segment).toBe('freeloader')
+      expect(events.some((e) => e.type === 'regular-entitled' && e.regularId === r.id && e.from === 'regular')).toBe(true)
+      // Ignored, he turns within days (a born freeloader waits 10).
+      expect(ghostRule(me())).toEqual({ afterDays: 4, daily: 0.25 })
+      // He keeps asking for free meetups: a born freeloader never asks at all.
+      expect(dealChance(acc, me(), 'meetup', false)).toBeCloseTo(0.4 * 0.6)
+      expect(dealChance(acc, { ...me(), conditions: [] }, 'meetup', false)).toBe(0)
+      let asks = 0
+      let free = acc
+      for (let d = 1; d <= 30; d++) {
+        const day = simulateDealsDay(free, `ask${d}`, free.clock.day + 1)
+        free = { ...day.account, clock: { day: free.clock.day + 1 } }
+        const open = free.meetups.find((x) => x.regularId === r.id && x.status === 'open')
+        if (open) {
+          asks++
+          expect(open).toMatchObject({ offerCents: 0, terms: 'free' })
+          free = { ...free, meetups: free.meetups.map((x) => (x.id === open.id ? { ...x, status: 'expired' as const, closedDay: free.clock.day } : x)) }
+        }
+      }
+      expect(asks).toBeGreaterThan(3)
+      // His loyalty is frozen.
+      const loyalty = me().loyalty
+      acc = sendDm(acc, r.id, { text: 'hey you' }, 'e').account
+      expect(me().loyalty).toBe(loyalty)
+      // He expects it free now, whoever asks.
+      const asked = sendDm(acc, r.id, { text: 'want to meet up again?' }, 'e2').account
+      const m = asked.meetups.find((x) => x.regularId === r.id && x.status === 'open')
+      if (m) {
+        expect(m).toMatchObject({ offerCents: 0, terms: 'free' })
+        // Say no once: he turns on you.
+        const after = declineMeetup(asked, m.id)
+        expect(after.regulars.find((x) => x.id === r.id)!.conditions.map((c) => c.id)).toContain('hostile')
+      }
+    })
+
+    it('a hater nearly always says yes to meet, and it is a hate-fuck (2026-10-16)', () => {
+      const { a, r } = fan('a', { segment: 'hater', loyalty: 0 })
+      expect(dealChance(a, r, 'meetup', true)).toBe(0.9)
+      const ms = seeds.map((s) => ask(s, { segment: 'hater', loyalty: 0 }).meetup).filter((m) => !!m)
+      expect(ms.length).toBeGreaterThan(30)
+      expect(ms.every((m) => m.hate)).toBe(true)
+      // Plain fans are not.
+      expect(seeds.slice(0, 10).map((s) => ask(s, { segment: 'simp', loyalty: 0 }).meetup).every((m) => !m?.hate)).toBe(true)
+    })
+
+    it('word of freebies gets around and brings freeloaders (2026-10-16)', () => {
+      const { a } = fan('a', {})
+      const free = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `w${i}`, regularId: 'x', day: a.clock.day - 5, offerCents: 0, replyBy: 0, status: 'done' as const, hidden: false, messageId: 'x', terms: 'free' as const, outcome: 'smooth' as const, closedDay: a.clock.day - 2 }))
+      expect(freebieRumour({ ...a, meetups: [] }, a.clock.day)).toBe(0)
+      expect(freebieRumour({ ...a, meetups: free(3) }, a.clock.day)).toBeCloseTo(0.12)
+      expect(freebieRumour({ ...a, meetups: free(20) }, a.clock.day)).toBe(0.3)
+      expect(freebieRumour({ ...a, meetups: free(3) }, a.clock.day + 40)).toBe(0)
     })
 
     it('a freebie stays free on the day; his message says so', () => {

@@ -14,7 +14,7 @@ import preset from '../presets/audience.json'
 import tags from '../presets/tags.json'
 import type { Account, EngineEvent, Intent, Meetup, Regular, Request } from '../store/schema'
 import personas from '../presets/personas.json'
-import { actingType } from './conditions'
+import { actingType, hasCondition } from './conditions'
 import { likeWeights, pickDistinct } from './personas'
 import { directionEffects } from './directions'
 import { fanProfile, loyaltyEffects, loyaltyLevel } from './fans'
@@ -50,7 +50,8 @@ function eligible(account: Account, r: Regular, kind: DealKind, day: number, you
   if (mine.some((x) => (kind === 'custom' ? requestOpen(x as Request) : meetupOpen(x as Meetup)))) return false
   if (youAsked && kind === 'meetup') return true
   const last = mine.at(-1)
-  return !last || day - (last.closedDay ?? last.day) >= (kind === 'custom' ? Q.cooldownDays : M.cooldownDays)
+  const cooldown = kind === 'custom' ? Q.cooldownDays : (fanProfile(r).meetup.cooldownDays ?? M.cooldownDays)
+  return !last || day - (last.closedDay ?? last.day) >= cooldown
 }
 
 /** He only brings one up himself once he is loyal enough (his type's level; lower for obsessed fans and stalkers). */
@@ -79,16 +80,20 @@ export function dealChance(account: Account, r: Regular, kind: DealKind, youAske
   return Math.min(0.95, f.meetup.daily * loyaltyEffects(r).meetup * fx.meetups.rate * f.meetup.factor)
 }
 
-/** You asked him to meet: does he pay like a client, or take you for a freebie? */
+/** You asked him to meet: does he pay like a client, or take you for a freebie? An entitled fan never pays. */
 export function paysWhenAsked(r: Regular): boolean {
+  if (hasCondition(r, 'entitled')) return false
   const P = ASKED.pays
   return loyaltyLevel(r) >= P.minLoyalty || P.segments.includes(actingType(r)) || r.behaviours.some((b) => P.behaviours.includes(b))
 }
 
 /** What he offers: like a client (around his type's median, × loyalty and direction), or, when you asked and he does not pay, a few dollars or nothing. */
 function meetupOffer(rng: Rng, account: Account, r: Regular, youAsked: boolean): { offerCents: number; terms?: Meetup['terms'] } {
+  const worship = ASKED.worship.personalities.includes(r.personality)
+  // Entitled: he expects it free, whoever asks.
+  if (hasCondition(r, 'entitled')) return { offerCents: 0, terms: worship ? 'worship' : 'free' }
   if (youAsked && !paysWhenAsked(r)) {
-    if (ASKED.worship.personalities.includes(r.personality)) return { offerCents: 0, terms: 'worship' }
+    if (worship) return { offerCents: 0, terms: 'worship' }
     if (rng() < fanProfile(r).meetup.asked.free) return { offerCents: 0, terms: 'free' }
     const [lo, hi] = ASKED.lowballDollars
     return { offerCents: (lo + Math.floor(rng() * (hi - lo + 1))) * 100, terms: 'lowball' }
@@ -119,8 +124,10 @@ function open(rng: Rng, account: Account, r: Regular, kind: DealKind, day: numbe
   }
   const { offerCents, terms } = meetupOffer(rng, account, r, youAsked)
   const id = `${r.id}-o${account.meetups.filter((m) => m.regularId === r.id).length}`
-  const asked = youAsked ? { askedBy: 'you' as const, ...(terms ? { terms } : {}) } : {}
-  const meetup: Meetup = { id, regularId: r.id, day, offerCents, replyBy: day + M.replyDays, status: 'open', hidden: false, messageId, ...asked }
+  const asked = youAsked ? { askedBy: 'you' as const, ...(terms ? { terms } : {}) } : terms ? { terms } : {}
+  // A hater (or a fan who turned on you) says yes only to use you: a hate-fuck.
+  const hate = actingType(r) === 'hater' ? { hate: true as const } : {}
+  const meetup: Meetup = { id, regularId: r.id, day, offerCents, replyBy: day + M.replyDays, status: 'open', hidden: false, messageId, ...asked, ...hate }
   return {
     account: { ...account, meetups: [...account.meetups, meetup] },
     deal: { kind, step: 'ask', id },

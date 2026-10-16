@@ -8,6 +8,7 @@ import { requestOpen as isOpen } from './deals'
 import { addPoints, customPoints } from './directions'
 import { paymentLine as line } from './economy'
 import { addLoyalty, fanProfile, loyaltyEffects } from './fans'
+import { snubbed } from './haters'
 import { intensityMatch } from './posts'
 import { tipCents } from './regulars'
 import { rngFor } from './rng'
@@ -43,11 +44,11 @@ export function acceptRequest(account: Account, id: string): Account {
   return update(account, id, (x) => ({ ...x, status: 'accepted', acceptedDay: account.clock.day }))
 }
 
-/** Say no (or back out after saying yes, which the fan remembers). */
+/** Say no (or back out after saying yes, which the fan remembers). An entitled fan turns on you for it. */
 export function declineRequest(account: Account, id: string): Account {
   const q = mustFind(account, id)
   if (!isOpen(q)) throw new ContentError('This request is no longer open')
-  return update(account, id, (x) => ({ ...x, status: 'declined', closedDay: account.clock.day }))
+  return snubbed(update(account, id, (x) => ({ ...x, status: 'declined', closedDay: account.clock.day })), q.regularId)
 }
 
 /** Has this fan seen the item before: in a post, a mass message, a DM or an earlier custom? */

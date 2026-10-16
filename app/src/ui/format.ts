@@ -14,17 +14,24 @@ export function trend(now: number, before: number) {
 }
 
 /**
- * You asked him to meet and he took you for a freebie (engine/deals.ts, Meetup.terms):
- * how it ended when he did turn up (no-show and his wife catching you read as usual).
- * Free: he pulls his pants up and walks out. Lowball: a few dollars and an insult.
- * Worship: a submissive man thanks you on his knees, and pays nothing either.
+ * How a meetup ended when he did turn up (no-show and his wife catching you read as usual),
+ * if it was not a plain paid night:
+ *   - hate (a hater, or a fan who turned on you, Meetup.hate): he hate-fucked you;
+ *   - you asked and he took you for a freebie (engine/deals.ts, Meetup.terms): free, he pulls
+ *     his pants up and walks out; lowball, a few dollars and an insult; worship, a submissive
+ *     man thanks you on his knees, and pays nothing either.
  */
-export function freebieText(terms: 'lowball' | 'free' | 'worship' | undefined, outcome: string | undefined, paid: number): { icon: string; title: (name: string) => string; line: string } | null {
-  if (!terms || (outcome !== 'smooth' && outcome !== 'bonus' && outcome !== 'creep')) return null
+export function meetupText(m: { terms?: 'lowball' | 'free' | 'worship'; hate?: true }, outcome: string | undefined, paid: number): { icon: string; title: (name: string) => string; line: string } | null {
+  const { terms, hate } = m
+  if ((!terms && !hate) || (outcome !== 'smooth' && outcome !== 'bonus' && outcome !== 'creep')) return null
   const pushy = outcome === 'creep' ? ' He got pushy first.' : ''
+  if (hate) {
+    const after = terms === 'lowball' ? ` Then he tossed ${money(paid)} on the bed: "that's what a cheap whore is worth."` : paid ? ` He paid ${money(paid)} anyway.` : ' He left without paying a cent.'
+    return { icon: '😈', title: (n) => `${n} hate-fucked you`, line: `He was rough and contemptuous, like he wanted to punish you for what you are.${after}${pushy}` }
+  }
   if (terms === 'worship')
     return { icon: '🙇', title: (n) => `${n} worshipped you, for free`, line: `He thanked you on his knees, called you his goddess and swore he would make it up to you. He did not pay a cent.${pushy}` }
   return terms === 'free'
     ? { icon: '🚪', title: (n) => `${n} walked out`, line: `He pulled his pants up and left without paying a cent.${pushy} You offered yourself, so he took it for free.` }
-    : { icon: '🪙', title: (n) => `${n} left you ${money(paid)}`, line: `He tossed ${money(paid)} on the bed on his way out: "that's what a cheap girl is worth."${pushy}` }
+    : { icon: '🪙', title: (n) => `${n} left you ${money(paid)}`, line: `He tossed ${money(paid)} on the bed on his way out: "that's what a cheap whore is worth."${pushy}` }
 }

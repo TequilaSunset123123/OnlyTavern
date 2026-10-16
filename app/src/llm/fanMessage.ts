@@ -66,9 +66,13 @@ function dealLine(view: ThreadView, d: NonNullable<Intent['deal']>): string {
       const paid = money(m?.paidCents ?? m?.offerCents ?? 0)
       const tookIt = m?.outcome === 'smooth' || m?.outcome === 'bonus' || m?.outcome === 'creep'
       const pushy = m?.outcome === 'creep' ? ' You got too pushy with her first.' : ''
+      if (m?.hate && tookIt) {
+        const cash = m.terms === 'free' || m.terms === 'worship' ? 'paid her nothing' : m.terms === 'lowball' ? `tossed her ${paid}, all a cheap whore like her is worth` : `paid her ${paid}`
+        return `You met her in person today and hate-fucked her: rough, contemptuous, using her to show what you think of her; then you ${cash}.${pushy} Write to her afterwards.`
+      }
       if (m?.terms === 'worship' && tookIt) return `You met her in person today, as she offered; you worshipped her and thanked her over and over, but did not pay her anything.${pushy} Write to her afterwards.`
       if (m?.terms === 'free' && tookIt) return `You met her in person today, as she offered, then pulled your pants up and left without paying her anything.${pushy} Write to her afterwards.`
-      if (m?.terms === 'lowball' && tookIt) return `You met her in person today, as she offered, and tossed her ${paid} on your way out, because that is all you think a cheap girl like her is worth.${pushy} Write to her afterwards.`
+      if (m?.terms === 'lowball' && tookIt) return `You met her in person today, as she offered, and tossed her ${paid} on your way out, because that is all you think a cheap whore like her is worth.${pushy} Write to her afterwards.`
       return {
         smooth: `You met her in person today and paid ${paid} in cash; write to her afterwards.`,
         bonus: `You met her in person today and loved it so much you paid ${paid} instead of ${money(m?.offerCents ?? 0)}; write to her afterwards.`,
@@ -77,12 +81,17 @@ function dealLine(view: ThreadView, d: NonNullable<Intent['deal']>): string {
         wife: 'Your wife found out about your meeting with her today; it blew up and you paid nothing. Write to her.',
       }[m?.outcome ?? 'smooth']
     }
+    if (m?.askedBy === 'you' && m.hate) {
+      const offer = m.terms === 'free' || m.terms === 'worship' ? 'you will not pay her anything' : `you offer her ${money(m.offerCents)}`
+      return `She offered to meet you in person. You still hate her, but you say yes: you want to use her and show her what she is; ${offer}.`
+    }
     if (m?.askedBy === 'you') {
       if (m.terms === 'worship') return 'She offered to meet you in person. You are overjoyed and say yes, grovelling with thanks, but you do not offer her any money.'
       if (m.terms === 'free') return 'She offered to meet you in person. You take her up on it, but you will not pay her anything: she offered herself, so she should be grateful.'
       if (m.terms === 'lowball') return `She offered to meet you in person. You take her up on it, but offer only ${money(m.offerCents)} in cash, to show her that is all she is worth.`
       return `She asked to meet you in person for a night; you say yes and offer ${money(m.offerCents)} in cash.`
     }
+    if (m?.terms) return 'You ask her to meet you in person for a night, and expect it for free, as usual.'
     return `You ask her to meet you in person for a night; you offer ${money(m?.offerCents ?? 0)} in cash.`
   }
   const q = view.requests.find((x) => x.id === d.id)

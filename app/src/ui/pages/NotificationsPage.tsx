@@ -4,10 +4,12 @@ import type { DirectionId, EngineEvent } from '../../api'
 import { useActiveAccount } from '../../hooks/useAccounts'
 import { useFeed, useNotifications } from '../../hooks/useContent'
 import { useInbox } from '../../hooks/useMessages'
-import { count, freebieText, money } from '../format'
+import { count, meetupText, money } from '../format'
 import { ClockControl } from '../shell/ClockControl'
 
 const s = (n: number) => (n === 1 ? '' : 's')
+/** What he was before he turned into a freeloader. */
+const SEGMENT_NAME: Record<string, string> = { regular: 'a regular fan', lurker: 'a lurker', simp: 'a superfan', whale: 'a big spender', hater: 'a hater', freeloader: 'a plain freebie hunter' }
 const DIRECTION_LABEL: Record<DirectionId, string> = {
   girl_next_door: 'a girl next door',
   porn_star: 'a porn star',
@@ -63,8 +65,8 @@ function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: st
           ? `${fan(e.regularId)} said yes to meeting you, for ${money(e.offerCents ?? 0)}: that is all he thinks you are worth`
           : `${fan(e.regularId)} said yes to meeting you: ${money(e.offerCents ?? 0)} in cash`
     case 'meetup-done': {
-      const freebie = freebieText(e.terms, e.outcome, e.gross)
-      if (freebie) return `${freebie.title(fan(e.regularId))}: ${freebie.line}`
+      const special = meetupText(e, e.outcome, e.gross)
+      if (special) return `${special.title(fan(e.regularId))}: ${special.line}`
       return {
         smooth: `You met ${fan(e.regularId)}: ${money(e.gross)} in cash`,
         bonus: `You met ${fan(e.regularId)} and he paid extra: ${money(e.gross)} in cash`,
@@ -93,6 +95,8 @@ function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: st
         blocked: `You blocked ${fan(e.regularId)}`,
         backlash: `You blocked ${fan(e.regularId)}, but he made a scene first: ${count(e.lost ?? 0)} subscriber${s(e.lost ?? 0)} left`,
       }[e.result]
+    case 'regular-entitled':
+      return `${fan(e.regularId)} has had you for free too often: no longer ${SEGMENT_NAME[e.from] ?? 'the fan he was'}, he is an entitled freebie hunter now. Say no to him, or ignore him for a few days, and he turns on you`
     case 'regular-back':
       return e.reason === 'wife' ? `${fan(e.regularId)} is back after lying low` : `${fan(e.regularId)} has warmed up to you again`
     case 'direction':
@@ -124,6 +128,7 @@ const FILTERS: Record<string, EngineEvent['type'][]> = {
     'meetup-done',
     'meetup-expired',
     'regular-turned',
+    'regular-entitled',
     'regular-back',
     'hater-left',
     'incident',
@@ -134,7 +139,7 @@ const FILTERS: Record<string, EngineEvent['type'][]> = {
   ],
   subscriptions: ['subscribers', 'churn', 'milestone', 'direction', 'level-up'],
   tips: ['tips', 'dm-tip'],
-  messages: ['regular', 'dm', 'dm-purchase', 'mass', 'regular-turned', 'regular-back', 'hater-left', 'incident', 'incident-done', 'loyalty-up'],
+  messages: ['regular', 'dm', 'dm-purchase', 'mass', 'regular-turned', 'regular-entitled', 'regular-back', 'hater-left', 'incident', 'incident-done', 'loyalty-up'],
   posts: ['post', 'purchases'],
   requests: ['request', 'request-paid', 'request-unpaid', 'request-expired', 'meetup', 'meetup-done', 'meetup-expired'],
 }

@@ -19,7 +19,9 @@ import { meetupOpen as isOpen } from './deals'
 import { addPoints, directionEffects, meetupPoints } from './directions'
 import { paymentLine as line } from './economy'
 import { addLoyalty, fanProfile, loyaltyLevel, type MeetupOutcome } from './fans'
-import { withCondition } from './conditions'
+import personas from '../presets/personas.json'
+import { hasCondition, withCondition } from './conditions'
+import { snubbed } from './haters'
 import { afterMeetup } from './incidents'
 import { withBehaviour } from './personas'
 import { type Rng, rngFor } from './rng'
@@ -63,6 +65,17 @@ function meet(rng: Rng, account: Account, m: Meetup, day: number): { account: Ac
   let returns: boolean | undefined
 
   if (outcome === 'smooth' || outcome === 'bonus') a = addLoyalty(addPoints(a, meetupPoints()), r.id, 'meetup')
+  // He had you for free (or for a few dollars) once too often: he turns freeloader, and an
+  // entitled one (conditions.ts), whatever he was (personas.json askedMeetups.freeloaderAfter).
+  let cheapened: EngineEvent[] = []
+  const now = a.regulars.find((x) => x.id === r.id)!
+  if (m.terms && outcome !== 'noShow' && outcome !== 'wife' && !hasCondition(now, 'entitled')) {
+    const times = a.meetups.filter((x) => x.regularId === r.id && x.status === 'done' && x.terms && x.outcome !== 'noShow' && x.outcome !== 'wife').length
+    if (times >= personas.askedMeetups.freeloaderAfter) {
+      a = updateRegular(a, withCondition({ ...now, segment: 'freeloader' }, { id: 'entitled', since: day }))
+      cheapened = [{ day, type: 'regular-entitled', regularId: r.id, from: now.segment }]
+    }
+  }
   if (outcome === 'creep') {
     // He gets fixated on you.
     const cur = a.regulars.find((x) => x.id === r.id)!
@@ -88,8 +101,8 @@ function meet(rng: Rng, account: Account, m: Meetup, day: number): { account: Ac
   // A stalker may not let it end there (incidents.ts).
   const incident = afterMeetup(rng, a, a.regulars.find((x) => x.id === r.id)!, m.id, outcome, day)
   a = incident.account
-  const extra = { ...(lost !== undefined ? { lost } : {}), ...(returns !== undefined ? { returns } : {}), ...(m.terms ? { terms: m.terms } : {}) }
-  return { account: a, events: [{ day, type: 'meetup-done', regularId: r.id, gross: paid, outcome, ...extra }, ...incident.events], ledger }
+  const extra = { ...(lost !== undefined ? { lost } : {}), ...(returns !== undefined ? { returns } : {}), ...(m.terms ? { terms: m.terms } : {}), ...(m.hate ? { hate: m.hate } : {}) }
+  return { account: a, events: [{ day, type: 'meetup-done', regularId: r.id, gross: paid, outcome, ...extra }, ...cheapened, ...incident.events], ledger }
 }
 
 /** One simulated day: meetings that are due happen (and something happens at them); unanswered invitations lapse. */
@@ -124,14 +137,17 @@ export function acceptMeetup(account: Account, id: string, meetDay: number, hidd
   return update(account, id, (x) => ({ ...x, status: 'accepted', meetDay, hidden }))
 }
 
+/** Say no. An entitled fan does not take it (haters.ts snubbed). */
 export function declineMeetup(account: Account, id: string): Account {
-  if (mustFind(account, id).status !== 'open') throw new ContentError('This invitation is no longer open')
-  return update(account, id, (x) => ({ ...x, status: 'declined', closedDay: account.clock.day }))
+  const m = mustFind(account, id)
+  if (m.status !== 'open') throw new ContentError('This invitation is no longer open')
+  return snubbed(update(account, id, (x) => ({ ...x, status: 'declined', closedDay: account.clock.day })), m.regularId)
 }
 
 export function cancelMeetup(account: Account, id: string): Account {
-  if (mustFind(account, id).status !== 'accepted') throw new ContentError('Only an accepted meeting can be cancelled')
-  return update(account, id, (x) => ({ ...x, status: 'cancelled', closedDay: account.clock.day }))
+  const m = mustFind(account, id)
+  if (m.status !== 'accepted') throw new ContentError('Only an accepted meeting can be cancelled')
+  return snubbed(update(account, id, (x) => ({ ...x, status: 'cancelled', closedDay: account.clock.day })), m.regularId)
 }
 
 /** Keep it from co-creators, or not (takes effect once the account has one). */

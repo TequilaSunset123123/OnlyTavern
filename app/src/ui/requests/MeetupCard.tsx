@@ -20,7 +20,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import type { Meetup, Message, Regular } from '../../api'
 import { useDispatch } from '../../hooks/useAccounts'
-import { errorText, freebieText, money } from '../format'
+import { errorText, meetupText, money } from '../format'
 import { useCelebration, useHoldBack } from './celebration'
 import { Actions, DealCard, Pop, Rise } from './DealMotion'
 import { DealAmount, DealHeader, type DealTone } from './DealParts'
@@ -150,7 +150,7 @@ export function MeetupCard({
           {m.status === 'done' && m.outcome && (
             <Rise delay={0.23}>
               <p className="text-sm text-content-secondary">
-                {freebieText(m.terms, m.outcome, m.paidCents ?? 0)?.line ?? OUTCOME[m.outcome](m)}
+                {meetupText(m, m.outcome, m.paidCents ?? 0)?.line ?? OUTCOME[m.outcome](m)}
                 {m.outcome === 'wife' ? afterScandal(regular, day) : ''}
               </p>
             </Rise>

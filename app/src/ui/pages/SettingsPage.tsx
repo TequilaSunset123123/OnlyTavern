@@ -1,4 +1,5 @@
 import {
+  Button,
   Card,
   CardContent,
   CardHeader,
@@ -12,7 +13,8 @@ import {
   TextField,
 } from '@fanvue/ui'
 import type { Settings } from '../../api'
-import { useDispatch } from '../../hooks/useAccounts'
+import { useActiveAccount, useDispatch } from '../../hooks/useAccounts'
+import { useDirections } from '../../hooks/useMessages'
 import { useSettings } from '../../hooks/useContent'
 import { getConnectionProfiles, getStContext } from '../../bridge/st'
 import { useTheme } from '../../hooks/useTheme'
@@ -99,6 +101,7 @@ export function SettingsPage() {
           </p>
         </CardContent>
       </Card>
+      <DeveloperCard />
       <Card>
         <CardHeader>
           <CardTitle>SillyTavern</CardTitle>
@@ -123,5 +126,31 @@ function RegularsCap({ value, onCommit }: { value: number; onCommit: (n: number)
         At the limit, no new regulars reach out. Above it, the ones you have not written to for longest go dormant the next day (except haters who turned on you and fans with an open custom or meetup). Write to a dormant fan to bring him back.
       </p>
     </div>
+  )
+}
+
+/** Testing shortcuts while the game is being built (2026-10-16): level up without posting for days. */
+function DeveloperCard() {
+  const dispatch = useDispatch()
+  const { data: active } = useActiveAccount()
+  const { data: directions } = useDirections(active?.id)
+  const direction = directions?.all.find((d) => d.id === directions.current)
+  if (!active || !direction) return null
+  const maxed = direction.level >= 5
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Developer</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-2">
+        <span className="typography-body-small-14px-semibold">
+          {direction.label} · Lv {direction.level} “{direction.title}”
+        </span>
+        <Button variant="secondary" disabled={maxed} loading={dispatch.isPending} onClick={() => dispatch.mutate({ type: 'dev.levelUp', id: active.id })}>
+          {maxed ? 'Max level' : `Level up to ${direction.level + 1}`}
+        </Button>
+        <p className="text-xs text-content-tertiary">For testing: adds just enough points for the next level of this account's direction, with the usual level-up notification.</p>
+      </CardContent>
+    </Card>
   )
 }

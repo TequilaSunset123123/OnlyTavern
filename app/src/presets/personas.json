@@ -1204,6 +1204,19 @@
   "lyingLow": {
    "label": "Lying low",
    "prompt": ""
+  },
+  "entitled": {
+   "label": "Entitled",
+   "prompt": "she has let you have her for free so often that you think you are owed it: you take her for granted, expect everything for free and get angry at any talk of paying",
+   "modifiers": {
+    "turnsHater": {
+     "afterDays": 4,
+     "daily": 0.25
+    },
+    "meetupDaily": 0.4,
+    "meetupMinLoyalty": 1,
+    "meetupCooldownDays": 2
+   }
   }
  },
  "segments": {
@@ -1644,7 +1657,7 @@
     "meetup": {
      "daily": 0,
      "asked": {
-      "accept": 0.6,
+      "accept": 0.9,
       "free": 0.3
      },
      "median": 0,
@@ -1839,6 +1852,12 @@
    "personalities": [
     "submissive"
    ]
+  },
+  "freeloaderAfter": 3,
+  "wordOfMouth": {
+   "days": 30,
+   "perFreebie": 0.04,
+   "max": 0.3
   }
  },
  "incidents": {

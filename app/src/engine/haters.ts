@@ -16,7 +16,7 @@
 import audience from '../presets/audience.json'
 import personas from '../presets/personas.json'
 import type { Account, EngineEvent, Regular } from '../store/schema'
-import { actingType, conditionOf, withCondition, withoutCondition } from './conditions'
+import { actingType, conditionOf, hasCondition, withCondition, withoutCondition } from './conditions'
 import { loyaltyLevel } from './fans'
 import { modifiers } from './personas'
 import { rngFor } from './rng'
@@ -69,6 +69,18 @@ export function turnHater(account: Account, r: Regular, day: number): { account:
   const t = threadOf(a, r.id)
   a = withThread(a, { ...t, messages: [...t.messages, pendingMessage(`${r.id}-m${t.messages.length}`, day, { kind: 'opener', topic: 'harass' })] })
   return { account: a, event: { day, type: 'regular-turned', regularId: r.id, level } }
+}
+
+/**
+ * You said no to an entitled fan (a meetup or custom he wanted, or a meetup you called off):
+ * that is all it takes, he turns on you (conditions.ts `entitled`). Anyone else shrugs it off.
+ * Ignoring him turns him too, after a few days (conditions.entitled.modifiers.turnsHater).
+ */
+export function snubbed(account: Account, regularId: string): Account {
+  const r = account.regulars.find((x) => x.id === regularId)
+  if (!r || !hasCondition(r, 'entitled') || hasCondition(r, 'hostile')) return account
+  const t = turnHater(account, r, account.clock.day)
+  return { ...t.account, events: [...t.account.events, t.event] }
 }
 
 /** He comes round: no longer hostile; a stalker comes back worse (behaviours.<id>.modifiers.comesBackAs). */

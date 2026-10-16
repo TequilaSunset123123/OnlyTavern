@@ -3,6 +3,7 @@
 // stored as 'pending' with the decision as an intent, and the model writes the
 // words later (llm/). If the model fails, nothing here is blocked.
 import preset from '../presets/audience.json'
+import personas from '../presets/personas.json'
 import economy from '../presets/economy.json'
 import tags from '../presets/tags.json'
 import templates from '../presets/templates.json'
@@ -125,6 +126,17 @@ function attracts(account: Account, day: number): Record<string, number> {
 /** How many regulars can be active at once: your setting (Settings), or the preset's. */
 export const activeCap = (settings: Settings) => settings.maxActiveRegulars ?? R.cap
 
+/**
+ * How many men a day come looking for a freebie because word got around (personas.json
+ * askedMeetups.wordOfMouth): for every meetup in the last 30 days where a man had you for
+ * free or a few dollars, +0.04 a day, at most +0.3. They come as freeloaders.
+ */
+export function freebieRumour(account: Account, day: number): number {
+  const W = personas.askedMeetups.wordOfMouth
+  const n = account.meetups.filter((m) => m.status === 'done' && m.terms && m.outcome !== 'noShow' && m.outcome !== 'wife' && (m.closedDay ?? m.day) > day - W.days).length
+  return Math.min(W.max, n * W.perFreebie)
+}
+
 export type RegularsDay = { account: Account; events: EngineEvent[] }
 
 /**
@@ -178,8 +190,13 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
   // (after giving you a few days), new ones write less often.
   const rng = rngFor(seed, day, 'regulars:new')
   const weights = Object.fromEntries(SEGMENTS.map((s) => [s, subscriberCount(audience, s) * preset.segments[s].reachOut])) as Record<Segment, number>
+  // Word gets around that you give it away: men hoping for a freebie of their own come
+  // looking for you, as freeloaders, and take up your regulars' slots.
+  weights.freeloader += freebieRumour(a, day)
+  // Better known at a higher direction level: more people reach out (directions.ts dms).
+  const fame = directionEffects(a).dms
   // A little traffic from outside on top of your subscribers, so the first regulars do not wait for a big audience.
-  const lambda = R.baseDaily + Object.values(weights).reduce((x, y) => x + y, 0)
+  const lambda = (R.baseDaily + Object.values(weights).reduce((x, y) => x + y, 0)) * fame
   const recent = a.regulars.filter((r) => r.since <= day - 3).slice(-cap)
   const answered = recent.length ? recent.filter((r) => threadOf(a, r.id).messages.some((m) => m.from === 'me')).length / recent.length : 1
   const chance = Math.min(R.maxNewDaily, 1 - Math.exp(-lambda)) * (R.ignoredFactor + (1 - R.ignoredFactor) * answered)
@@ -212,7 +229,7 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     const tail = unanswered(t)
     if (tail >= dm.maxUnanswered) continue
     const rr = rngFor(seed, day, `regulars:dm:${r.id}`)
-    if (rr() >= dm.daily * (tail > 0 ? dm.ignoredFactor : 1)) continue
+    if (rr() >= dm.daily * fame * (tail > 0 ? dm.ignoredFactor : 1)) continue
     const topic = pickWeighted(rr, openerTopics(r))
     const tip = topic === 'tip' && rr() < Math.max(tipChance(r), 0.5) ? tipCents(rr, r) : undefined
     const id = `${r.id}-m${t.messages.length}`

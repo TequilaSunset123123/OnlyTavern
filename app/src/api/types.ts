@@ -87,6 +87,8 @@ export type Action =
   | { type: 'settings.update'; patch: Partial<Settings> }
   /** Pick your direction: the first pick is free, switching later loses subscribers. */
   | { type: 'direction.set'; id: string; direction: DirectionId }
+  /** Developer: jump to the next level of the current direction. */
+  | { type: 'dev.levelUp'; id: string }
   | { type: 'dm.send'; id: string; regularId: string; message: DmInput }
   /** The model wrote a pending fan message. */
   | { type: 'dm.fill'; id: string; regularId: string; messageId: string; text: string }

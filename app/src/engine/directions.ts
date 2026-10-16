@@ -48,8 +48,10 @@ function strength(account: Account): number {
 export type Effects = {
   /** Multiplies each fan type's share of visitors. */
   mix: Record<Segment, number>
-  /** Multiplies how many people visit. */
+  /** Multiplies how many people visit: the direction's own pull, times your level's fame (levels.visitors). */
   visitors: number
+  /** Multiplies how often regulars write to you and new ones reach out: the better known you are (levels.dms). */
+  dms: number
   /** Multiplies how likely new regulars get each personality or behaviour (presets/personas.json). */
   attracts: Record<string, number>
   requests: { rate: number; offer: number }
@@ -61,10 +63,13 @@ export type Effects = {
 export function directionEffects(account: Account): Effects {
   const spec = SPECS[account.direction.id]
   const k = strength(account)
+  const level = levelOf(account.direction.points[account.direction.id])
   const scale = (m = 1) => 1 + (m - 1) * k
   return {
     mix: Object.fromEntries(SEGMENTS.map((s) => [s, scale(spec.audience[s])])) as Record<Segment, number>,
-    visitors: scale(spec.visitors),
+    // Every level up makes you better known, whatever the direction: more visitors, more DMs.
+    visitors: scale(spec.visitors) * LEVELS.visitors[level - 1],
+    dms: LEVELS.dms[level - 1],
     attracts: Object.fromEntries(Object.entries(spec.attracts).map(([t, m]) => [t, scale(m)])),
     requests: { rate: scale(spec.requests.rate), offer: scale(spec.requests.offer) },
     meetups: { rate: scale(spec.meetups.rate), offer: scale(spec.meetups.offer) },
@@ -81,6 +86,14 @@ export function addPoints(account: Account, gains: Partial<Record<DirectionId, n
   const after = levelOf(points[current])
   const events: EngineEvent[] = after > before ? [{ day: account.clock.day, type: 'level-up', direction: current, level: after }] : []
   return { ...account, direction: { ...account.direction, points }, events: [...account.events, ...events] }
+}
+
+/** For testing (Settings, Developer): just enough points for the next level of your current direction. */
+export function levelUpForTesting(account: Account): Account {
+  const current = account.direction.id
+  const level = levelOf(account.direction.points[current])
+  if (level >= MAX_LEVEL) return account
+  return addPoints(account, { [current]: LEVELS.points[level] - account.direction.points[current] })
 }
 
 /** A post counts for each direction whose signature tags it carries (couple: also content with your partner). */

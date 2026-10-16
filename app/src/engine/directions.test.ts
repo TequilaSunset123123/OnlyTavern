@@ -8,7 +8,7 @@ import { type Account, DIRECTIONS, type DirectionId } from '../store/schema'
 import { subscriberCount } from './audience'
 import { generateComments } from './comments'
 import { addVaultItem, publishPost } from './content'
-import { directionEffects, directionInfo, levelOf, setDirection } from './directions'
+import { directionEffects, directionInfo, levelOf, levelUpForTesting, setDirection } from './directions'
 import { makePersona } from './personas'
 import { rngFor } from './rng'
 import { simulate } from './simulate'
@@ -133,6 +133,22 @@ describe('directions', () => {
     expect(styles('sub', 'regular', 'misogynist')).toBeGreaterThan(styles('girl_next_door', 'regular', 'misogynist') * 2)
     expect(styles('domme', 'simp', 'submissive')).toBeGreaterThan(styles('girl_next_door', 'simp', 'submissive') * 2)
     expect(styles('domme', 'simp', 'creepy_compliments')).toBeGreaterThan(styles('girl_next_door', 'simp', 'creepy_compliments') * 1.4)
+  })
+
+  it('every level brings more visitors and DMs, whatever the direction; the dev button levels you up (2026-10-16)', () => {
+    let a = fresh('girl_next_door')
+    expect(directionEffects(a)).toMatchObject({ visitors: 1, dms: 1 })
+    for (let i = 0; i < 4; i++) a = levelUpForTesting(a)
+    expect(levelOf(a.direction.points.girl_next_door)).toBe(5)
+    expect(levelUpForTesting(a)).toBe(a)
+    expect(a.events.filter((e) => e.type === 'level-up').map((e) => e.type === 'level-up' && e.level)).toEqual([2, 3, 4, 5])
+    expect(directionEffects(a)).toMatchObject({ visitors: 1.8, dms: 1.6 })
+    // In play: more visitors and more regulars writing.
+    const run = (acc: Account) => simulate(acc, 60, 'lv').account
+    const low = run(fresh('girl_next_door', 'lv'))
+    const high = run(a)
+    const visits = (acc: Account) => acc.history.reduce((s, h) => s + h.visitors, 0)
+    expect(visits(high)).toBeGreaterThan(visits(low) * 1.4)
   })
 
   it('saves from before Sub and Dominatrix get them with no points (schema 12)', () => {

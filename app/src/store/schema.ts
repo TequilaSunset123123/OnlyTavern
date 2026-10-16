@@ -3,7 +3,7 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 12
+export const SCHEMA_VERSION = 13
 
 export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
 export const SegmentSchema = z.enum(SEGMENTS)
@@ -59,7 +59,10 @@ export const AudienceSchema = z.object({
  *     until you win him back. `level`: his loyalty level then (Devoted or more hate longer);
  *   - unhinged: a stalker you won back comes back worse;
  *   - blocked: you blocked him, or he blocked you after his wife caught you two; for good;
- *   - lyingLow: his wife caught you two and he is keeping away until `until`.
+ *   - lyingLow: his wife caught you two and he is keeping away until `until`;
+ *   - entitled: he had you for free (or a few dollars) too often (askedMeetups.freeloaderAfter)
+ *     and turned freeloader: unlike a born freeloader he thinks he is owed it. Always free,
+ *     no more loyalty, one no turns him hostile, and so does ignoring him for a few days.
  * You cannot write to him while he is blocked or lying low.
  */
 export const ConditionSchema = z.discriminatedUnion('id', [
@@ -67,6 +70,7 @@ export const ConditionSchema = z.discriminatedUnion('id', [
   z.object({ id: z.literal('unhinged'), since: z.number().int() }),
   z.object({ id: z.literal('blocked'), since: z.number().int(), by: z.enum(['you', 'him']) }),
   z.object({ id: z.literal('lyingLow'), since: z.number().int(), until: z.number().int() }),
+  z.object({ id: z.literal('entitled'), since: z.number().int() }),
 ])
 export type Condition = z.infer<typeof ConditionSchema>
 export type ConditionId = Condition['id']
@@ -212,6 +216,8 @@ export const MeetupSchema = z.object({
    * nothing at all (free), or nothing but grovelling thanks (worship: a submissive man).
    */
   terms: MeetupTermsSchema.optional(),
+  /** He hates you (a hater, or hostile) and said yes anyway: it is a hate-fuck. */
+  hate: z.literal(true).optional(),
 })
 
 export const INCIDENT_CHOICES = ['playAlong', 'letDown', 'calm', 'block'] as const
@@ -303,6 +309,8 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
     returns: z.boolean().optional(),
     /** You asked him and he took you for a freebie (Meetup.terms). */
     terms: MeetupTermsSchema.optional(),
+    /** A hate-fuck (Meetup.hate). */
+    hate: z.literal(true).optional(),
   }),
   z.object({ day: z.number().int(), type: z.literal('loyalty-up'), regularId: z.string(), level: z.number().int() }),
   z.object({ day: z.number().int(), type: z.literal('meetup-expired'), regularId: z.string() }),
@@ -320,6 +328,8 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
     lost: Count.optional(),
   }),
   /** He came round after turning on you, or (wife) is back after lying low. */
+  /** He had you for free (or a few dollars) too often: an entitled freeloader now (engine/meetups.ts). `from`: what he was. */
+  z.object({ day: z.number().int(), type: z.literal('regular-entitled'), regularId: z.string(), from: SegmentSchema }),
   z.object({ day: z.number().int(), type: z.literal('regular-back'), regularId: z.string(), reason: z.enum(['wife']).optional() }),
   z.object({ day: z.number().int(), type: z.literal('direction'), direction: DirectionIdSchema, lost: Count }),
   z.object({ day: z.number().int(), type: z.literal('level-up'), direction: DirectionIdSchema, level: z.number().int() }),

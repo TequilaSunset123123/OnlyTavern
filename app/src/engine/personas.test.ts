@@ -52,6 +52,8 @@ describe('fan personas', () => {
       ignoredFactor: 0,
       meetupFactor: 1,
       meetupMinLoyalty: 5,
+      meetupDaily: 0,
+      meetupCooldownDays: Infinity,
       events: {},
       turnsHater: null,
       haterHalfLifeDays: null,
@@ -195,5 +197,21 @@ describe('schema 11', () => {
     ])
     expect(x2).toMatchObject({ personality: 'dominant', behaviours: [], conditions: [] })
     expect('traits' in x0 || 'turned' in x0 || 'away' in x0).toBe(false)
+  })
+})
+
+describe('schema 13', () => {
+  it('an entitled fan from the build before becomes a freeloader and keeps Entitled', () => {
+    const a = simulate(createAccount({ id: 'x', seed: 'c', now: 0, name: 'Mia', handle: 'mia' }), 90, 'c').account
+    const r0 = a.regulars[0]
+    const v12 = {
+      ...a,
+      meta: { ...a.meta, schemaVersion: 12 },
+      regulars: a.regulars.map((r, i) => (i === 0 ? { ...r, segment: 'whale', conditions: [{ id: 'entitled', since: 30 }] } : r)),
+      events: [...a.events, { day: 30, type: 'regular-entitled', regularId: r0.id }],
+    }
+    const up = migrate(v12)
+    expect(up.regulars[0]).toMatchObject({ segment: 'freeloader', conditions: [{ id: 'entitled', since: 30 }] })
+    expect(up.events.at(-1)).toEqual({ day: 30, type: 'regular-entitled', regularId: r0.id, from: 'whale' })
   })
 })

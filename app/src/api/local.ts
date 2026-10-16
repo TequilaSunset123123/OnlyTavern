@@ -3,7 +3,7 @@
 // deterministic and store/ never calls Date.now() or Math.random() itself.
 import { subscriberCount } from '../engine/audience'
 import { addVaultItem, canLockPosts, deletePost, deleteVaultItem, publishPost, updateVaultItem } from '../engine/content'
-import { directionInfo, directionPrompt, setDirection, SPECS, SWITCH_LOSS } from '../engine/directions'
+import { directionInfo, directionPrompt, levelUpForTesting, setDirection, SPECS, SWITCH_LOSS } from '../engine/directions'
 import { fanLayers } from '../engine/personas'
 import { postIntensity, postTags } from '../engine/posts'
 import { loyaltyInfo } from '../engine/fans'
@@ -264,6 +264,11 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
         return r.account
       })
       return { delta: [`account:${id}`], events }
+    },
+
+    async 'dev.levelUp'({ id }) {
+      await update(id, levelUpForTesting)
+      return { delta: [`account:${id}`], events: [] }
     },
 
     async 'settings.update'({ patch }) {
