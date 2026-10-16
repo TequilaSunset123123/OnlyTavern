@@ -12,8 +12,9 @@ import {
   MenuIcon,
   MessageIcon,
 } from '@fanvue/ui'
-import { useEffect, useRef } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router'
+import { AnimatePresence, motion, MotionConfig, type Variants } from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate, useOutlet } from 'react-router'
 import { closeApp } from '../../bridge/st'
 import { useActiveAccount } from '../../hooks/useAccounts'
 import { TimeTravelProvider } from '../time/TimeTravel'
@@ -25,6 +26,51 @@ const GRADIENT = 'bg-linear-to-r from-(--cs-gradient-start) to-(--cs-gradient-en
 // Mobile bottom bar: Fanzly layout (four tabs + floating "+" in the middle).
 const MOBILE_TABS = ['/', '/notifications', '/messages']
 const MORE_PATH = '/more'
+
+/**
+ * Where a page sits in the nav (NAV_ITEMS order) for the page transition: a conversation
+ * belongs to Messages, a new post sits just below Home, More (phones) at the bottom.
+ */
+function navOrder(pathname: string): number {
+  if (pathname.startsWith(NEW_POST_PATH)) return 0.5
+  if (pathname === MORE_PATH) return NAV_ITEMS.length
+  const i = NAV_ITEMS.findIndex((item) => isActive(pathname, item.path))
+  return i < 0 ? NAV_ITEMS.length : i
+}
+
+/** The page's section: a new conversation within Messages is not a page change. */
+const section = (pathname: string) => `/${pathname.split('/')[1] ?? ''}`
+
+// Switching pages (after Motion's AnimatePresence docs, motion.dev/docs/react-animate-presence):
+// the old page fades out and the new one fades in, sliding the way you moved in the nav.
+// Going down the list slides up (the new page comes from below), going up slides down.
+const SLIDE = 24
+const PAGE: Variants = {
+  enter: (dir: number) => ({ opacity: 0, y: dir * SLIDE }),
+  shown: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } },
+  leave: (dir: number) => ({ opacity: 0, y: -dir * SLIDE, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } }),
+}
+
+/** The current page, sliding in and out as you move between pages. */
+function PageTransition() {
+  const { pathname } = useLocation()
+  const outlet = useOutlet()
+  const key = section(pathname)
+  const order = navOrder(pathname)
+  // Direction from the page we left to this one: +1 down the nav, -1 up.
+  const [last, setLast] = useState({ key, order, dir: 1 })
+  if (last.key !== key) setLast({ key, order, dir: order >= last.order ? 1 : -1 })
+  return (
+    <MotionConfig reducedMotion="user">
+      <AnimatePresence mode="wait" initial={false} custom={last.dir}>
+        {/* h-full: Messages fills the screen with its own scrolling panes; other pages just run on and <main> scrolls. */}
+        <motion.div key={key} className="h-full" custom={last.dir} variants={PAGE} initial="enter" animate="shown" exit="leave">
+          {outlet}
+        </motion.div>
+      </AnimatePresence>
+    </MotionConfig>
+  )
+}
 
 function isActive(current: string, path: string) {
   return path === '/' ? current === '/' : current.startsWith(path)
@@ -128,7 +174,7 @@ export function AppShell() {
 
         {/* Content; on mobile leave room for the bottom bar */}
         <main ref={main} className="min-w-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+80px)] md:pb-0">
-          <Outlet />
+          <PageTransition />
         </main>
 
         {/* Mobile: bottom bar */}

@@ -29,7 +29,21 @@ import { useState } from 'react'
 import type { LedgerEntry, LedgerKind } from '../../api'
 import { useActiveAccount, useDispatch, useStatements } from '../../hooks/useAccounts'
 import { errorText, money } from '../format'
+import { AnimatedNumber } from '../motion/AnimatedNumber'
 import { ClockControl } from '../shell/ClockControl'
+import { useTimeTravel } from '../time/context'
+
+/**
+ * A balance or total that rolls to its new value when it changes (a new day's earnings, a
+ * withdrawal); no roll on first view. While time passes (the shutter, the loader, the
+ * report) it holds the old number, so the roll plays when you are back on the page.
+ */
+function Money({ cents }: { cents: number }) {
+  const { busy } = useTimeTravel()
+  const [shown, setShown] = useState(cents)
+  if (!busy && shown !== cents) setShown(cents)
+  return <AnimatedNumber value={shown} format={(n) => money(Math.round(n))} springOptions={{ stiffness: 90, damping: 20 }} />
+}
 
 // Crowd payments are stored per day and kind, so rows read "from N fans" (plan.md §2.4).
 const describe = (e: LedgerEntry) =>
@@ -128,11 +142,15 @@ export function StatementsPage() {
             <CardContent className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <div className="typography-header-heading-xs">{money(b.available)}</div>
+                  <div className="typography-header-heading-xs">
+                    <Money cents={b.available} />
+                  </div>
                   <div className="text-content-tertiary">Current balance</div>
                 </div>
                 <div>
-                  <div className="typography-header-heading-xs">{money(b.pending)}</div>
+                  <div className="typography-header-heading-xs">
+                    <Money cents={b.pending} />
+                  </div>
                   <div className="text-content-tertiary">Pending balance</div>
                 </div>
               </div>
@@ -145,14 +163,14 @@ export function StatementsPage() {
             </CardContent>
           </Card>
           <div className="grid grid-cols-2 gap-3">
-            <ChartCard title="Subscriptions" subtitle={money(totals.subscription.net + totals.renewal.net)} />
-            <ChartCard title="Tips" subtitle={money(totals.tip.net)} />
-            <ChartCard title="Posts" subtitle={money(totals.post.net)} />
-            <ChartCard title="Messages" subtitle={money(totals.message.net)} />
-            <ChartCard title="Customs" subtitle={money(totals.custom.net)} />
-            <ChartCard title="Cash (off platform)" subtitle={money(b.cash)} />
-            <ChartCard title="Total earned" subtitle={money(b.earned)} />
-            <ChartCard title="Paid out" subtitle={money(b.paidOut)} />
+            <ChartCard title="Subscriptions" subtitle={<Money cents={totals.subscription.net + totals.renewal.net} />} />
+            <ChartCard title="Tips" subtitle={<Money cents={totals.tip.net} />} />
+            <ChartCard title="Posts" subtitle={<Money cents={totals.post.net} />} />
+            <ChartCard title="Messages" subtitle={<Money cents={totals.message.net} />} />
+            <ChartCard title="Customs" subtitle={<Money cents={totals.custom.net} />} />
+            <ChartCard title="Cash (off platform)" subtitle={<Money cents={b.cash} />} />
+            <ChartCard title="Total earned" subtitle={<Money cents={b.earned} />} />
+            <ChartCard title="Paid out" subtitle={<Money cents={b.paidOut} />} />
           </div>
         </div>
       </div>
