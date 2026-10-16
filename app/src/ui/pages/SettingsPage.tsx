@@ -18,7 +18,10 @@ import { useDirections } from '../../hooks/useMessages'
 import { useSettings } from '../../hooks/useContent'
 import { getConnectionProfiles, getStContext } from '../../bridge/st'
 import { useTheme } from '../../hooks/useTheme'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { type Backdrop, useBackdrop } from '../background'
+import { errorText } from '../format'
+import { PageTitle } from '../shell/PageTitle'
 
 // Global settings (shared by all accounts), plus the step-0 checks: whether the
 // iframe can reach parent.SillyTavern, and a text field to test the iOS keyboard.
@@ -42,14 +45,15 @@ export function SettingsPage() {
     : 'Not connected (opened outside SillyTavern)'
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-      <h1 className="typography-header-heading-sm">Settings</h1>
+    <div className="mx-auto flex max-w-xl flex-col gap-4 p-4">
+      <PageTitle title="Settings" />
       <Card>
         <CardHeader>
           <CardTitle>Appearance</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           <SwitchField label="Dark mode" checked={theme === 'dark'} onCheckedChange={toggle} />
+          <BackdropPicker />
         </CardContent>
       </Card>
       <Card>
@@ -152,5 +156,48 @@ function DeveloperCard() {
         <p className="text-xs text-content-tertiary">For testing: adds just enough points for the next level of this account's direction, with the usual level-up notification.</p>
       </CardContent>
     </Card>
+  )
+}
+
+const BACKDROPS = [
+  { value: 'default', label: 'Night room' },
+  { value: 'none', label: 'None' },
+  { value: 'custom', label: 'My picture' },
+]
+
+/** The picture behind the glass (ui/background.ts): kept in this browser only. */
+function BackdropPicker() {
+  const { kind, hasCustom, choose, upload } = useBackdrop()
+  const file = useRef<HTMLInputElement>(null)
+  const [error, setError] = useState<string | null>(null)
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="typography-body-small-14px-semibold">Background</span>
+      <SegmentedControl
+        options={BACKDROPS}
+        value={kind}
+        onChange={(v) => (v === 'custom' && !hasCustom ? file.current?.click() : choose(v as Backdrop))}
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="secondary" size="32" onClick={() => file.current?.click()}>
+          {hasCustom ? 'Change my picture' : 'Upload a picture'}
+        </Button>
+        <span className="text-xs text-content-tertiary">Kept in this browser only. Large pictures are scaled down.</span>
+      </div>
+      <input
+        ref={file}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          e.target.value = ''
+          if (!f) return
+          setError(null)
+          upload(f).catch((err) => setError(errorText(err)))
+        }}
+      />
+      {error && <p className="text-sm text-error-content">{error}</p>}
+    </div>
   )
 }

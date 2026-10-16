@@ -6,15 +6,30 @@
 /* Fanzly (new version) palette on top of Fanvue's tokens. */
 @import "./theme/fanzly.css";
 
+/* The serif for the logo and page titles (PageTitle, AppShell): `font-display`. */
+@theme {
+  --font-display: "DM Serif Display", Georgia, serif;
+}
+
+/* A frosted glass panel: the sidebar, the top bar, the page (theme/fanzly.css has the tokens). */
+@utility glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 1.5rem;
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+}
+
 html,
 body,
 #root {
   height: 100%;
 }
 
+/* The picture behind everything (Settings, Appearance; ui/background.ts sets --app-picture). */
 body {
   margin: 0;
   font-family: Inter, sans-serif;
-  background: var(--color-background-primary);
+  background: var(--app-backdrop) var(--app-picture, none) center / cover no-repeat fixed;
   color: var(--color-content-primary);
 }

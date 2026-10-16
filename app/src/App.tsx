@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { useTheme } from './hooks/useTheme'
+import { useBackdrop } from './ui/background'
 import { routes } from './ui/routes'
 import { Splash } from './ui/time/Splash'
 
@@ -15,6 +16,7 @@ const queryClient = new QueryClient({
 
 function App() {
   useTheme() // applies the saved theme on startup
+  useBackdrop() // and the background picture
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />

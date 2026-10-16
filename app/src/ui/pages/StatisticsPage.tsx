@@ -13,7 +13,7 @@ import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'r
 import type { DailyStat } from '../../api'
 import { useActiveAccount, useStatistics } from '../../hooks/useAccounts'
 import { count, money, trend } from '../format'
-import { ClockControl } from '../shell/ClockControl'
+import { PageTitle } from '../shell/PageTitle'
 
 const RANGES = [
   { value: '7', label: '7 days' },
@@ -57,13 +57,8 @@ export function StatisticsPage() {
   const dateInfo = days.length ? `Day ${days[0].day} – ${days.at(-1)!.day}` : undefined
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="typography-header-heading-sm mr-auto">Statistics</h1>
-        <div className="w-full sm:w-auto">
-          <ClockControl />
-        </div>
-      </div>
+    <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4">
+      <PageTitle title="Statistics" />
 
       <SegmentedControl className="self-start" options={RANGES} value={range} onChange={setRange} />
 

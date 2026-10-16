@@ -6,7 +6,7 @@ import { useRequests } from '../../hooks/useMessages'
 import { money } from '../format'
 import { MeetupCard } from '../requests/MeetupCard'
 import { RequestCard } from '../requests/RequestCard'
-import { ClockControl } from '../shell/ClockControl'
+import { PageTitle } from '../shell/PageTitle'
 
 /** How long a card you just settled stays under "Active" (its completion plays), before it folds away. */
 const LINGER_MS = 2800
@@ -64,13 +64,8 @@ export function RequestsPage() {
   const shown = tab === 'customs' ? requests.length : meetups.length
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="typography-header-heading-sm mr-auto">Requests</h1>
-        <div className="w-full sm:w-auto">
-          <ClockControl />
-        </div>
-      </div>
+    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4">
+      <PageTitle title="Requests" />
       {statements && (
         // Plain cards: @fanvue/ui/charts would pull the chart library into the startup bundle.
         <div className="grid grid-cols-2 gap-3">

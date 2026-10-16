@@ -79,7 +79,7 @@ export function Loader({ fromDay, days, meetups, onDone }: { fromDay: number; da
 
   return (
     <motion.div
-      className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-6 bg-[#0a0a0a] px-8 text-white"
+      className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-6 bg-(--app-backdrop) px-8 text-white"
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >

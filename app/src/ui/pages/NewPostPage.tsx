@@ -7,6 +7,7 @@ import { useCaptions, useFeed, useSettings, useVault } from '../../hooks/useCont
 import { errorText } from '../format'
 import { MediaTile } from '../MediaTile'
 import { VaultPickerDialog } from '../VaultPickerDialog'
+import { PageTitle } from '../shell/PageTitle'
 
 const IDEAS: { kind: CaptionKind; label: string }[] = [
   { kind: 'tease', label: 'Tease' },
@@ -67,8 +68,8 @@ export function NewPostPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-      <h1 className="typography-header-heading-sm">New post</h1>
+    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4">
+      <PageTitle title="New post" />
       <Card>
         <CardContent className="flex flex-col gap-4">
           <TextArea label="Caption" placeholder="Say something to your fans" minRows={3} fullWidth value={text} onChange={(e) => setText(e.target.value)} />

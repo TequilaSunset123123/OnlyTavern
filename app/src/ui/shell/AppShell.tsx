@@ -1,12 +1,14 @@
 import {
   AddIcon,
   Avatar,
-  BellIcon,
   BottomNavigation,
   BottomNavigationAction,
   Button,
   CloseIcon,
+  Count,
   FloatingActionButton,
+  GalleryIcon,
+  HeartIcon,
   HomeIcon,
   IconButton,
   MenuIcon,
@@ -17,14 +19,16 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate, useOutlet } from 'react-router'
 import { closeApp } from '../../bridge/st'
 import { useActiveAccount } from '../../hooks/useAccounts'
+import { useInbox, useRequests } from '../../hooks/useMessages'
 import { TimeTravelProvider } from '../time/TimeTravel'
-import { ClockControl } from './ClockControl'
+import { ACCENT } from './accent'
 import { NAV_ITEMS, NEW_POST_PATH } from './nav'
+import { TopBar } from './TopBar'
 
 const GRADIENT = 'bg-linear-to-r from-(--cs-gradient-start) to-(--cs-gradient-end)'
 
 // Mobile bottom bar: Fanzly layout (four tabs + floating "+" in the middle).
-const MOBILE_TABS = ['/', '/notifications', '/messages']
+const MOBILE_TABS = ['/', '/posts', '/messages']
 const MORE_PATH = '/more'
 
 /**
@@ -101,9 +105,21 @@ export function ActiveAccount() {
   )
 }
 
+/** What is waiting on a page: unread conversations, open customs and meetup invitations. */
+function useWaiting(): Record<string, number> {
+  const { data: active } = useActiveAccount()
+  const { data: inbox } = useInbox(active?.id)
+  const { data: requests } = useRequests(active?.id)
+  return {
+    '/messages': inbox?.threads.filter((t) => t.unread > 0).length ?? 0,
+    '/requests': (requests?.requests.filter((r) => r.request.status === 'open').length ?? 0) + (requests?.meetups.filter((m) => m.meetup.status === 'open').length ?? 0),
+  }
+}
+
 export function NavList({ onPick }: { onPick?: () => void }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const waiting = useWaiting()
   return (
     <nav className="flex flex-col gap-1">
       {NAV_ITEMS.map(({ path, label, icon: Icon }) => {
@@ -111,22 +127,33 @@ export function NavList({ onPick }: { onPick?: () => void }) {
         return (
           <Button
             key={path}
-            variant={active ? 'secondary' : 'tertiary'}
+            variant="tertiary"
             size="48"
             fullWidth
-            className="justify-start"
+            className={`justify-start ${active ? ACCENT : ''}`}
             leftIcon={<Icon filled={active} />}
+            rightIcon={waiting[path] ? <Count value={waiting[path]} variant="brand" size="24" /> : undefined}
             aria-current={active ? 'page' : undefined}
             onClick={() => {
               navigate(path)
               onPick?.()
             }}
           >
-            {label}
+            <span className="flex-1 text-left">{label}</span>
           </Button>
         )
       })}
     </nav>
+  )
+}
+
+/** OnlyTavern in the display serif, with a heart. */
+function Logo() {
+  return (
+    <span className="flex items-center gap-2 text-(--color-brand-primary-default)">
+      <span className="font-display text-3xl">OnlyTavern</span>
+      <HeartIcon size={24} />
+    </span>
   )
 }
 
@@ -150,34 +177,26 @@ export function AppShell() {
 
   return (
     <TimeTravelProvider>
-      <div className="flex h-full">
-        {/* Desktop: left sidebar */}
-        <aside className="hidden w-64 shrink-0 flex-col gap-4 border-r border-border-primary p-4 md:flex">
+      {/* Glass panels over the background picture (index.css `glass`, ui/background.ts): the
+          sidebar, the top bar and the page. On phones the bottom bar stands in for the sidebar. */}
+      <div className="flex h-full gap-4 p-2 pt-[calc(env(safe-area-inset-top,0px)+8px)] pb-[calc(env(safe-area-inset-bottom,0px)+80px)] md:p-4">
+        <aside className="glass hidden w-64 shrink-0 flex-col gap-4 p-4 md:flex">
           <div className="flex items-center justify-between">
-            <span className={`${GRADIENT} bg-clip-text text-2xl font-bold text-transparent`}>OnlyTavern</span>
+            <Logo />
             <IconButton variant="tertiary" size="32" icon={<CloseIcon />} aria-label="Close" onClick={closeApp} />
           </div>
           <ActiveAccount />
-          <ClockControl />
           <div className="min-h-0 flex-1 overflow-y-auto">
             <NavList />
           </div>
-          <Button
-            variant="brand"
-            size="48"
-            fullWidth
-            className={`${GRADIENT} text-white`}
-            leftIcon={<AddIcon />}
-            onClick={() => navigate(NEW_POST_PATH)}
-          >
-            Create
-          </Button>
         </aside>
 
-        {/* Content; on mobile leave room for the bottom bar */}
-        <main ref={main} className="min-w-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+80px)] md:pb-0">
-          <PageTransition />
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col gap-2 md:gap-4">
+          <TopBar />
+          <main ref={main} className="glass min-h-0 flex-1 overflow-y-auto">
+            <PageTransition />
+          </main>
+        </div>
 
         {/* Mobile: bottom bar */}
         <BottomNavigation
@@ -189,11 +208,7 @@ export function AppShell() {
           className="bg-background-primary"
         >
           <BottomNavigationAction value="/" icon={<HomeIcon filled={tab === '/'} />} label="Home" />
-          <BottomNavigationAction
-            value="/notifications"
-            icon={<BellIcon filled={tab === '/notifications'} />}
-            label="Alerts"
-          />
+          <BottomNavigationAction value="/posts" icon={<GalleryIcon />} label="Posts" />
           <div className="flex flex-1 items-center justify-center">
             <FloatingActionButton aria-label="New post" className={`${GRADIENT} text-white`} onClick={() => navigate(NEW_POST_PATH)}>
               <AddIcon />

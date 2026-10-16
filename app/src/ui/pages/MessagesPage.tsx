@@ -40,6 +40,7 @@ import { MeetupCard } from '../requests/MeetupCard'
 import { RequestCard } from '../requests/RequestCard'
 import { useTimeTravel } from '../time/context'
 import { VaultPickerDialog } from '../VaultPickerDialog'
+import { PageTitle } from '../shell/PageTitle'
 
 // Layout: Fanzly's Messages (All Chats / Bulk Message, filter chips) with Fastt's
 // fan profile column on wide screens (plan.md §8.3). Phones show one pane at a time.
@@ -132,8 +133,8 @@ export function MessagesPage() {
     <div className="flex h-full min-h-0">
       {/* Inbox column (always on desktop; on phones only when nothing is open) */}
       <section className={`${showList || tab === 'bulk' ? 'flex' : 'hidden'} w-full min-w-0 flex-col border-border-primary md:flex md:w-80 md:shrink-0 md:border-r`}>
-        <div className="flex flex-col gap-3 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-          <h1 className="typography-header-heading-sm">Messages</h1>
+        <div className="flex flex-col gap-3 p-4">
+          <PageTitle title="Messages" />
           <Tabs
             value={tab}
             onValueChange={(v) => {
@@ -265,7 +266,7 @@ function Conversation({ accountId, regularId, onBack }: { accountId: string; reg
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-3 border-b border-border-primary p-3 pt-[calc(env(safe-area-inset-top,0px)+12px)]">
+        <header className="flex items-center gap-3 border-b border-border-primary p-3">
           <IconButton className="md:hidden" variant="tertiary" size="32" icon={<ArrowLeftIcon />} aria-label="Back" onClick={onBack} />
           {/* Narrow screens have no profile column: tap the fan to see it. */}
           <button type="button" className="flex min-w-0 items-center gap-3 text-left xl:pointer-events-none" onClick={() => setProfileOpen(true)}>

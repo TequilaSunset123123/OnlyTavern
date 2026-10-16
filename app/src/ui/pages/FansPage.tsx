@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router'
 import { useActiveAccount, useStatistics } from '../../hooks/useAccounts'
 import { useInbox } from '../../hooks/useMessages'
 import { count, money } from '../format'
+import { PageTitle } from '../shell/PageTitle'
 
 /** Simple Fans page (plan.md §8.1): the crowd by type, and your regulars. */
 export function FansPage() {
@@ -34,8 +35,8 @@ export function FansPage() {
   const regulars = [...(inbox?.threads ?? [])].sort((a, b) => b.regular.spent - a.regular.spent)
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-      <h1 className="typography-header-heading-sm">Fans</h1>
+    <div className="mx-auto flex max-w-4xl flex-col gap-4 p-4">
+      <PageTitle title="Fans" />
       <Card>
         <CardHeader>
           <CardTitle>Subscribers by type · {count(total)}</CardTitle>

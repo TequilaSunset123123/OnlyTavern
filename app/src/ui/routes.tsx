@@ -2,10 +2,10 @@ import type { RouteObject } from 'react-router'
 import { AccountsPage } from './pages/AccountsPage'
 import { FansPage } from './pages/FansPage'
 import { HomePage } from './pages/HomePage'
+import { PostsPage } from './pages/PostsPage'
 import { MessagesPage } from './pages/MessagesPage'
 import { MorePage } from './pages/MorePage'
 import { NewPostPage } from './pages/NewPostPage'
-import { NotificationsPage } from './pages/NotificationsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { RequestsPage } from './pages/RequestsPage'
 import { SettingsPage } from './pages/SettingsPage'
@@ -19,7 +19,7 @@ export const routes: RouteObject[] = [
     children: [
       { path: '/', element: <HomePage /> },
       { path: '/posts/new', element: <NewPostPage /> },
-      { path: '/notifications', element: <NotificationsPage /> },
+      { path: '/posts', element: <PostsPage /> },
       { path: '/messages', element: <MessagesPage /> },
       { path: '/messages/:regularId', element: <MessagesPage /> },
       { path: '/requests', element: <RequestsPage /> },

@@ -17,30 +17,16 @@ import {
   SelectItem,
 } from '@fanvue/ui'
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
 import type { DirectionId, DirectionInfo } from '../api'
 import { useDispatch, useStatistics } from '../hooks/useAccounts'
 import { useTags } from '../hooks/useContent'
 import { useDirections } from '../hooks/useMessages'
+import { directionLine, progress } from './direction'
 import { count, errorText } from './format'
 
 // Your direction (plan.md §10.1): what you are building, how far along, and what counts.
 
-const progress = (d: DirectionInfo) => (d.next === null ? 100 : Math.round(((d.points - d.from) / (d.next - d.from)) * 100))
 const levelLine = (d: DirectionInfo) => (d.next === null ? 'Max level' : `${d.next - d.points} points to level ${d.level + 1}`)
-
-/** Compact strip for the Home page; tap to open My Profile. */
-export function DirectionStrip({ accountId }: { accountId: string }) {
-  const navigate = useNavigate()
-  const { data } = useDirections(accountId)
-  const d = data?.all.find((x) => x.id === data.current)
-  if (!d) return null
-  return (
-    <button type="button" className="w-full text-left" onClick={() => navigate('/profile')}>
-      <ProgressBar variant="brand" value={progress(d)} title={`${d.label} · Lv ${d.level} “${d.title}”`} helperRight={levelLine(d)} />
-    </button>
-  )
-}
 
 export function DirectionCard({ accountId }: { accountId: string }) {
   const { data } = useDirections(accountId)
@@ -69,7 +55,7 @@ export function DirectionCard({ accountId }: { accountId: string }) {
           <span className="typography-body-default-16px-semibold">Direction</span>
           <span className="text-sm text-content-tertiary">{d.blurb}</span>
         </div>
-        <ProgressBar variant="brand" value={progress(d)} title={`${d.label} · Lv ${d.level} “${d.title}”`} helperLeft={`${d.points} points`} helperRight={levelLine(d)} />
+        <ProgressBar variant="brand" value={progress(d)} title={directionLine(d)} helperLeft={`${d.points} points`} helperRight={levelLine(d)} />
         <div className="flex flex-col gap-2">
           <span className="text-xs text-content-tertiary">
             Posts with these tags earn points (up to 3 a post), paid customs that ask for them earn 2

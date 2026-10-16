@@ -21,6 +21,7 @@ import { useActiveAccount, useDispatch } from '../../hooks/useAccounts'
 import { useTags, useVault } from '../../hooks/useContent'
 import { errorText } from '../format'
 import { MediaTile } from '../MediaTile'
+import { PageTitle } from '../shell/PageTitle'
 
 /** The vault: text descriptions of content you can post (plan.md §4.3). */
 export function VaultPage() {
@@ -43,13 +44,15 @@ export function VaultPage() {
   const usedTags = tags.filter((t) => items.some((i) => i.tags.includes(t.id)))
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-      <div className="flex items-center gap-2">
-        <h1 className="typography-header-heading-sm mr-auto">Vault</h1>
-        <Button variant="brand" size="40" leftIcon={<AddIcon />} onClick={() => setEditing('new')}>
-          Add item
-        </Button>
-      </div>
+    <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
+      <PageTitle
+        title="Vault"
+        actions={
+          <Button variant="brand" size="40" leftIcon={<AddIcon />} onClick={() => setEditing('new')}>
+            Add item
+          </Button>
+        }
+      />
 
       {items.length > 0 && (
         <>

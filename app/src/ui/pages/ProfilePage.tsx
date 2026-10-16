@@ -4,6 +4,7 @@ import type { Profile } from '../../api'
 import { useAccount, useActiveAccount, useDispatch } from '../../hooks/useAccounts'
 import { DirectionCard } from '../DirectionCard'
 import { errorText } from '../format'
+import { PageTitle } from '../shell/PageTitle'
 
 const TYPES = [
   { value: 'paid', label: 'Paid subscription' },
@@ -48,8 +49,8 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-      <h1 className="typography-header-heading-sm">My Profile</h1>
+    <div className="mx-auto flex max-w-xl flex-col gap-4 p-4">
+      <PageTitle title="My Profile" />
       <DirectionCard accountId={active.id} />
       <Card>
         <CardContent className="flex flex-col gap-4">

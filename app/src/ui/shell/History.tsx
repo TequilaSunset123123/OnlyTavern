@@ -1,11 +1,10 @@
-import { BellIcon, Card, CardContent, EmptyState, Tabs, TabsList, TabsTrigger } from '@fanvue/ui'
+import { BellIcon, Card, CardContent, Drawer, DrawerContent, DrawerHeader, DrawerTitle, EmptyState, IconButton, ReverseIcon, Tabs, TabsList, TabsTrigger } from '@fanvue/ui'
 import { useState } from 'react'
 import type { DirectionId, EngineEvent } from '../../api'
 import { useActiveAccount } from '../../hooks/useAccounts'
 import { useFeed, useNotifications } from '../../hooks/useContent'
 import { useInbox } from '../../hooks/useMessages'
 import { count, meetupText, money } from '../format'
-import { ClockControl } from '../shell/ClockControl'
 
 const s = (n: number) => (n === 1 ? '' : 's')
 /** What he was before he turned into a freeloader. */
@@ -144,14 +143,32 @@ const FILTERS: Record<string, EngineEvent['type'][]> = {
   requests: ['request', 'request-paid', 'request-unpaid', 'request-expired', 'meetup', 'meetup-done', 'meetup-expired'],
 }
 
-export function NotificationsPage() {
+/**
+ * What happened, day by day (the old Notifications page, 2026-10-16): a drawer behind the
+ * history button in the top bar (TopBar), instead of a page of its own.
+ */
+export function HistoryButton() {
   const { data: active } = useActiveAccount()
-  const { data: events = [] } = useNotifications(active?.id)
-  const { data: feed } = useFeed(active?.id)
-  const { data: inbox } = useInbox(active?.id)
-  const [filter, setFilter] = useState('all')
+  const [open, setOpen] = useState(false)
+  if (!active) return null
+  return (
+    <Drawer open={open} onOpenChange={setOpen}>
+      <IconButton variant="tertiary" size="40" icon={<ReverseIcon />} aria-label="History" onClick={() => setOpen(true)} />
+      <DrawerContent position="right" size="md">
+        <DrawerHeader>
+          <DrawerTitle>History</DrawerTitle>
+        </DrawerHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 pt-0">{open && <HistoryList accountId={active.id} />}</div>
+      </DrawerContent>
+    </Drawer>
+  )
+}
 
-  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
+function HistoryList({ accountId }: { accountId: string }) {
+  const { data: events = [] } = useNotifications(accountId)
+  const { data: feed } = useFeed(accountId)
+  const { data: inbox } = useInbox(accountId)
+  const [filter, setFilter] = useState('all')
 
   const postText = (id: string) => {
     const p = feed?.posts.find((x) => x.id === id)
@@ -164,13 +181,7 @@ export function NotificationsPage() {
   const days = [...new Set(shown.map((e) => e.day))]
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="typography-header-heading-sm mr-auto">Notifications</h1>
-        <div className="w-full sm:w-auto">
-          <ClockControl />
-        </div>
-      </div>
+    <div className="flex flex-col gap-4">
       <Tabs value={filter} onValueChange={setFilter}>
         <TabsList scrollable>
           <TabsTrigger value="all">All</TabsTrigger>
@@ -181,7 +192,7 @@ export function NotificationsPage() {
           <TabsTrigger value="requests">Requests</TabsTrigger>
         </TabsList>
       </Tabs>
-      {shown.length === 0 && <EmptyState title="Nothing yet" description="Notifications from the last 30 days show up here." />}
+      {shown.length === 0 && <EmptyState title="Nothing yet" description="What happened in the last 30 days shows up here." />}
       {days.map((day) => (
         <Card key={day}>
           <CardContent className="flex flex-col gap-3">

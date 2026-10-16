@@ -3,8 +3,8 @@ import { Shutter } from './Shutter'
 
 // The loading screen when the app opens (2026-10-15, after a mock-up you gave): the
 // wordmark fills in left to right with the bar, then the same shutter as Next day / +7
-// closes over it and opens on the app. Brand violets instead of the mock-up's pinks, so
-// it matches the shutter. The app loads underneath meanwhile.
+// closes over it and opens on the app. Brand pinks, so it matches the shutter and the
+// rest of the app. The app loads underneath meanwhile.
 
 const MS = 2800
 /** [time, progress %]: uneven steps, smoothed in between (from the mock-up). */
@@ -73,13 +73,13 @@ export function Splash() {
   return (
     <>
       {stage !== 'reveal' && (
-        <div className="fixed inset-0 z-[205] flex flex-col items-center justify-center overflow-hidden bg-[#0a0a0a] text-white" role="progressbar" aria-label="Loading OnlyTavern" aria-valuenow={Math.floor(progress)}>
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_55%,rgba(149,84,244,0.16),transparent_65%)]" />
+        <div className="fixed inset-0 z-[205] flex flex-col items-center justify-center overflow-hidden bg-(--app-backdrop) text-white" role="progressbar" aria-label="Loading OnlyTavern" aria-valuenow={Math.floor(progress)}>
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_55%,rgba(232,71,154,0.16),transparent_65%)]" />
           <div className="relative w-full px-2.5 text-center">
-            <div className="text-[clamp(31px,7.2vw,61px)] leading-[1.2] font-bold tracking-[-0.055em] whitespace-nowrap text-[#4b3866] opacity-60">onlytavern</div>
+            <div className="text-[clamp(31px,7.2vw,61px)] leading-[1.2] font-bold tracking-[-0.055em] whitespace-nowrap text-[#5a2a48] opacity-60">onlytavern</div>
             <div
               aria-hidden="true"
-              className="absolute inset-0 text-[clamp(31px,7.2vw,61px)] leading-[1.2] font-bold tracking-[-0.055em] whitespace-nowrap text-[#dcc4ff] [text-shadow:0_0_24px_rgba(158,66,252,0.55)]"
+              className="absolute inset-0 text-[clamp(31px,7.2vw,61px)] leading-[1.2] font-bold tracking-[-0.055em] whitespace-nowrap text-[#ffc8e3] [text-shadow:0_0_24px_rgba(232,71,154,0.55)]"
               style={{ clipPath: clip }}
             >
               onlytavern
@@ -88,7 +88,7 @@ export function Splash() {
           <p className="relative mt-4 font-mono text-[10px] tracking-[0.26em] text-white/50 uppercase">{line}</p>
           <div className="relative mt-10 h-0.5 w-[min(67%,260px)] bg-white/10">
             <div
-              className="h-full bg-linear-to-r from-(--cs-gradient-start) to-(--cs-gradient-end) shadow-[0_0_12px_rgba(158,66,252,0.6)]"
+              className="h-full bg-linear-to-r from-(--cs-gradient-start) to-(--cs-gradient-end) shadow-[0_0_12px_rgba(232,71,154,0.6)]"
               style={{ width: `${progress}%` }}
             />
           </div>

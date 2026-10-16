@@ -30,9 +30,9 @@ import type { LedgerEntry, LedgerKind } from '../../api'
 import { useActiveAccount, useDispatch, useStatements } from '../../hooks/useAccounts'
 import { errorText, money } from '../format'
 import { AnimatedNumber } from '../motion/AnimatedNumber'
-import { ClockControl } from '../shell/ClockControl'
 import { useTimeTravel } from '../time/context'
 import { useRevealed } from '../time/shared'
+import { PageTitle } from '../shell/PageTitle'
 
 // The numbers you last saw on this page, per account (2026-10-16), so coming back shows
 // them rising to what you have now. Kept in this browser only.
@@ -106,13 +106,8 @@ export function StatementsPage() {
   const rows = data.entries.filter((e) => FILTERS[filter].includes(e.kind))
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="typography-header-heading-sm mr-auto">Statements</h1>
-        <div className="w-full sm:w-auto">
-          <ClockControl />
-        </div>
-      </div>
+    <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4">
+      <PageTitle title="Statements" />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="flex min-w-0 flex-col gap-3">

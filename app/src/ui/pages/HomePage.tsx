@@ -1,145 +1,151 @@
-import {
-  AddIcon,
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CommentIcon,
-  EmptyState,
-  EyeIcon,
-  HeartIcon,
-  LockerIcon,
-  TrashIcon,
-  WalletIcon,
-} from '@fanvue/ui'
-import { useState } from 'react'
+import { Avatar, ChartIcon, ClockIcon, CommentIcon, EmptyState, EyeIcon, GiftIcon, HeartIcon, MessageIcon, PeopleIcon, TaskIcon, WalletIcon } from '@fanvue/ui'
+import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router'
-import type { FeedPost } from '../../api'
-import { useActiveAccount, useDispatch } from '../../hooks/useAccounts'
-import { useComments, useFeed } from '../../hooks/useContent'
-import { DirectionStrip } from '../DirectionCard'
+import type { DailyStat } from '../../api'
+import { useAccount, useActiveAccount, useStatistics } from '../../hooks/useAccounts'
+import { useTags } from '../../hooks/useContent'
+import { useInbox, useRequests } from '../../hooks/useMessages'
+import { directionLine, useCurrentDirection } from '../direction'
 import { count, money } from '../format'
-import { MediaTile } from '../MediaTile'
-import { ClockControl } from '../shell/ClockControl'
-import { NEW_POST_PATH } from '../shell/nav'
+import { IconTile, Panel, PanelRow } from '../Panel'
+import { PageTitle } from '../shell/PageTitle'
 
-/** Your own feed: every post with how it performed (plan.md §8.1 Home). */
+// The game's "today" page (2026-10-16; your posts moved to Posts): what is waiting for
+// you, today's event, and how the last day went. Today's event is a placeholder until
+// events exist (plan.md §10.2).
+
+const initials = (name: string) => name.slice(0, 2).toUpperCase()
+
 export function HomePage() {
   const navigate = useNavigate()
   const { data: active } = useActiveAccount()
-  const { data: feed } = useFeed(active?.id)
+  const { data: account } = useAccount(active?.id)
+  const direction = useCurrentDirection(active?.id)
 
-  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
+  if (!active || !account) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="typography-header-heading-sm mr-auto">Home</h1>
-        <div className="w-full sm:w-auto">
-          <ClockControl />
-        </div>
+    <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4">
+      <PageTitle
+        title={
+          <>
+            Today <span className="text-2xl text-content-tertiary">Day {account.clock.day}</span>
+          </>
+        }
+        subtitle={direction && directionLine(direction)}
+      />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <MessagesPanel accountId={active.id} onOpen={(id) => navigate(id ? `/messages/${id}` : '/messages')} />
+        <RequestsPanel accountId={active.id} onOpen={() => navigate('/requests')} />
+        <TodaysEvent />
       </div>
-      <DirectionStrip accountId={active.id} />
-      {feed && feed.posts.length === 0 && (
-        <EmptyState
-          title="No posts yet"
-          description="Post something, then press Next day to see how your fans react."
-          primaryAction={
-            <Button variant="brand" leftIcon={<AddIcon />} onClick={() => navigate(NEW_POST_PATH)}>
-              New post
-            </Button>
-          }
-        />
-      )}
-      {feed?.posts.map((p) => (
-        <PostCard key={p.id} post={p} accountId={active.id} name={active.name} handle={active.handle} today={feed.day} />
-      ))}
+      <SummaryPanel accountId={active.id} onOpen={() => navigate('/statistics')} />
     </div>
   )
 }
 
-function Stat({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
+function MessagesPanel({ accountId, onOpen }: { accountId: string; onOpen: (regularId?: string) => void }) {
+  const { data: inbox } = useInbox(accountId)
+  const waiting = (inbox?.threads ?? []).filter((t) => t.unread > 0 || t.pending)
   return (
-    <span className="flex items-center gap-1 text-content-secondary" title={label}>
-      {icon}
-      <span className="typography-body-small-14px-semibold">{value}</span>
-    </span>
+    <Panel icon={<MessageIcon />} title="Messages" subtitle="Unread messages from fans" count={waiting.length} onOpen={() => onOpen()}>
+      {waiting.length === 0 && <p className="px-2 text-sm text-content-tertiary">Nothing unread.</p>}
+      {waiting.slice(0, 3).map((t) => (
+        <PanelRow
+          key={t.regular.id}
+          lead={<Avatar size={40} alt={t.regular.name} fallback={initials(t.regular.name)} />}
+          title={t.regular.name}
+          line={t.pending ? 'Typing…' : t.last?.text}
+          right={t.last && <span className="text-xs text-content-tertiary">Day {t.last.day}</span>}
+          onClick={() => onOpen(t.regular.id)}
+        />
+      ))}
+    </Panel>
   )
 }
 
-function PostCard({ post, accountId, name, handle, today }: { post: FeedPost; accountId: string; name: string; handle: string; today: number }) {
-  const dispatch = useDispatch()
-  const [showComments, setShowComments] = useState(false)
-  const { data: comments } = useComments(accountId, post.id, showComments)
-  const locked = post.access === 'locked'
-  const fresh = post.day === today
-
+function RequestsPanel({ accountId, onOpen }: { accountId: string; onOpen: () => void }) {
+  const { data } = useRequests(accountId)
+  const { data: tags = [] } = useTags()
+  const label = (id: string) => tags.find((t) => t.id === id)?.en ?? id
+  const live = (s: string) => s === 'open' || s === 'accepted'
+  const rows = [
+    ...(data?.requests ?? [])
+      .filter((r) => live(r.request.status))
+      .map((r) => ({ id: r.request.id, name: r.regular.name, line: `Custom · ${r.request.tags.map(label).join(' + ')}`, cents: r.request.offerCents })),
+    ...(data?.meetups ?? [])
+      .filter((m) => live(m.meetup.status))
+      .map((m) => ({ id: m.meetup.id, name: m.regular.name, line: m.meetup.meetDay ? `Meetup · day ${m.meetup.meetDay}` : 'Meetup invitation', cents: m.meetup.offerCents })),
+  ]
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-3">
-        <div className="flex items-center gap-3">
-          <Avatar size={40} alt={name} fallback={name.slice(0, 2).toUpperCase()} />
-          <div className="mr-auto min-w-0">
-            <div className="typography-body-default-16px-semibold truncate">{name}</div>
-            <div className="text-xs text-content-tertiary">
-              @{handle} · Day {post.day}
-            </div>
-          </div>
-          {locked && (
-            <Badge variant="brandLight" leftIcon={<LockerIcon size={16} />}>
-              {money(post.priceCents)}
-            </Badge>
-          )}
-        </div>
+    <Panel icon={<TaskIcon />} title="Active requests" subtitle="Customs and meetups waiting on you" count={rows.length} onOpen={onOpen}>
+      {rows.length === 0 && <p className="px-2 text-sm text-content-tertiary">No open requests.</p>}
+      {rows.slice(0, 3).map((r) => (
+        <PanelRow
+          key={r.id}
+          lead={<Avatar size={40} alt={r.name} fallback={initials(r.name)} />}
+          title={r.name}
+          line={r.line}
+          right={<span className="typography-body-default-16px-semibold text-success-content">{money(r.cents)}</span>}
+          onClick={onOpen}
+        />
+      ))}
+    </Panel>
+  )
+}
 
-        {post.text && <p className="whitespace-pre-wrap">{post.text}</p>}
-        {post.items.length > 0 && (
-          <div className={`grid gap-2 ${post.items.length === 1 ? 'grid-cols-1 sm:w-2/3' : 'grid-cols-2 sm:grid-cols-3'}`}>
-            {post.items.map((item, i) => (
-              <MediaTile key={i} item={item} locked={locked && i === 0 ? post.priceCents : undefined} />
-            ))}
-          </div>
-        )}
+/** Placeholder: daily events are a new feature still to come (plan.md §10.2); this is how one will look. */
+function TodaysEvent() {
+  return (
+    <Panel icon={<GiftIcon />} title="Today's event">
+      {/* The event's picture goes here. */}
+      <div className="aspect-video w-full rounded-xl bg-surface-secondary" />
+      <div className="font-display text-2xl">Coming soon</div>
+      <p className="text-sm text-content-secondary">Each day may bring an event that changes the odds: a fan appreciation day, a platform warning, a brand deal.</p>
+      <span className="flex w-fit items-center gap-2 rounded-full bg-(--color-brand-primary-muted) px-3 py-1 text-sm text-(--color-brand-primary-default)">
+        <ClockIcon size={16} /> Ends in —
+      </span>
+    </Panel>
+  )
+}
 
-        <div className="flex flex-wrap items-center gap-4">
-          <Stat icon={<EyeIcon size={16} />} value={count(post.stats.views)} label="Views" />
-          <Stat icon={<HeartIcon size={16} />} value={count(post.stats.likes)} label="Likes" />
-          <Stat icon={<CommentIcon size={16} />} value={count(post.stats.comments)} label="Comments" />
-          {locked && <Stat icon={<WalletIcon size={16} />} value={`${post.stats.purchases} · ${money(post.stats.earned)}`} label="Purchases · net" />}
-          <Button
-            variant="tertiaryDestructive"
-            size="24"
-            className="ml-auto"
-            leftIcon={<TrashIcon size={16} />}
-            onClick={() => dispatch.mutate({ type: 'post.delete', id: accountId, postId: post.id })}
-          >
-            Delete
-          </Button>
-        </div>
-        {fresh && <p className="text-xs text-content-tertiary">Just posted. Fans react from the next day on.</p>}
+/** The last day against the one before: the change in percent, or nothing when there is nothing to compare. */
+function change(now: number, before: number | undefined): ReactNode {
+  if (before === undefined || before === 0) return null
+  const pct = Math.round(((now - before) / before) * 100)
+  return <span className={`text-sm ${pct < 0 ? 'text-error-content' : 'text-success-content'}`}>{pct > 0 ? `+${pct}` : pct}%</span>
+}
 
-        {post.stats.comments > 0 && (
-          <Button variant="tertiary" size="32" className="self-start" onClick={() => setShowComments(!showComments)}>
-            {showComments ? 'Hide comments' : `Show ${count(post.stats.comments)} comment${post.stats.comments === 1 ? '' : 's'}`}
-          </Button>
-        )}
-        {showComments && comments && (
-          <ul className="flex flex-col gap-3 border-t border-border-primary pt-3">
-            {comments.map((c) => (
-              <li key={c.id} className="flex gap-3">
-                <Avatar size={32} alt={c.name} fallback={c.name.slice(0, 1).toUpperCase()} />
-                <div className="min-w-0">
-                  <div className="text-xs text-content-tertiary">
-                    <span className="typography-body-small-14px-semibold text-content-primary">{c.name}</span> @{c.handle} · Day {c.day}
-                  </div>
-                  <p className="break-words">{c.text}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
+function SummaryPanel({ accountId, onOpen }: { accountId: string; onOpen: () => void }) {
+  const { data: stats } = useStatistics(accountId)
+  const [before, last] = (stats?.history ?? []).slice(-2) as (DailyStat | undefined)[]
+  const today = last ?? before
+  if (!today) return null
+  const rows = [
+    { icon: <EyeIcon />, label: 'Profile views', value: (d: DailyStat) => d.visitors, show: count },
+    { icon: <PeopleIcon />, label: 'New fans', value: (d: DailyStat) => d.newSubscribers, show: count },
+    { icon: <HeartIcon />, label: 'Tips earned', value: (d: DailyStat) => d.net.tip ?? 0, show: money },
+    { icon: <CommentIcon />, label: 'Paid messages', value: (d: DailyStat) => d.net.message ?? 0, show: money },
+    { icon: <WalletIcon />, label: 'Customs', value: (d: DailyStat) => d.net.custom ?? 0, show: money },
+    { icon: <ChartIcon />, label: 'Subscriptions', value: (d: DailyStat) => (d.net.subscription ?? 0) + (d.net.renewal ?? 0), show: money },
+  ]
+  return (
+    <Panel icon={<ChartIcon />} title="Today's summary" subtitle={`Day ${today.day}, compared with the day before`} onOpen={onOpen}>
+      <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
+        {rows.map((r) => (
+          <PanelRow
+            key={r.label}
+            lead={<IconTile>{r.icon}</IconTile>}
+            title={r.label}
+            right={
+              <span className="flex items-baseline gap-2">
+                <span className="typography-body-default-16px-semibold">{r.show(r.value(today))}</span>
+                {last && before && change(r.value(last), r.value(before))}
+              </span>
+            }
+          />
+        ))}
+      </div>
+    </Panel>
   )
 }

@@ -1,7 +1,7 @@
 import {
-  BellIcon,
   ChartIcon,
   FolderIcon,
+  GalleryIcon,
   HomeIcon,
   MessageIcon,
   UsersIcon,
@@ -17,11 +17,12 @@ type NavIcon = ComponentType<{ filled?: boolean; className?: string }>
 
 export type NavItem = { path: string; label: string; icon: NavIcon }
 
-// Order follows the real OF creator nav (docs/ref/onlyfans-creator.md §1.1),
-// trimmed to the first-version pages in plan.md §8.1.
+// Order follows the real OF creator nav (docs/ref/onlyfans-creator.md §1.1), trimmed to
+// the first-version pages in plan.md §8.1. Since 2026-10-16 Home is the game's "today"
+// page, your feed is Posts, and the event history is a drawer in the top bar (TopBar).
 export const NAV_ITEMS: NavItem[] = [
   { path: '/', label: 'Home', icon: HomeIcon },
-  { path: '/notifications', label: 'Notifications', icon: BellIcon },
+  { path: '/posts', label: 'Posts', icon: GalleryIcon },
   { path: '/messages', label: 'Messages', icon: MessageIcon },
   { path: '/requests', label: 'Requests', icon: TaskIcon },
   { path: '/vault', label: 'Vault', icon: VaultIcon },

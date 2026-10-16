@@ -1,49 +1,70 @@
 /*
- * Fanzly (Appscrip, 2026 screenshots in docs/ref/fanzly-2026/) colours mapped onto
- * Fanvue's design tokens. Values were sampled from the screenshots; see plan.md §8.3.
- * Only tokens that differ from Fanvue are listed. Loaded after theme.css, so the
- * same selectors win.
+ * Our palette on top of Fanvue's design tokens. Started from Fanzly (Appscrip, 2026
+ * screenshots in docs/ref/fanzly-2026/, plan.md §8.3); since 2026-10-16 a night-pink
+ * game look: frosted glass panels over a background picture (Settings, Appearance).
+ * Only tokens that differ from Fanvue are listed. Loaded after theme.css, so the same
+ * selectors win.
+ *
+ * The glass is three tokens and one utility (`glass`, index.css) for the big panels (the
+ * sidebar, the top bar, the page). Cards inside them stay Fanvue Cards: their surface
+ * tokens are see-through, so they read as lighter layers on the glass, with no classes
+ * of their own. Menus and dialogs keep solid backgrounds so they stay readable.
  */
 
 :root {
-  /* Brand: Fanvue green -> Fanzly violet */
-  --color-brand-primary-default: #9235fa;
-  --color-brand-primary-hover: #9e42fc;
-  --color-brand-primary-muted: #9235fa33;
-  --color-buttons-brand-hover: #9e42fc;
-  --color-buttons-link-brand-default: #9235fa;
-  --color-border-new-feature: #9235fa;
+  /* Brand: Fanvue green -> night pink */
+  --color-brand-primary-default: #e8479a;
+  --color-brand-primary-hover: #f45daa;
+  --color-brand-primary-muted: #e8479a33;
+  --color-buttons-brand-default: #e8479a;
+  --color-buttons-brand-hover: #f45daa;
+  --color-buttons-link-brand-default: #e8479a;
+  --color-border-new-feature: #e8479a;
   /* Used by BottomNavigation's active glow but not defined in theme.css */
-  --color-special-bottom-nav-highlight: #9235fa;
+  --color-special-bottom-nav-highlight: #e8479a;
 
-  /* Your chat bubbles: violet instead of Fanvue green */
-  --color-messages-background-sender: #efe5ff;
-  --color-messages-background-sender-stroke: #dccbff;
-  --color-messages-user-callout: #9235fa;
+  /* Your chat bubbles: pink instead of Fanvue green */
+  --color-messages-background-sender: #ffe3f1;
+  --color-messages-background-sender-stroke: #ffc8e3;
+  --color-messages-user-callout: #e8479a;
 
-  /* Fanzly's gradient buttons and cards (Create, wallet balance) */
-  --cs-gradient-start: #9554f4;
-  --cs-gradient-end: #aa32f6;
+  /* Gradients: the logo, progress bars, the shutter and the splash */
+  --cs-gradient-start: #ff6aa9;
+  --cs-gradient-end: #c93dbb;
+
+  /* Glass panels (index.css `glass`) and what shows behind them (ui/background.ts sets the picture) */
+  --glass-bg: rgb(255 255 255 / 0.55);
+  --glass-border: rgb(255 255 255 / 0.6);
+  --glass-blur: 18px;
+  --app-backdrop: #f4e9f0;
+  /* Cards on the glass: see-through layers */
+  --color-surface-primary: rgb(255 255 255 / 0.5);
+  --color-surface-secondary: rgb(255 255 255 / 0.35);
 }
 
 .dark {
-  /* Neutral black layers from the Fanzly screenshots */
-  --color-background-primary: #0a0a0a;
-  --color-background-secondary: #0a0a0a;
-  --color-surface-primary: #181818;
-  --color-surface-secondary: #121212;
-  --color-border-primary: #222222;
-  --color-border-strong: #262626;
-  --color-content-tertiary: #7a7978;
+  /* Solid night plum for menus and dialogs; panels and cards are glass on top of the picture */
+  --color-background-primary: #140b14;
+  --color-background-secondary: #140b14;
+  --color-modal-background: #1c101b;
+  --color-surface-primary: rgb(255 255 255 / 0.06);
+  --color-surface-secondary: rgb(255 255 255 / 0.04);
+  --color-border-primary: rgb(255 255 255 / 0.1);
+  --color-border-strong: rgb(255 255 255 / 0.16);
+  --color-content-tertiary: #a8909f;
 
-  --color-buttons-link-brand-default: #9e42fc;
-  --color-border-new-feature: #9e42fc;
+  --color-buttons-link-brand-default: #f45daa;
+  --color-border-new-feature: #f45daa;
 
-  --color-messages-background-sender: #3a1d63;
-  --color-messages-background-sender-stroke: #4b2a7e;
-  --color-messages-background-receiver: #181818;
-  --color-messages-background-receiver-stroke: #262626;
-  --color-messages-user-callout: #9e42fc;
+  --color-messages-background-sender: #5c1f47;
+  --color-messages-background-sender-stroke: #7a2b5f;
+  --color-messages-background-receiver: rgb(255 255 255 / 0.08);
+  --color-messages-background-receiver-stroke: rgb(255 255 255 / 0.12);
+  --color-messages-user-callout: #f45daa;
+
+  --glass-bg: rgb(30 14 30 / 0.5);
+  --glass-border: rgb(255 255 255 / 0.1);
+  --app-backdrop: #0f0810;
 }
 
 /*

@@ -25,6 +25,7 @@ import { type ChangeEvent, useRef, useState } from 'react'
 import type { AccountSummary, DirectionId } from '../../api'
 import { useAccounts, useDispatch, useExportAccount } from '../../hooks/useAccounts'
 import { useDirectionOptions } from '../../hooks/useMessages'
+import { PageTitle } from '../shell/PageTitle'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
@@ -52,17 +53,21 @@ export function AccountsPage() {
   const accounts = data?.accounts ?? []
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4 pt-[calc(env(safe-area-inset-top,0px)+16px)]">
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="typography-header-heading-sm mr-auto">Accounts</h1>
-        <Button variant="secondary" size="40" leftIcon={<UploadIcon />} onClick={() => fileInput.current?.click()}>
-          Import
-        </Button>
-        <Button variant="brand" size="40" leftIcon={<AddIcon />} onClick={() => setCreating(true)}>
-          New account
-        </Button>
-        <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={onImport} />
-      </div>
+    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4">
+      <PageTitle
+        title="Accounts"
+        actions={
+          <>
+            <Button variant="secondary" size="40" leftIcon={<UploadIcon />} onClick={() => fileInput.current?.click()}>
+              Import
+            </Button>
+            <Button variant="brand" size="40" leftIcon={<AddIcon />} onClick={() => setCreating(true)}>
+              New account
+            </Button>
+            <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={onImport} />
+          </>
+        }
+      />
 
       {error && (
         <Alert variant="error" title="Something went wrong" closable onClose={() => setError(null)}>
