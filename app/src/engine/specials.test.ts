@@ -4,10 +4,10 @@ import E from '../presets/events.json'
 import personas from '../presets/personas.json'
 import templates from '../presets/templates.json'
 import { createAccount } from '../store/account'
-import type { Account, DayEvent, Regular } from '../store/schema'
+import type { Account, DayEvent, DirectionId, Regular } from '../store/schema'
 import { conditionOf, hasCondition } from './conditions'
 import { eventEffects } from './eventEffects'
-import { dayEventView, endDayEvent, openDayEvents, resolveDayEvent, rollDayEvent } from './events'
+import { dayEventView, endDayEvent, openDayEvents, openRare, resolveDayEvent, rollDayEvent } from './events'
 import { loyaltyLevel } from './fans'
 import { fallbackText } from './regulars'
 import { rngFor } from './rng'
@@ -413,5 +413,92 @@ describe('Marry Me?', () => {
     a = { ...a, regulars: a.regulars.map((x) => (x.id === fan.id ? { ...x, conditions: [...x.conditions, { id: 'blocked' as const, since: a.clock.day, by: 'you' as const }] } : x)) }
     a = days(a, S.marryMe.honeymoonAfterDays + 1)
     expect(a.dayEvents.some((e) => e.kind === 'honeymoonFund')).toBe(false)
+  })
+})
+
+describe('Brand Deal Follow-up', () => {
+  type FollowUp = Record<string, { chance: number; cents: number }>
+  const PRODUCTS: Record<string, { name: string; followUp: FollowUp }> = E.rare.brandDeal.products
+
+  /** A Brand Deal for this direction today, and what you chose. */
+  function deal(direction: DirectionId, choice = 'accept'): Account {
+    const a0 = grown()
+    const a = { ...a0, direction: { ...a0.direction, id: direction, chosen: true }, dayEvents: [] }
+    const o = openRare(rngFor('t', a.clock.day, 'brand'), a, 'brandDeal', undefined, a.clock.day)
+    return resolveDayEvent({ ...o.account, dayEvents: [...o.account.dayEvents, o.event] }, o.event.id, choice, 'deal').account
+  }
+  /** Skip to the day the follow-up comes: it opens. */
+  function followUp(direction: DirectionId): Account {
+    const a = deal(direction)
+    return nextDay({ ...a, clock: { day: eventOfKind(a, 'brandFollowUp').day - 1 } })
+  }
+  /** Read the report with this seed: the result and the account after. */
+  function report(a: Account, seed: string) {
+    const r = resolveDayEvent(a, eventOfKind(a, 'brandFollowUp').id, 'ok', seed)
+    return { account: r.account, event: eventOfKind(r.account, 'brandFollowUp') }
+  }
+
+  it('comes two weeks after you take a deal, with the product; not if you turn it down', () => {
+    const a = deal('escort')
+    const day = a.clock.day
+    expect(eventOfKind(a, 'brandFollowUp')).toMatchObject({ status: 'scheduled', day: day + S.brandFollowUp.afterDays, variant: 'escort' })
+    expect(deal('escort', 'decline').dayEvents.some((e) => e.kind === 'brandFollowUp')).toBe(false)
+
+    const b = followUp('escort')
+    const view = openDayEvents(b)[0]
+    expect(view).toMatchObject({ kind: 'brandFollowUp', category: 'special', title: 'Brand Deal Follow-up', product: { name: 'Eau de Erection', image: 'cologne' } })
+    expect(view.text).toContain('Eau de Erection')
+    expect(view.options.map((o) => o.choice)).toEqual(['ok'])
+  })
+
+  it("comes even while The Charity's doors are open", () => {
+    const a = deal('sub')
+    const day = a.clock.day
+    const doors: DayEvent = { id: 'doors', kind: 'charity', category: 'special', day: day - 1, until: 1_000_000_000, status: 'active', choice: 'open', count: 1, days: 1 }
+    const b = nextDay({ ...a, dayEvents: [...a.dayEvents, doors], clock: { day: eventOfKind(a, 'brandFollowUp').day - 1 } })
+    expect(eventOfKind(b, 'brandFollowUp').status).toBe('open')
+  })
+
+  it("each product's results come with its own odds; the brand's bonus is paid directly", () => {
+    const share = (direction: DirectionId, n = 300) => {
+      const a = followUp(direction)
+      const counts: Record<string, number> = {}
+      for (let i = 0; i < n; i++) {
+        const { account, event } = report(a, `s${i}`)
+        counts[event.result!] = (counts[event.result!] ?? 0) + 1
+        const cents = PRODUCTS[direction].followUp[event.result!].cents
+        if (cents) expect(account.ledger.at(-1)).toMatchObject({ id: expect.stringMatching(/-brand$/), kind: 'offline', gross: cents, fee: 0 })
+        else expect(account.ledger).toHaveLength(a.ledger.length)
+      }
+      return (r: string) => (counts[r] ?? 0) / n
+    }
+    // The perfume nearly always sells; the podcast always brings its listeners; innocent.zip rarely goes wrong.
+    expect(share('escort')('whales')).toBeGreaterThan(0.8)
+    expect(share('couple')('listeners')).toBe(1)
+    const zip = share('egirl')
+    expect(zip('busted')).toBeGreaterThan(0)
+    expect(zip('busted')).toBeLessThan(0.12)
+    const shampoo = share('girl_next_door')
+    expect(shampoo('soldWell') + shampoo('soldOk')).toBe(1)
+    expect(shampoo('soldWell')).toBeGreaterThan(0.35)
+    // $PATRIOT pays the most.
+    const top = (d: string) => Math.max(...Object.values(PRODUCTS[d].followUp).map((o) => o.cents))
+    for (const d of Object.keys(PRODUCTS)) if (d !== 'porn_star') expect(top('porn_star')).toBeGreaterThan(top(d))
+  })
+
+  it('innocent.zip gone wrong brings haters for a week; the podcast brings visitors', () => {
+    const a = followUp('egirl')
+    const day = a.clock.day
+    const seed = Array.from({ length: 500 }, (_, i) => `s${i}`).find((s) => report(a, s).event.result === 'busted')!
+    const busted = report(a, seed)
+    expect(dayEventView(busted.account).result).toContain('arrested by the FBI')
+    const fx = eventEffects(busted.account, day + 1)
+    expect(fx.mix.hater).toBe(3)
+    expect(fx.regularMix.hater).toBe(3)
+    expect(eventEffects(busted.account, day + 8).mix.hater).toBeUndefined()
+
+    const pod = report(followUp('couple'), 'x')
+    expect(pod.event.result).toBe('listeners')
+    expect(eventEffects(pod.account, day + 1).visitors).toBe(1.6)
   })
 })

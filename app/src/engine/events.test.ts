@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import E from '../presets/events.json'
 import { createAccount } from '../store/account'
+import { existsSync } from 'node:fs'
 import { migrate } from '../store/migrate'
-import type { Account, DayEvent, Regular } from '../store/schema'
+import { DIRECTIONS, type Account, type DayEvent, type Regular } from '../store/schema'
 import { hasCondition } from './conditions'
 import { eventEffects } from './eventEffects'
 import { dayEventView, openDayEvents, resolveDayEvent, rollDayEvent } from './events'
@@ -88,20 +89,34 @@ describe('daily events', () => {
     expect(fx.target).toEqual({ regularId: 'him', ...E.rare.whaleWatching.target })
   })
 
-  it('a brand deal pays off the platform and posts your #ad', () => {
-    const a = withRare(grown(), 'brandDeal', { variant: 'egirl', amountCents: 40000 })
+  it('a brand deal pays off the platform and posts your #ad, linking to the product', () => {
+    const fee = E.rare.brandDeal.products.egirl.feeCents
+    const a = withRare(grown(), 'brandDeal', { variant: 'egirl', amountCents: fee })
     const view = openDayEvents(a)[0]
     expect(view.options.map((o) => o.choice)).toEqual(['accept', 'negotiate', 'decline'])
-    expect(view.text).toBe(`${E.rare.brandDeal.products.egirl.pitch} They offer $400.`)
+    // The pitch carries its own offer.
+    expect(view.text).toBe(E.rare.brandDeal.products.egirl.pitch.replace('{fee}', '$1,000'))
     expect(view.text).toContain('innocent.zip')
+    expect(view.product).toEqual({ name: 'innocent.zip', image: 'innocentZip' })
     expect(view.options[1].help).toContain('50%')
     const r = resolveDayEvent(a, view.id!, 'accept', 'ev')
-    expect(r.account.ledger.at(-1)).toMatchObject({ kind: 'offline', gross: 40000, fee: 0 })
-    // Each direction's brand has its own #ad.
-    expect(r.account.posts[0].text).toBe(E.rare.brandDeal.products.egirl.ad)
-    expect(r.events[0]).toMatchObject({ type: 'day-event-done', result: 'accepted', gross: 40000 })
-    expect(dayEventView(r.account).result).toContain('$400')
+    expect(r.account.ledger.at(-1)).toMatchObject({ kind: 'offline', gross: fee, fee: 0 })
+    // Each direction's brand has its own #ad, and the post links to the product.
+    expect(r.account.posts[0]).toMatchObject({ text: E.rare.brandDeal.products.egirl.ad, sponsor: 'egirl' })
+    expect(r.events[0]).toMatchObject({ type: 'day-event-done', result: 'accepted', gross: fee })
+    expect(dayEventView(r.account).result).toContain('$1,000')
     expect(() => resolveDayEvent(r.account, view.id!, 'accept', 'ev')).toThrow(/already/)
+  })
+
+  it('every direction has a brand with a fixed fee, a picture and an offer in its pitch', () => {
+    const products: Record<string, { name: string; image: string; feeCents: number; pitch: string; ad: string }> = E.rare.brandDeal.products
+    for (const d of DIRECTIONS) {
+      const p = products[d]
+      expect(p, d).toBeDefined()
+      expect(p.feeCents, d).toBeGreaterThan(0)
+      expect(p.pitch, d).toContain('{fee}')
+      expect(existsSync(new URL(`../assets/products/${p.image}.webp`, import.meta.url)), d).toBe(true)
+    }
   })
 
   it('a guest star brings a scene post; if it goes badly, the most devoted fan turns on you', () => {
@@ -150,7 +165,7 @@ describe('daily events', () => {
   })
 
   it('skipping past an undecided rare event warns you first', () => {
-    const a = withRare(grown(), 'brandDeal', { variant: 'egirl', amountCents: 40000 })
+    const a = withRare(grown(), 'brandDeal', { variant: 'egirl', amountCents: 100000 })
     expect(lapsing(a, 1).filter((l) => l.kind === 'event')).toEqual([])
     expect(lapsing(a, 7).find((l) => l.kind === 'event')).toMatchObject({ name: 'Brand Deal', deadline: a.clock.day + E.daily.answerDays - 1 })
   })

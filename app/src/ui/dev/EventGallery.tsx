@@ -1,6 +1,7 @@
 import { Button, Card, CardContent, Chip } from '@fanvue/ui'
 import { type ReactNode, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { ProductCard } from '../ProductCard'
 import { PageTitle } from '../shell/PageTitle'
 import { DayEventDialog } from '../time/DayEventDialog'
 import {
@@ -73,7 +74,9 @@ export function EventGallery() {
               ))}
             </div>
           ) : (
-            s.events.map((e) => (e.kind === 'brandDeal' && s.brandDeals ? <BrandDealCard key="brandDeal" deals={s.brandDeals} /> : <EventCard key={e.id} event={e} />))
+            s.events.map((e) =>
+              s.byDirection?.[e.kind] ? <ByDirectionCard key={e.kind} kind={e.kind} deals={s.byDirection[e.kind]} /> : <EventCard key={e.id} event={e} />,
+            )
           )}
         </section>
       ))}
@@ -241,6 +244,7 @@ function EventCard({ event, header }: { event: GalleryEvent; header?: ReactNode 
                     <p>
                       <Txt>{p.text}</Txt>
                     </p>
+                    {p.product && <ProductCard product={p.product} />}
                     <Path>{`events.json → ${p.path}`}</Path>
                   </div>
                 ))}
@@ -313,10 +317,10 @@ function ResultRow({
   )
 }
 
-/** The Brand Deal, for whichever direction you pick: each has its own product. */
-function BrandDealCard({ deals }: { deals: GalleryEvent[] }) {
+/** The Brand Deal (or its follow-up), for whichever direction you pick: each has its own product. */
+function ByDirectionCard({ kind, deals }: { kind: string; deals: GalleryEvent[] }) {
   const [direction, setDirection] = useState<DirectionId>('girl_next_door')
-  const deal = deals.find((d) => d.id === `brandDeal-${direction}`) ?? deals[0]
+  const deal = deals.find((d) => d.id === `${kind}-${direction}`) ?? deals[0]
   return (
     <EventCard
       key={deal.id}
@@ -331,7 +335,9 @@ function BrandDealCard({ deals }: { deals: GalleryEvent[] }) {
             ))}
           </div>
           <p className="text-xs text-content-tertiary">
-            Fee at level {SAMPLE.brandLevel} with {SAMPLE.subscribers.toLocaleString('en-US')} subscribers. Each direction’s product: events.json → rare.brandDeal.products.
+            {kind === 'brandFollowUp'
+              ? 'How each direction’s product sells, and the odds: events.json → rare.brandDeal.products.<direction>.followUp.'
+              : 'Each direction’s product, picture and fixed fee: events.json → rare.brandDeal.products (pictures in assets/products).'}
           </p>
         </div>
       }

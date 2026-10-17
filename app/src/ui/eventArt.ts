@@ -4,8 +4,8 @@ const files = import.meta.glob<string>('../assets/events/*.webp', { eager: true,
 
 const ART: Record<string, string> = Object.fromEntries(Object.entries(files).map(([path, url]) => [path.split('/').pop()!.replace('.webp', ''), url]))
 
-/** Events that share a picture: the arrest is Human ATM's, the wedding follow-ups the rings. */
-const SAME_AS: Record<string, string> = { humanAtmArrest: 'humanAtm', honeymoonFund: 'rings', saveTheDate: 'rings' }
+/** Events that share a picture: the arrest is Human ATM's, the wedding follow-ups the rings, the Brand Deal's follow-up its own. */
+const SAME_AS: Record<string, string> = { humanAtmArrest: 'humanAtm', honeymoonFund: 'rings', saveTheDate: 'rings', brandFollowUp: 'brandDeal' }
 
 /** Where to crop a picture in the short Home banner, when its middle is the wrong part (the cake's dolls are near the top). */
 const FOCUS: Record<string, string> = { marryMe: 'center 20%' }

@@ -3,7 +3,7 @@
 // so with `npm run dev` an edit there shows up at once. The rules that pick which text shows
 // when (which choice leads to which result, what keeps running) follow engine/events.ts and
 // engine/specials.ts; if those change, change OUTCOMES and RUNNING here too.
-import type { DayEventOption, DayEventView, Directions, Segment } from '../../api'
+import type { DayEventOption, DayEventView, Directions, Segment, SponsoredProduct } from '../../api'
 import audience from '../../presets/audience.json'
 import D from '../../presets/directions.json'
 import E from '../../presets/events.json'
@@ -35,8 +35,6 @@ export const SAMPLE = {
   tipCents: 15000,
   /** {freebies}: the times men had you for free (The Charity needs `minFreebies`). */
   freebies: E.special.charity.minFreebies + 1,
-  /** The Brand Deal's fee is by level (plus $1 a subscriber): this level. */
-  brandLevel: 3,
   /** The Charity on its later day, when you close the doors. */
   charityDays: 4,
 }
@@ -81,6 +79,7 @@ const OUTCOMES: Record<string, Record<string, string[]>> = {
   marryMe: { yes: ['yes'], delusional: ['deflated', 'enraged'], block: ['blocked'] },
   honeymoonFund: { ok: ['running'] },
   saveTheDate: { mom: ['mom'], decline: ['therapist'] },
+  // brandFollowUp: the product's own results (followUpOutcomes).
 }
 
 /** When a result comes, where it is not just the roll. */
@@ -95,7 +94,7 @@ const WHEN: Record<string, string> = {
 const RUNNING: Record<string, string[]> = { charity: ['opened', 'openedRich'], humanAtm: ['running'], honeymoonFund: ['running'] }
 
 /** Results the popup shows as a warning (engine/events.ts BAD_RESULTS). */
-const BAD = new Set(['cooled', 'deeper', 'turned', 'spread', 'ignored', 'dragged', 'escalated', 'walked', 'jealous', 'opened', 'openedRich', 'enraged'])
+const BAD = new Set(['cooled', 'deeper', 'turned', 'spread', 'ignored', 'dragged', 'escalated', 'walked', 'jealous', 'opened', 'openedRich', 'enraged', 'busted'])
 /** Results that cost subscribers: the popup adds "N subscribers left." */
 const LOSES = new Set(['spread', 'leaned', 'dragged', 'escalated', 'jealous'])
 
@@ -125,6 +124,7 @@ const CHAIN: Record<string, string> = {
   humanAtmArrest: `${E.special.humanAtm.days} days after Human ATM`,
   honeymoonFund: `${E.special.marryMe.honeymoonAfterDays} days after you say yes to Marry Me?`,
   saveTheDate: `${E.special.honeymoonFund.saveTheDateAfterDays} days after The Honeymoon Fund starts`,
+  brandFollowUp: `${E.special.brandFollowUp.afterDays} days after you take a Brand Deal`,
 }
 
 // Formatting, as engine/events.ts writes it.
@@ -183,7 +183,8 @@ export type GalleryEvent = {
   /** Results in the JSON no option leads to here (probably new: add them to OUTCOMES). */
   unmapped: { path: string; text: string }[]
   messages: { path: string; when: string; en: string[]; zh: string[] }[]
-  posts: { path: string; when: string; text: string }[]
+  /** `product`: the Brand Deal's card under the #ad. */
+  posts: { path: string; when: string; text: string; product?: SponsoredProduct }[]
   /** Common events: what they change, from the JSON. */
   effects?: string
 }
@@ -203,13 +204,14 @@ const baseValues = (kind: string): Record<string, string> => ({
   you: SAMPLE.you,
 })
 
-/** The brand deal for a direction: its product, its fee at the sample level, what you get if you push. */
+/** The brand deal for a direction: its product and fixed fee, what you get if you push. */
 function brand(direction: string) {
   const B = E.rare.brandDeal
-  const products = B.products as Record<string, { name: string; pitch: string; ad: string }>
+  const products: Record<string, { name: string; image: string; feeCents: number; pitch: string; ad: string; followUp: Record<string, { chance: number; cents: number }> }> =
+    B.products
   const product = products[direction] ?? products.girl_next_door
-  const fee = B.fee.byLevel[SAMPLE.brandLevel - 1] + SAMPLE.subscribers * B.fee.perSubscriberCents
-  return { ...product, fee, pushed: Math.round((fee * B.fee.negotiateFactor) / 100) * 100 }
+  const fee = product.feeCents
+  return { ...product, fee, pitch: fill(product.pitch, { fee: money(fee) }), pushed: Math.round((fee * B.fee.negotiateFactor) / 100) * 100 }
 }
 
 /**
@@ -226,6 +228,8 @@ function amounts(kind: string, direction: string): { open?: number; results?: Re
       const b = brand(direction)
       return { open: b.fee, results: { accepted: b.fee, negotiated: b.pushed } }
     }
+    case 'brandFollowUp':
+      return { results: Object.fromEntries(Object.entries(brand(direction).followUp).map(([r, o]) => [r, o.cents])) }
     case 'secretAdmirer':
       return { open: tip * E.rare.secretAdmirer.gifts.arrive, results: { thankedMore: tip * E.rare.secretAdmirer.gifts.more } }
     case 'humanAtm':
@@ -251,7 +255,7 @@ function rareOrSpecial(category: 'rare' | 'special', kind: string, spec: Spec, d
   const money$ = amounts(kind, direction)
   const values = (extra: Record<string, string> = {}) => ({
     ...baseValues(kind),
-    ...(kind === 'brandDeal' ? { pitch: brand(direction).pitch, product: brand(direction).name } : {}),
+    ...(kind === 'brandDeal' || kind === 'brandFollowUp' ? { pitch: brand(direction).pitch, product: brand(direction).name } : {}),
     amount: money(money$.open ?? 0),
     fee: money(money$.open ?? 0),
     ...extra,
@@ -296,6 +300,7 @@ function rareOrSpecial(category: 'rare' | 'special', kind: string, spec: Spec, d
     ...(spec.email
       ? { email: { from: spec.email.from, to: fill(spec.email.to, values()), subject: spec.email.subject, body: fill(spec.email.body, values()) } }
       : {}),
+    ...(kind === 'brandDeal' || kind === 'brandFollowUp' ? { product: { name: brand(direction).name, image: brand(direction).image } } : {}),
   }
   const home = (text: string, more: Partial<HomeView> = {}): HomeView => ({ kind, category, title: spec.title, text, ...more })
 
@@ -330,14 +335,17 @@ function rareOrSpecial(category: 'rare' | 'special', kind: string, spec: Spec, d
     }
   }
 
-  const map = OUTCOMES[kind] ?? {}
+  // The Brand Deal's follow-up: whatever this product can come to, each with its own odds.
+  const followUp = kind === 'brandFollowUp' ? brand(direction).followUp : null
+  const map = followUp ? { ok: Object.keys(followUp) } : (OUTCOMES[kind] ?? {})
   const outcomes: Outcome[] = []
   for (const [choice, results] of Object.entries(map)) {
     if (!(choice in spec.options)) continue
     const chance = spec.odds[choice]
     results.forEach((r, i) => {
       const roll = results.length > 1 && chance !== undefined ? (i === 0 ? `if the roll succeeds (${percent(chance)})` : `if the roll fails (${percent(1 - chance)})`) : undefined
-      outcomes.push(outcome(choice, r, WHEN[`${kind}.${r}`] ?? roll))
+      const odds = followUp ? `${percent(followUp[r].chance)} for ${brand(direction).name}` : undefined
+      outcomes.push(outcome(choice, r, odds ?? WHEN[`${kind}.${r}`] ?? roll))
     })
   }
 
@@ -355,9 +363,11 @@ function rareOrSpecial(category: 'rare' | 'special', kind: string, spec: Spec, d
     outcomes.push({ id: 'last', option: null, when: `on day ${spec.days}, the last one`, text, path: `${path}.progress`, bad: false, home: runningHome(text, 0) })
   }
 
-  const shown = new Set(Object.values(map).flat().concat(kind === 'charity' ? ['ended'] : []))
+  // The follow-up's other results belong to other directions' products.
+  const elsewhere = followUp ? Object.values(E.rare.brandDeal.products).flatMap((p) => Object.keys(p.followUp)) : []
+  const shown = new Set(Object.values(map).flat().concat(kind === 'charity' ? ['ended'] : [], elsewhere))
   return {
-    id: kind === 'brandDeal' ? `${kind}-${direction}` : kind,
+    id: kind === 'brandDeal' || kind === 'brandFollowUp' ? `${kind}-${direction}` : kind,
     kind,
     category,
     path,
@@ -384,7 +394,9 @@ function posts(kind: string, direction: string): GalleryEvent['posts'] {
   const S = E.special.charity
   switch (kind) {
     case 'brandDeal':
-      return [{ path: `rare.brandDeal.products.${direction}.ad`, when: 'you take the deal', text: brand(direction).ad }]
+      return [
+        { path: `rare.brandDeal.products.${direction}.ad`, when: 'you take the deal', text: brand(direction).ad, product: { name: brand(direction).name, image: brand(direction).image } },
+      ]
     case 'guestStar':
       return [{ path: 'rare.guestStar.post', when: 'you shoot the scene', text: fill(E.rare.guestStar.post, { star: E.rare.guestStar.stars[0] }) }]
     case 'charity':
@@ -443,7 +455,8 @@ function common(kind: string, path: string, spec: { title: string; text: string;
   }
 }
 
-export type Section = { id: string; title: string; note: string; events: GalleryEvent[]; brandDeals?: GalleryEvent[] }
+/** `byDirection`: events with one version per direction (Brand Deal and its follow-up), by kind. */
+export type Section = { id: string; title: string; note: string; events: GalleryEvent[]; byDirection?: Record<string, GalleryEvent[]> }
 
 /** Everything in events.json, in the order the gallery shows it. */
 export function gallerySections(): Section[] {
@@ -454,14 +467,26 @@ export function gallerySections(): Section[] {
   }
   const rumors = Object.entries(E.rumors).map(([v, spec]) => common('rumor', `rumors.${v}`, { ...spec, days: rumorDays }))
 
-  const rare = Object.entries(RARE).map(([kind, spec]) => rareOrSpecial('rare', kind, spec))
+  // Brand Deal's follow-up (a chained special event) sits right under it.
+  const rare = Object.entries(RARE).flatMap(([kind, spec]) =>
+    kind === 'brandDeal' ? [rareOrSpecial('rare', kind, spec), rareOrSpecial('special', 'brandFollowUp', SPECIAL.brandFollowUp)] : [rareOrSpecial('rare', kind, spec)],
+  )
   const brandDeals = DIRECTION_IDS.map((d) => rareOrSpecial('rare', 'brandDeal', RARE.brandDeal, d))
-  const special = Object.entries(SPECIAL).map(([kind, spec]) => rareOrSpecial('special', kind, spec))
+  const followUps = DIRECTION_IDS.map((d) => rareOrSpecial('special', 'brandFollowUp', SPECIAL.brandFollowUp, d))
+  const special = Object.entries(SPECIAL)
+    .filter(([kind]) => kind !== 'brandFollowUp')
+    .map(([kind, spec]) => rareOrSpecial('special', kind, spec))
 
   return [
     { id: 'common', title: 'Common events', note: 'No choice: they change the odds for a day or a few. Only a Home card.', events: commons },
     { id: 'rumors', title: 'Rumor Mill', note: `One of these, picked at random, for ${rumorDays} days (events.json → rumors).`, events: rumors },
-    { id: 'rare', title: 'Rare events', note: 'A popup with choices, the odds on the buttons. Brand Deal: pick a direction.', events: rare, brandDeals },
+    {
+      id: 'rare',
+      title: 'Rare events',
+      note: 'A popup with choices, the odds on the buttons. Brand Deal and its follow-up (right under it): pick a direction.',
+      events: rare,
+      byDirection: { brandDeal: brandDeals, brandFollowUp: followUps },
+    },
     { id: 'special', title: 'Special events', note: 'Turning points, and what follows them by itself.', events: special },
   ]
 }

@@ -37,6 +37,7 @@ import {
   isSpecial,
   reachable,
   rollSpecial,
+  scheduleBrandFollowUp,
   settleSpecial,
   SPECIAL,
   specialDay,
@@ -58,7 +59,7 @@ const specOf = (kind: string): EventSpec => (isSpecial(kind) ? SPECIAL[kind] : R
 const COMMON = E.common as Record<string, { title: string; text: string; weight: number; days: number }>
 
 /** Results that went badly for you (the popup shows them as a warning). */
-const BAD_RESULTS = new Set(['cooled', 'deeper', 'turned', 'spread', 'ignored', 'dragged', 'escalated', 'walked', 'jealous', 'opened', 'openedRich', 'enraged'])
+const BAD_RESULTS = new Set(['cooled', 'deeper', 'turned', 'spread', 'ignored', 'dragged', 'escalated', 'walked', 'jealous', 'opened', 'openedRich', 'enraged', 'busted'])
 
 const level = (a: Account) => levelOf(a.direction.points[a.direction.id])
 const misogynistOrCreep = (r: Regular) => r.personality === 'misogynist' || r.behaviours.includes('creepy_compliments')
@@ -106,11 +107,6 @@ const BOOSTS: Record<string, (a: Account, day: number) => number> = {
     1 + Math.min(4, 0.7 * reachable(a).filter((r) => actingType(r) === 'hater' || r.personality === 'misogynist').length + subscriberCount(a.audience, 'hater') / 50),
 }
 
-/** The brand's fee: by your level, plus a little per subscriber. */
-function brandFee(a: Account): number {
-  const F = E.rare.brandDeal.fee
-  return F.byLevel[level(a) - 1] + subscriberCount(a.audience) * F.perSubscriberCents
-}
 
 function openCommon(rng: Rng, a: Account, day: number): { account: Account; event: DayEvent } {
   const weights = Object.fromEntries(Object.entries(COMMON).map(([k, c]) => [k, c.weight * (BOOSTS[k]?.(a, day) ?? 1)]))
@@ -124,7 +120,8 @@ function openCommon(rng: Rng, a: Account, day: number): { account: Account; even
 
 export function openRare(rng: Rng, a: Account, kind: RareKind, fan: Regular | undefined, day: number): { account: Account; event: DayEvent } {
   const event: DayEvent = { id: `ev${day}`, kind, category: 'rare', day, until: day + RARE[kind].days, status: 'open', ...(fan ? { regularId: fan.id } : {}) }
-  if (kind === 'brandDeal') return { account: a, event: { ...event, variant: a.direction.id, amountCents: brandFee(a) } }
+  // Each direction's brand pays its own fixed fee (events.json rare.brandDeal.products).
+  if (kind === 'brandDeal') return { account: a, event: { ...event, variant: a.direction.id, amountCents: productOf(a.direction.id).feeCents } }
   // Which porn star asks (his name is the variant).
   if (kind === 'guestStar') return { account: a, event: { ...event, variant: E.rare.guestStar.stars[Math.floor(rng() * E.rare.guestStar.stars.length)] } }
   if (kind === 'secretAdmirer' && fan) {
@@ -295,7 +292,10 @@ function settle(account: Account, eventId: string, choice: string, seed: string,
       if (paid) {
         cents = paid
         cash(paid)
-        a = { ...a, posts: [eventPost(a, brand(e).ad, day), ...a.posts] }
+        // The #ad links to what you promote: the post shows the product's card.
+        a = { ...a, posts: [{ ...eventPost(a, brand(e).ad, day), sponsor: brandKey(e) }, ...a.posts] }
+        // Two weeks on, how it sold (engine/specials.ts).
+        a = { ...a, dayEvents: [...a.dayEvents, scheduleBrandFollowUp({ ...e, variant: brandKey(e) }, day)] }
       }
       result = choice === 'accept' ? 'accepted' : choice === 'negotiate' ? (ok ? 'negotiated' : 'walked') : 'declined'
       break
@@ -361,9 +361,20 @@ function settle(account: Account, eventId: string, choice: string, seed: string,
   return { account: a, events }
 }
 
-type Brand = { name: string; pitch: string; ad: string }
-/** What the brand behind a Brand Deal sells, by your direction (the variant): its name, the pitch, the #ad you post. */
-const brand = (e: DayEvent): Brand => (E.rare.brandDeal.products as Record<string, Brand>)[e.variant ?? ''] ?? E.rare.brandDeal.products.girl_next_door
+type Brand = { name: string; image: string; feeCents: number; pitch: string; ad: string }
+const PRODUCTS: Record<string, Brand> = E.rare.brandDeal.products
+/**
+ * What the brand behind a Brand Deal sells, by direction (the event's variant): its name and
+ * picture (the "Sponsored product" card), its fee, the pitch, the #ad you post.
+ */
+const productKey = (key: string | undefined): string => (key && key in PRODUCTS ? key : 'girl_next_door')
+const productOf = (key: string | undefined): Brand => PRODUCTS[productKey(key)]
+const brandKey = (e: DayEvent) => productKey(e.variant)
+const brand = (e: DayEvent): Brand => productOf(e.variant)
+
+/** A Brand Deal's product as the app shows it: in the popup and under the #ad it puts up (Post.sponsor). */
+export type SponsoredProduct = { name: string; image: string }
+export const sponsoredProduct = (key: string): SponsoredProduct => ({ name: productOf(key).name, image: productOf(key).image })
 
 /** You chose what to do about a rare (or special) event: the engine rolls how it goes and settles it. */
 export function resolveDayEvent(account: Account, eventId: string, choice: string, seed: string, target?: SwapTarget): { account: Account; events: EngineEvent[] } {
@@ -416,6 +427,8 @@ export type DayEventView = {
   pick?: { fans: { id: string; name: string; type: Segment }[]; types: { id: Segment; label: string }[] }
   /** It came as an email (Routing Error): the popup shows the header lines and the body. */
   email?: { from: string; to: string; subject: string; body: string }
+  /** Brand Deal: what you would promote (the "Sponsored product" card). */
+  product?: SponsoredProduct
 }
 
 const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US', cents % 100 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : {})}`
@@ -433,7 +446,8 @@ function fill(text: string, a: Account, e: DayEvent, extra: Record<string, strin
     amount: money(e.resultCents ?? e.amountCents ?? 0),
     fee: money(e.amountCents ?? 0),
     product: brand(e).name,
-    pitch: brand(e).pitch,
+    // The pitch carries its own offer (“They offer {fee}.”).
+    pitch: brand(e).pitch.replace('{fee}', () => money(e.amountCents ?? 0)),
     star: e.kind === 'guestStar' ? (e.variant ?? '') : '',
     tag: tagLabel(e.variant ?? ''),
     freebies: String(freebies(a)),
@@ -481,6 +495,7 @@ function viewOf(a: Account, e: DayEvent, day: number): DayEventView {
     ...(running ? { result: fill(spec.progress!, a, e) } : e.result ? { result: fill(spec.results[e.result], a, e) } : {}),
     ...(ongoing ? { ongoing: true, endLabel: spec.endLabel } : {}),
     ...(e.kind === 'routingError' && e.status === 'open' ? { pick: swapChoices(a) } : {}),
+    ...(e.kind === 'brandDeal' || e.kind === 'brandFollowUp' ? { product: sponsoredProduct(brandKey(e)) } : {}),
     ...(spec.email
       ? { email: { from: spec.email.from, to: fill(spec.email.to, a, e), subject: spec.email.subject, body: fill(spec.email.body, a, e) } }
       : {}),

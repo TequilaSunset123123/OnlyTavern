@@ -45,6 +45,8 @@ export const PostSchema = z.object({
   priceCents: Cents.nonnegative(),
   /** Member id of whoever posted it. */
   author: z.string(),
+  /** A Brand Deal's #ad (engine/events.ts): the product it links to, a key of events.json rare.brandDeal.products. */
+  sponsor: z.string().optional(),
   stats: z.object({ views: Count, likes: Count, comments: Count, purchases: Count, earned: Cents }),
 })
 

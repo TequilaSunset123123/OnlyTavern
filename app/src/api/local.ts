@@ -384,11 +384,14 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
     },
     async getFeed(id) {
       const account = await mustLoad(id)
+      // Brand Deal #ads link to their product (loaded only when there is one).
+      const ev = account.posts.some((p) => p.sponsor) ? await dayEvents() : null
       const posts = account.posts.map((p) => ({
         ...p,
         items: p.vaultIds.map((v) => account.vault.find((i) => i.id === v) ?? null),
         intensity: postIntensity(p, account),
         tags: postTags(p, account),
+        ...(p.sponsor && ev ? { product: ev.sponsoredProduct(p.sponsor) } : {}),
       }))
       return { day: account.clock.day, canLockPosts: canLockPosts(account), posts }
     },

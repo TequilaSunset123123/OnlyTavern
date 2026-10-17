@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import type { DayEventView } from '../../api'
 import { count } from '../format'
 import { Panel } from '../Panel'
+import { ProductCard } from '../ProductCard'
 import { EventArt } from '../time/DayEventDialog'
 import { LevelUpHost } from '../time/LevelUp'
 import { type DirectionId, GALLERY_ID, type HomeView, levelSeenKey, levelUpDirections, type Outcome } from './galleryData'
@@ -87,6 +88,7 @@ export function PopupPreview({ view, stage, onChoose, onBack }: { view: DayEvent
       </div>
       <div className="flex flex-1 flex-col gap-3 py-4">
         <EventArt kind={view.kind} />
+        {view.product && <ProductCard product={view.product} />}
         {view.email ? <EmailPreview email={view.email} /> : <p className="text-sm"><Txt>{view.text}</Txt></p>}
         {done ? (
           <Alert variant={done.bad || done.lost ? 'warning' : 'success'}>

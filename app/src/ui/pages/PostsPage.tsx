@@ -21,6 +21,7 @@ import { useComments, useFeed } from '../../hooks/useContent'
 import { directionLine, useCurrentDirection } from '../direction'
 import { count, money } from '../format'
 import { MediaTile } from '../MediaTile'
+import { ProductCard } from '../ProductCard'
 import { NEW_POST_PATH } from '../shell/nav'
 import { PageTitle } from '../shell/PageTitle'
 
@@ -89,6 +90,7 @@ function PostCard({ post, accountId, name, handle, today }: { post: FeedPost; ac
         </div>
 
         {post.text && <p className="whitespace-pre-wrap">{post.text}</p>}
+        {post.product && <ProductCard product={post.product} />}
         {post.items.length > 0 && (
           <div className={`grid gap-2 ${post.items.length === 1 ? 'grid-cols-1 sm:w-2/3' : 'grid-cols-2 sm:grid-cols-3'}`}>
             {post.items.map((item, i) => (

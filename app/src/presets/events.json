@@ -1,5 +1,5 @@
 {
-  "_doc": "Daily events (plan.md §10.2, 2026-10-16). Categories: default (an ordinary day, no event), common (random, effects only, no choice; weight is boosted by what is going on: engine/events.ts BOOSTS), rare (only if you have the fans for it; you choose what to do), special (turning points your path leads to, engine/specials.ts: each has its own daily `chance` once its conditions are met, and `repeatDays` (null: once per account); `chained` ones are never rolled, an earlier one schedules them; each pops up when it comes (one that just runs for `days` days has a single button to take note of it), The Charity runs until you end it). Effects are multipliers on the day's odds (engine/events.ts Effects). Words: {name} the fan, {product} the brand's product, {fee} money, {tag} a tag, {amount} money. A rare event's `after.<result>` is what that result leaves behind: {days, effects} from the next day on.",
+  "_doc": "Daily events (plan.md §10.2, 2026-10-16). Categories: default (an ordinary day, no event), common (random, effects only, no choice; weight is boosted by what is going on: engine/events.ts BOOSTS), rare (only if you have the fans for it; you choose what to do), special (turning points your path leads to, engine/specials.ts: each has its own daily `chance` once its conditions are met, and `repeatDays` (null: once per account); `chained` ones are never rolled, an earlier one schedules them; each pops up when it comes (one that just runs for `days` days has a single button to take note of it), The Charity runs until you end it). Effects are multipliers on the day's odds (engine/events.ts Effects). Words: {name} the fan, {pitch} the brand's pitch (with its own {fee}), {product} its product's name, {fee} money, {tag} a tag, {amount} money. A rare event's `after.<result>` is what that result leaves behind: {days, effects} from the next day on.",
   "daily": {
     "commonChance": 0.3,
     "commonEveryDays": 7,
@@ -325,7 +325,7 @@
     },
     "brandDeal": {
       "title": "Brand Deal",
-      "text": "{pitch} They offer {fee}.",
+      "text": "{pitch}",
       "days": 1,
       "default": "decline",
       "options": {
@@ -346,45 +346,84 @@
         "negotiate": 0.5
       },
       "fee": {
-        "byLevel": [0, 0, 40000, 90000, 180000],
-        "perSubscriberCents": 100,
         "negotiateFactor": 1.5
       },
       "products": {
         "girl_next_door": {
           "name": "BLACKFLAG™ ODOR ELIMINATOR",
-          "pitch": "BLACKFLAG™ wants you as the face of their ODOR ELIMINATOR: Men's Tactical Shampoo, Charcoal + Arctic Steel.",
-          "ad": "#ad Every man in my life gets BLACKFLAG™ ODOR ELIMINATOR now 🖤 Men's Tactical Shampoo · Charcoal + Arctic Steel. Link in bio"
+          "image": "shampoo",
+          "feeCents": 80000,
+          "pitch": "BLACKFLAG™ wants you as the face of their ODOR ELIMINATOR: Men's Tactical Shampoo, Charcoal + Arctic Steel. They offer {fee}.",
+          "ad": "#ad Every man in my life gets BLACKFLAG™ ODOR ELIMINATOR now 🖤 Men's Tactical Shampoo · Charcoal + Arctic Steel. Link below",
+          "followUp": {
+            "soldWell": { "chance": 0.5, "cents": 40000 },
+            "soldOk": { "chance": 0.5, "cents": 10000 }
+          }
         },
         "porn_star": {
-          "name": "condoms",
-          "pitch": "A condom brand wants you to promote their condoms.",
-          "ad": "#ad Obsessed with my new condoms. Link in bio 💕"
+          "name": "$PATRIOT",
+          "image": "patriot",
+          "feeCents": 240000,
+          "pitch": "A crypto company linked to a prominent senator wants you to promote their new memecoin, $PATRIOT. They offer {fee} for a sponsored post.",
+          "ad": "#ad Just aped into $PATRIOT 🦅🇺🇸 Backed by a real senator, so it can only go up. Not financial advice. Link below",
+          "followUp": {
+            "pumped": { "chance": 0.6, "cents": 300000 },
+            "flat": { "chance": 0.4, "cents": 60000 }
+          }
         },
         "egirl": {
           "name": "innocent.zip",
-          "pitch": "innocent.zip, a cloud storage platform that will not stop telling you how private it is (“anti FBI level cybersecurity”), wants you as its face.",
-          "ad": "#ad all my files live on innocent.zip now 🔒 anti fbi level cybersecurity, no logs, no questions asked (｡•̀ᴗ-)✧ link in bio"
+          "image": "innocentZip",
+          "feeCents": 100000,
+          "pitch": "innocent.zip, a cloud storage platform advertising what it calls “FBI-proof encryption”, wants you to promote their service. They offer {fee}.",
+          "ad": "#ad all my files live on innocent.zip now 🔒 FBI-proof encryption, no logs, no questions asked (｡•̀ᴗ-)✧ link below",
+          "followUp": {
+            "soldWell": { "chance": 0.95, "cents": 50000 },
+            "busted": { "chance": 0.05, "cents": 0 }
+          }
         },
         "escort": {
-          "name": "'Eau de Erection' cologne",
-          "pitch": "A perfume house wants you to promote 'Eau de Erection', their new cologne.",
-          "ad": "#ad Obsessed with 'Eau de Erection' 💕 Gentlemen, you know what to do. Link in bio"
+          "name": "Eau de Erection",
+          "image": "cologne",
+          "feeCents": 160000,
+          "pitch": "A luxury perfume house wants you to promote “Eau de Erection,” their new men's cologne. They're offering {fee} for a sponsored post.",
+          "ad": "#ad Obsessed with 'Eau de Erection' 💕 Gentlemen, you know what to do. Link below",
+          "followUp": {
+            "whales": { "chance": 0.9, "cents": 120000 },
+            "soldOk": { "chance": 0.1, "cents": 30000 }
+          }
         },
         "couple": {
           "name": "The Male Perspective",
-          "pitch": "The Male Perspective wants an ad read: a podcast where two bearded men in baseball caps spend two hours an episode discussing “females”.",
-          "ad": "#ad We gave The Male Perspective a listen 🎙️ Two hours on “females” every episode. He took notes. Link in bio"
+          "image": "podcast",
+          "feeCents": 30000,
+          "pitch": "The Male Perspective wants you to promote their podcast, where two bearded men in baseball caps spend two hours every episode discussing “females”. They offer {fee} for a sponsored post.",
+          "ad": "#ad We gave The Male Perspective a listen 🎙️ Two hours on “females” every episode. He took notes. Link below",
+          "followUp": {
+            "listeners": { "chance": 1, "cents": 0 }
+          }
         },
         "sub": {
           "name": "Late-Stage Capitalism Kit",
-          "pitch": "A brand wants you to promote their Late-Stage Capitalism Kit (it is a leather outfit).",
-          "ad": "#ad Obsessed with my new Late-Stage Capitalism Kit (it's a leather outfit). Link in bio 💕"
+          "image": "leather",
+          "feeCents": 60000,
+          "pitch": "A discreet leather fetishwear company wants you to promote their latest product. They're offering {fee} for a sponsored post.",
+          "ad": "#ad Obsessed with my new Late-Stage Capitalism Kit (it's a leather outfit). Link below 💕",
+          "followUp": {
+            "soldWell": { "chance": 0.5, "cents": 30000 },
+            "soldOk": { "chance": 0.5, "cents": 8000 }
+          }
         },
         "domme": {
           "name": "Late-Stage Capitalism Kit",
-          "pitch": "A brand wants you to promote their Late-Stage Capitalism Kit (it is a leather outfit).",
-          "ad": "#ad Obsessed with my new Late-Stage Capitalism Kit (it's a leather outfit). Link in bio 💕"
+          "image": "leather",
+          "feeCents": 60000,
+          "pitch": "A discreet leather fetishwear company wants you to promote their latest product. They're offering {fee} for a sponsored post.",
+          "ad": "#ad Obsessed with my new Late-Stage Capitalism Kit (it's a leather outfit). Link below 💕",
+          "followUp": {
+            "soldWell": { "chance": 0.5, "cents": 30000 },
+            "soldOk": { "chance": 0.5, "cents": 8000 }
+          }
         }
       },
       "results": {
@@ -691,6 +730,51 @@
       "results": {
         "mom": "You met his mom. She hugged you and called you her daughter-in-law. {name} sent {amount} to say thank you.",
         "therapist": "You said you will not come. {name} thinks it is pre-wedding jitters, and has booked (and paid for) an appointment with a therapist for you."
+      }
+    },
+    "brandFollowUp": {
+      "title": "Brand Deal Follow-up",
+      "text": "Two weeks ago your #ad for {product} went up. Today the brand sent over the numbers.",
+      "chained": true,
+      "afterDays": 14,
+      "days": 1,
+      "default": "ok",
+      "options": {
+        "ok": {
+          "label": "Read the report",
+          "help": "See how {product} did off your #ad."
+        }
+      },
+      "odds": {},
+      "results": {
+        "soldWell": "{product} sold well off your #ad. The brand sends you a {amount} bonus and says they would love to work with you again.",
+        "soldOk": "{product} sold so-so. The brand sends {amount} for the clicks and leaves it at that.",
+        "whales": "{product} has exceeded sales expectations. One of your whales alone ordered 50 bottles. The brand sends you a {amount} bonus.",
+        "pumped": "{product} went up 4,000% the week after your post. The company sends you {amount}, in cash rather than in {product}.",
+        "flat": "{product} went sideways after your post. The company still sends {amount} for your trouble.",
+        "listeners": "{product} gave you a shout-out on air. Their listeners are pouring in to see what the fuss is about. They pay nothing extra, but your page will be busy for a week.",
+        "busted": "One of your subscribers has been arrested by the FBI. Apparently, he was using {product} to store some questionable videos. He says he signed up because of your sponsored post. The story is starting to spread."
+      },
+      "after": {
+        "listeners": {
+          "days": 7,
+          "effects": {
+            "visitors": 1.6
+          }
+        },
+        "busted": {
+          "days": 7,
+          "effects": {
+            "visitors": 1.3,
+            "conversion": 0.8,
+            "mix": {
+              "hater": 3
+            },
+            "regularMix": {
+              "hater": 3
+            }
+          }
+        }
       }
     }
   }

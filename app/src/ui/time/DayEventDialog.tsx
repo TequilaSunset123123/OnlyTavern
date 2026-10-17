@@ -4,6 +4,7 @@ import type { DayEventOption, DayEventView, EngineEvent, Segment } from '../../a
 import { useDispatch } from '../../hooks/useAccounts'
 import { eventArt, eventArtFocus } from '../eventArt'
 import { count, errorText } from '../format'
+import { ProductCard } from '../ProductCard'
 import { BLUR } from './shared'
 
 // A rare (or special) daily event (engine/events.ts, engine/specials.ts): its picture and story, your options with the odds
@@ -68,6 +69,7 @@ export function DayEventDialog({
         </DialogHeader>
         <DialogBody className="flex flex-col gap-3">
           <EventArt kind={view.kind} />
+          {view.product && <ProductCard product={view.product} />}
           {view.email ? <Email email={view.email} /> : <p className="text-sm">{view.text}</p>}
           {error && <Alert variant="error">{error}</Alert>}
           {done ? (

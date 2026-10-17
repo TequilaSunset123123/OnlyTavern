@@ -34,14 +34,14 @@ export type { DmInput } from '../engine/regulars'
 export type { DeliveryCheck } from '../engine/requests'
 export type { MassInput } from '../engine/massMessages'
 export type { DirectionInfo } from '../engine/directions'
-export type { DayEventOption, DayEventView } from '../engine/events'
+export type { DayEventOption, DayEventView, SponsoredProduct } from '../engine/events'
 export type { LoyaltyInfo, MeetupOutcome } from '../engine/fans'
 export type { LayerInfo } from '../engine/personas'
 export type { Lapse, MeetupReport, PeriodReport } from '../engine/report'
 import type { Comment } from '../engine/comments'
 import type { PostInput, VaultInput } from '../engine/content'
 import type { DirectionInfo } from '../engine/directions'
-import type { DayEventView } from '../engine/events'
+import type { DayEventView, SponsoredProduct } from '../engine/events'
 import type { LoyaltyInfo } from '../engine/fans'
 import type { LayerInfo } from '../engine/personas'
 import type { Lapse, PeriodReport } from '../engine/report'
@@ -168,6 +168,8 @@ export type FeedPost = Post & {
   items: (VaultItem | null)[]
   intensity: number
   tags: string[]
+  /** A Brand Deal's #ad: the product card it links to. */
+  product?: SponsoredProduct
 }
 
 export type Feed = { day: number; canLockPosts: boolean; posts: FeedPost[] }

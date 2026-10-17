@@ -11,7 +11,12 @@
 //                  meetups with you (eventEffects.ts heldByEvent);
 //   marryMe        an e-girl's obsessed stalker at loyalty 5 proposes. Say yes and he is your
 //                  fiancé; a month later the honeymoon fund starts (honeymoonFund), then the
-//                  wedding invitation (saveTheDate).
+//                  wedding invitation (saveTheDate);
+//   brandFollowUp  two weeks after you take a Brand Deal (engine/events.ts), how the product
+//                  did off your #ad: rolled from that product's own odds (events.json
+//                  rare.brandDeal.products.<key>.followUp). Mostly sold well or so-so, with a
+//                  bonus from the brand; the podcast brings its listeners over for a week;
+//                  innocent.zip can get one of your subscribers arrested, and haters come.
 // Each rolled kind has its own daily chance once its conditions are met (GATES; presets/
 // events.json special.<kind>.chance) and its own repeat rule; chained kinds are never rolled:
 // an earlier one schedules them (status 'scheduled') and they open on their day. Each pops up
@@ -27,6 +32,7 @@ import { ContentError } from './content'
 import { platformFee } from './directions'
 import { paymentLine as line } from './economy'
 import { eventOn } from './eventEffects'
+import { pickWeighted } from './comments'
 import { addLoyalty, loyaltyLevel } from './fans'
 import { blockFan, turnOnYou } from './incidents'
 import { withBehaviour } from './personas'
@@ -34,7 +40,7 @@ import { arrivingRegular } from './regulars'
 import { type Rng, rngFor } from './rng'
 import { addFanMessage, threadOf, updateRegular } from './threads'
 
-export const SPECIAL_KINDS = ['charity', 'routingError', 'humanAtm', 'humanAtmArrest', 'marryMe', 'honeymoonFund', 'saveTheDate'] as const
+export const SPECIAL_KINDS = ['charity', 'routingError', 'humanAtm', 'humanAtmArrest', 'marryMe', 'honeymoonFund', 'saveTheDate', 'brandFollowUp'] as const
 export type SpecialKind = (typeof SPECIAL_KINDS)[number]
 
 type After = { days: number; effects: Record<string, number | Record<string, number>> }
@@ -133,7 +139,7 @@ const callOff = (a: Account, regularId: string, day: number): Account => ({
   meetups: a.meetups.map((m) => (m.regularId === regularId && (m.status === 'open' || m.status === 'accepted') ? { ...m, status: 'cancelled' as const, closedDay: day } : m)),
 })
 
-/** A chained event, waiting for its day. */
+/** A chained event, waiting for its day (with the earlier one's fan, and its variant: the Brand Deal's product). */
 const schedule = (kind: SpecialKind, day: number, from: DayEvent): DayEvent => ({
   id: `${kind}-${day}-${from.id}`,
   kind,
@@ -142,7 +148,14 @@ const schedule = (kind: SpecialKind, day: number, from: DayEvent): DayEvent => (
   until: day + 1,
   status: 'scheduled',
   ...(from.regularId ? { regularId: from.regularId } : {}),
+  ...(from.variant ? { variant: from.variant } : {}),
 })
+
+/** You took a Brand Deal (`deal`, its variant the product): two weeks on, how it sold. */
+export const scheduleBrandFollowUp = (deal: DayEvent, day: number): DayEvent => schedule('brandFollowUp', day + S.brandFollowUp.afterDays, deal)
+
+type FollowUp = Record<string, { chance: number; cents: number }>
+const FOLLOW_UPS: Record<string, { followUp: FollowUp }> = E.rare.brandDeal.products
 
 /** A post an event makes for you: the brand's #ad, the scene with the guest star, The Charity's doors. */
 export function eventPost(a: Account, text: string, day: number): Post {
@@ -276,17 +289,19 @@ export function specialDay(a: Account, seed: string, day: number): { account: Ac
   b = {
     ...b,
     dayEvents: b.dayEvents.filter((e) => {
-      if (e.status !== 'scheduled' || e.day > day) return true
+      if (e.status !== 'scheduled' || e.day > day || !e.regularId) return true
       const r = b.regulars.find((x) => x.id === e.regularId)
       return !!r && !awayNow(r, day) && (e.kind === 'humanAtmArrest' || hasCondition(r, 'fiancee'))
     }),
   }
   const next = b.dayEvents.find((e) => e.status === 'scheduled' && e.day <= day)
-  const busy = b.dayEvents.some((e) => e.status === 'open' || (e.status !== 'scheduled' && e.day < day && eventOn(e, day)))
+  // The Charity's open doors do not count: they may stay open for good.
+  const busy = b.dayEvents.some((e) => e.status === 'open' || (e.status !== 'scheduled' && e.day < day && e.until !== FOREVER && eventOn(e, day)))
   if (!next || busy) return { account: b, events, opened: null }
   const rest = { ...b, dayEvents: b.dayEvents.filter((x) => x.id !== next.id) }
   const o = openSpecial(rngFor(seed, day, `special:${next.id}`), rest, next.kind as SpecialKind, rest.regulars.find((x) => x.id === next.regularId), day, next.id)
-  return { account: { ...o.account, dayEvents: [...o.account.dayEvents, o.event] }, events: [...events, ...o.events], opened: o.event }
+  const opened = next.variant ? { ...o.event, variant: next.variant } : o.event
+  return { account: { ...o.account, dayEvents: [...o.account.dayEvents, opened] }, events: [...events, ...o.events], opened }
 }
 
 /** Routing Error: who to swap, and for what kind of fan. */
@@ -367,6 +382,14 @@ export function settleSpecial(a: Account, e: DayEvent, choice: string, rng: Rng,
         return { account: s.account, result: 'mom', events: s.events, cents }
       }
       return { account: says(a, fan, day, { kind: 'saveTheDate', step: 'therapist', id: e.id }), result: 'therapist', events: [] }
+    }
+    case 'brandFollowUp': {
+      // How it sold, from the product's own odds; the brand pays its bonus directly (off the platform).
+      const odds = (FOLLOW_UPS[e.variant ?? ''] ?? FOLLOW_UPS.girl_next_door).followUp
+      const result = pickWeighted(rng, Object.fromEntries(Object.entries(odds).map(([r, o]) => [r, o.chance])))
+      const cents = odds[result].cents
+      if (!cents) return { account: a, result, events: [] }
+      return { account: { ...a, ledger: [...a.ledger, line(day, 'offline', `${e.id}-brand`, cents, 0)] }, result, events: [], cents }
     }
     default:
       throw new ContentError('Not an option here')

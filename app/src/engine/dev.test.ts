@@ -26,8 +26,10 @@ describe('developer console: special events', () => {
     const a = forceRare(empty(), 'brandDeal', 'dev')
     const view = openDayEvents(a)[0]
     expect(view).toMatchObject({ kind: 'brandDeal', category: 'rare', options: [{ choice: 'accept' }, { choice: 'negotiate' }, { choice: 'decline' }] })
-    expect(a.dayEvents.at(-1)).toMatchObject({ variant: 'girl_next_door', status: 'open' })
+    // The brand's own fixed fee, whatever your level.
+    expect(a.dayEvents.at(-1)).toMatchObject({ variant: 'girl_next_door', status: 'open', amountCents: 80000 })
     expect(view.text).toContain('BLACKFLAG')
+    expect(view.text).toContain('They offer $800.')
     expect(() => forceRare(a, 'brandDeal', 'dev')).toThrow()
   })
 
