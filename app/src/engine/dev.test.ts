@@ -1,7 +1,7 @@
 // The developer console's cheats (engine/dev.ts): delete with it.
 import { describe, expect, it } from 'vitest'
 import { createAccount } from '../store/account'
-import { DEV_SPECIALS, forceSpecial } from './dev'
+import { DEV_SPECIALS, forceRare, forceSpecial } from './dev'
 import { openDayEvents } from './events'
 import { isHumanAtm, isSuitor } from './specials'
 
@@ -20,6 +20,15 @@ describe('developer console: special events', () => {
       if (kind === 'routingError') expect(openDayEvents(a)[0].pick!.fans).toHaveLength(1)
       if (kind === 'charity') expect(a.regulars).toHaveLength(0)
     }
+  })
+
+  it("starts a brand deal for your direction's brand, at any level", () => {
+    const a = forceRare(empty(), 'brandDeal', 'dev')
+    const view = openDayEvents(a)[0]
+    expect(view).toMatchObject({ kind: 'brandDeal', category: 'rare', options: [{ choice: 'accept' }, { choice: 'negotiate' }, { choice: 'decline' }] })
+    expect(a.dayEvents.at(-1)).toMatchObject({ variant: 'girl_next_door', status: 'open' })
+    expect(view.text).toContain('BLACKFLAG')
+    expect(() => forceRare(a, 'brandDeal', 'dev')).toThrow()
   })
 
   it('has no button for what follows an event: that only comes in its own time', () => {

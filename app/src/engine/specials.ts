@@ -24,6 +24,7 @@ import E from '../presets/events.json'
 import { type Account, type DayEvent, type EngineEvent, type Intent, type Post, type Regular, SEGMENTS, type Segment } from '../store/schema'
 import { awayNow, hasCondition, withCondition } from './conditions'
 import { ContentError } from './content'
+import { platformFee } from './directions'
 import { paymentLine as line } from './economy'
 import { eventOn } from './eventEffects'
 import { addLoyalty, loyaltyLevel } from './fans'
@@ -121,7 +122,7 @@ function sends(a: Account, r: Regular, cents: number, day: number, event: NonNul
   let b = addFanMessage(a, r.id, day, { kind: 'opener', tip: cents, event }, cents)
   const id = threadOf(b, r.id).messages.at(-1)!.id
   const cur = b.regulars.find((x) => x.id === r.id)!
-  b = updateRegular({ ...b, ledger: [...b.ledger, line(day, 'tip', id, cents)] }, { ...cur, spent: cur.spent + cents })
+  b = updateRegular({ ...b, ledger: [...b.ledger, line(day, 'tip', id, cents, platformFee(b))] }, { ...cur, spent: cur.spent + cents })
   return { account: addLoyalty(b, r.id, 'tip'), events: [{ day, type: 'dm-tip', regularId: r.id, gross: cents }] }
 }
 

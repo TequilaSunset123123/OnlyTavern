@@ -7,7 +7,7 @@ import tags from '../presets/tags.json'
 import { type Account, type Audience, type EngineEvent, type Post, SEGMENTS, type Segment } from '../store/schema'
 import { subscriberCount } from './audience'
 import { eventEffects } from './eventEffects'
-import { PLATFORM_FEE } from './economy'
+import { platformFee } from './directions'
 import { binomial, rngFor } from './rng'
 
 const P = preset.post
@@ -133,7 +133,7 @@ export function simulatePostsDay(account: Account, audience: Audience, seed: str
     if (today.views) events.push({ day, type: 'post', postId: post.id, views: today.views, likes: today.likes, comments: today.comments })
     if (today.purchases) events.push({ day, type: 'purchases', postId: post.id, count: today.purchases, gross: today.purchases * price })
 
-    const net = today.purchases * price - Math.round(today.purchases * price * PLATFORM_FEE)
+    const net = today.purchases * price - Math.round(today.purchases * price * platformFee(account))
     return {
       ...post,
       stats: {

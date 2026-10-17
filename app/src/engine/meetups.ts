@@ -59,7 +59,7 @@ function meet(rng: Rng, account: Account, m: Meetup, day: number): { account: Ac
   const paid = { smooth: m.offerCents, bonus: round(m.offerCents * O.bonusFactor), creep: round(m.offerCents * O.creepPaid), noShow: 0, wife: 0 }[outcome]
 
   let a = update(account, m.id, (x) => ({ ...x, status: 'done', closedDay: day, outcome, paidCents: paid }))
-  const ledger = paid ? [line(day, 'offline', m.id, paid)] : []
+  const ledger = paid ? [line(day, 'offline', m.id, paid, 0)] : []
   a = updateRegular(a, { ...a.regulars.find((x) => x.id === r.id)!, spent: r.spent + paid })
   let lost: number | undefined
   let returns: boolean | undefined

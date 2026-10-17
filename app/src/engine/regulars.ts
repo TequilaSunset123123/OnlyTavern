@@ -25,7 +25,7 @@ import { CORPUS, pick, pickWeighted } from './comments'
 import { ContentError } from './content'
 import { paymentLine as line } from './economy'
 import { answerDeal, askedFor } from './deals'
-import { directionEffects } from './directions'
+import { directionEffects, platformFee } from './directions'
 import { type EventEffects, eventEffects, targetFactor } from './eventEffects'
 import { dormantAfterDays } from './haters'
 import { actingType, awayNow, conditionOf, hasCondition, loveHate, withoutCondition } from './conditions'
@@ -208,7 +208,7 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     }
     events.push({ day, type: 'regular', regularId: id })
     if (tip) {
-      ledger.push(line(day, 'tip', `${id}-m0`, tip))
+      ledger.push(line(day, 'tip', `${id}-m0`, tip, platformFee(a)))
       events.push({ day, type: 'dm-tip', regularId: id, gross: tip })
       a = addLoyalty(a, id, 'tip')
     }
@@ -231,7 +231,7 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     a = withThread(a, { ...t, messages: [...t.messages, pendingMessage(id, day, { kind: 'opener', topic: tip ? 'tip' : topic === 'tip' ? 'chat' : topic, ...(tip ? { tip } : {}) }, tip)] })
     events.push({ day, type: 'dm', regularId: r.id })
     if (tip) {
-      ledger.push(line(day, 'tip', id, tip))
+      ledger.push(line(day, 'tip', id, tip, platformFee(a)))
       a = addLoyalty({ ...a, regulars: a.regulars.map((x) => (x.id === r.id ? { ...x, spent: x.spent + tip } : x)) }, r.id, 'tip')
       events.push({ day, type: 'dm-tip', regularId: r.id, gross: tip })
     }
@@ -313,7 +313,7 @@ export function sendDm(
     ppv = { ...input.ppv, paid: d.bought }
     decision = { messageId: myId, ...d }
     if (d.bought) {
-      ledger.push(line(day, 'message', myId, input.ppv.priceCents))
+      ledger.push(line(day, 'message', myId, input.ppv.priceCents, platformFee(account)))
       spent += input.ppv.priceCents
       events.push({ day, type: 'dm-purchase', regularId, gross: input.ppv.priceCents })
     }
@@ -323,7 +323,7 @@ export function sendDm(
   const ev = eventEffects(account, day)
   if (!tip && rng() < tipChance(regular, ev)) {
     tip = tipCents(rng, regular, ev.tipSize * priceSpend(account.profile))
-    ledger.push(line(day, 'tip', `${myId}-reply`, tip))
+    ledger.push(line(day, 'tip', `${myId}-reply`, tip, platformFee(account)))
     spent += tip
     events.push({ day, type: 'dm-tip', regularId, gross: tip })
   }

@@ -92,7 +92,7 @@ export type Action =
   | { type: 'direction.set'; id: string; direction: DirectionId }
   /** Developer: jump to the next level of the current direction. */
   | { type: 'dev.levelUp'; id: string }
-  /** Developer: a special event starts today, with a regular made up for it if none fits (engine/dev.ts). */
+  /** Developer: a special event (or the Brand Deal) starts today, with a regular made up for it if none fits (engine/dev.ts). */
   | { type: 'dev.special'; id: string; kind: string }
   | { type: 'dm.send'; id: string; regularId: string; message: DmInput }
   /** The model wrote a pending fan message. */
@@ -235,6 +235,8 @@ export type Directions = {
   /** Share of subscribers that leave when you switch (0–1). */
   switchLoss: number
   all: DirectionInfo[]
+  /** What each level 1–5 gives and takes (the level-up popup): × visitors, × fans writing to you, the platform's cut (0–1). */
+  perks: { visitors: number[]; dms: number[]; fee: number[] }
 }
 
 /** A stalker incident waiting for you to decide (engine/incidents.ts). */

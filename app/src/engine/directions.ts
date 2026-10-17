@@ -77,6 +77,13 @@ export function directionEffects(account: Account): Effects {
   }
 }
 
+/**
+ * The platform's cut of everything you earn on it (2026-10-17): it rises with your current
+ * direction's level (levels.fee: 20% at level 1, 30%, 40%, 50%, 60% at level 5). Cash from
+ * meetups never pays it (economy.ts).
+ */
+export const platformFee = (account: Account) => LEVELS.fee[levelOf(account.direction.points[account.direction.id]) - 1]
+
 /** Adds points (to every direction they count for) and notes a level-up of the current one. */
 export function addPoints(account: Account, gains: Partial<Record<DirectionId, number>>): Account {
   const current = account.direction.id
@@ -185,3 +192,6 @@ export function directionPrompt(account: Account): string {
 }
 
 export const SWITCH_LOSS = D.switchLoss
+
+/** What each level gives and takes, levels 1–5 (the level-up popup): × visitors, × fans writing to you, the platform's cut. */
+export const LEVEL_PERKS = { visitors: LEVELS.visitors, dms: LEVELS.dms, fee: LEVELS.fee }

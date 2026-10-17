@@ -5,7 +5,7 @@ import preset from '../presets/audience.json'
 import type { Account, DeliveryReason, EngineEvent, LedgerEntry, Message, Request } from '../store/schema'
 import { ContentError } from './content'
 import { requestOpen as isOpen } from './deals'
-import { addPoints, customPoints } from './directions'
+import { addPoints, customPoints, platformFee } from './directions'
 import { paymentLine as line } from './economy'
 import { addLoyalty, fanProfile, loyaltyEffects } from './fans'
 import { snubbed } from './haters'
@@ -109,13 +109,13 @@ export function deliverRequest(account: Account, id: string, vaultIds: string[],
   const events: EngineEvent[] = []
   let tip: number | undefined
   if (check.paid) {
-    ledger.push(line(day, 'custom', id, q.offerCents))
+    ledger.push(line(day, 'custom', id, q.offerCents, platformFee(account)))
     events.push({ day, type: 'request-paid', regularId: q.regularId, gross: q.offerCents })
     // A perfect one may earn a tip on top: his tip chance (type × loyalty) × 2.
     const chance = Math.min(0.9, fanProfile(regular).tip.chance * loyaltyEffects(regular).tip * Q.tipFactor)
     if (check.score >= Q.perfectScore && rng() < chance) {
       tip = tipCents(rng, regular)
-      ledger.push(line(day, 'tip', `${id}-tip`, tip))
+      ledger.push(line(day, 'tip', `${id}-tip`, tip, platformFee(account)))
       events.push({ day, type: 'dm-tip', regularId: q.regularId, gross: tip })
     }
   } else {

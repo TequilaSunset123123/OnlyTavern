@@ -16,6 +16,7 @@ import stories from '../presets/incidents.json'
 import type { Account, Condition, EngineEvent, Incident, IncidentChoice, IncidentResult, LedgerEntry, Regular } from '../store/schema'
 import { loseSubscribers } from './audience'
 import { ContentError } from './content'
+import { platformFee } from './directions'
 import { paymentLine as line } from './economy'
 import { addLoyalty, loyaltyLevel, type MeetupOutcome } from './fans'
 import { wontTurn } from './eventEffects'
@@ -150,7 +151,7 @@ export function resolveIncident(account: Account, incidentId: string, choice: In
     // He takes it as a yes: a big gift, and he gets even more hooked.
     result = 'gift'
     gross = tipCents(rng, r) * I.courtship.playAlong.giftFactor
-    ledger.push(line(day, 'tip', `${incidentId}-gift`, gross))
+    ledger.push(line(day, 'tip', `${incidentId}-gift`, gross, platformFee(a)))
     events.push({ day, type: 'dm-tip', regularId: r.id, gross })
     a = updateRegular(a, { ...withBehaviour(r, 'obsessive'), spent: r.spent + gross })
     a = addLoyalty(a, r.id, 'playAlong')

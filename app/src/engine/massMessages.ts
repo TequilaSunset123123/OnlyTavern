@@ -7,7 +7,7 @@ import type { Account, Audience, EngineEvent, MassMessage, Segment } from '../st
 import { SEGMENTS } from '../store/schema'
 import { subscriberCount } from './audience'
 import { ContentError } from './content'
-import { PLATFORM_FEE } from './economy'
+import { platformFee } from './directions'
 import { intensityMatch } from './posts'
 import { type DmInput, sendDm } from './regulars'
 import { binomial, rngFor } from './rng'
@@ -97,7 +97,7 @@ export function simulateMassDay(account: Account, audience: Audience, seed: stri
     }
     purchases += today.purchases
     gross += today.purchases * price
-    const net = today.purchases * price - Math.round(today.purchases * price * PLATFORM_FEE)
+    const net = today.purchases * price - Math.round(today.purchases * price * platformFee(account))
     if (today.views) events.push({ day, type: 'mass', massId: m.id, views: today.views, purchases: today.purchases, gross: today.purchases * price })
     return {
       ...m,

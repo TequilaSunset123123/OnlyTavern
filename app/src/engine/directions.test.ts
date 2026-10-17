@@ -9,13 +9,41 @@ import { subscriberCount } from './audience'
 import { generateComments } from './comments'
 import { addVaultItem, publishPost } from './content'
 import { levelUpForTesting } from './dev'
-import { directionEffects, directionInfo, levelOf, setDirection } from './directions'
+import { directionEffects, directionInfo, LEVEL_PERKS, levelOf, platformFee, setDirection } from './directions'
 import { makePersona } from './personas'
 import { rngFor } from './rng'
 import { simulate } from './simulate'
 
 const fresh = (direction?: DirectionId, seed = 'a') => createAccount({ id: 'x', seed, now: 0, name: 'Mia', handle: 'mia', direction })
 const withPoints = (a: Account, points: number) => ({ ...a, direction: { ...a.direction, points: { ...a.direction.points, [a.direction.id]: points } } })
+
+describe('platform fee by level (2026-10-17)', () => {
+  it('the platform takes more the higher your level: 20% at level 1, then 30, 40, 50, 60%', () => {
+    let a = createAccount({ id: 'x', seed: 'fee', now: 0, name: 'Mia', handle: 'mia' })
+    const fees = [platformFee(a)]
+    for (let i = 0; i < 4; i++) {
+      a = levelUpForTesting(a)
+      fees.push(platformFee(a))
+    }
+    expect(fees).toEqual([0.2, 0.3, 0.4, 0.5, 0.6])
+    expect(LEVEL_PERKS.fee).toEqual(fees)
+  })
+
+  it("what the crowd pays is cut at your level's rate", () => {
+    const base = { ...createAccount({ id: 'x', seed: 'fee', now: 0, name: 'Mia', handle: 'mia' }) }
+    const at = (levels: number) => {
+      let a = base
+      for (let i = 0; i < levels; i++) a = levelUpForTesting(a)
+      const b = simulate({ ...a, events: [] }, 10, 'fee').account
+      return b.ledger.filter((l) => l.kind === 'subscription' || l.kind === 'renewal')
+    }
+    for (const [levels, rate] of [[0, 0.2], [2, 0.4]] as const) {
+      const lines = at(levels)
+      expect(lines.length).toBeGreaterThan(0)
+      for (const l of lines) expect(l.fee).toBe(Math.round(l.gross * rate))
+    }
+  })
+})
 
 describe('directions', () => {
   it('the preset covers every direction, with real tags and five titles', () => {

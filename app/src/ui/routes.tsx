@@ -32,6 +32,8 @@ export const routes: RouteObject[] = [
       { path: '/accounts', element: <AccountsPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/more', element: <MorePage /> },
+      // Developer: the event gallery (Settings → Developer). Remove with ui/dev/ (see DevConsole.tsx).
+      { path: '/dev/events', lazy: () => import('./dev/EventGallery').then((m) => ({ Component: m.EventGallery })) },
     ],
   },
 ]

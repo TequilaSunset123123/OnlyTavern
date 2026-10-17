@@ -8,6 +8,7 @@ import { errorText } from '../format'
 import { TimeTravelContext } from './context'
 import { DayEventHost } from './DayEventDialog'
 import { IncidentHost } from './IncidentDialog'
+import { LevelUpHost } from './LevelUp'
 import { Loader } from './Loader'
 import { MeetupResultDialog } from './MeetupResultDialog'
 import { ReportDialog } from './ReportDialog'
@@ -140,6 +141,8 @@ export function TimeTravelProvider({ children }: { children: ReactNode }) {
       {active && (stage === 'idle' || stage === 'incidents') && <IncidentHost accountId={active.id} incidents={incidents} onEmpty={stage === 'incidents' ? toEvents : undefined} />}
       {active && stage === 'events' && <DayEventHost accountId={active.id} events={dayEvents} onEmpty={() => setStage('report')} />}
       {stage === 'report' && report && <ReportDialog report={report} onClose={finish} />}
+      {/* A level-up, once the screens above are done (LevelUp.tsx). */}
+      <LevelUpHost />
       {stage === 'report' && !report && run?.error && <ErrorDialog error={run.error} onClose={finish} />}
     </TimeTravelContext.Provider>
   )

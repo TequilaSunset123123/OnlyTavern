@@ -3,7 +3,7 @@
 // deterministic and store/ never calls Date.now() or Math.random() itself.
 import { subscriberCount } from '../engine/audience'
 import { addVaultItem, canLockPosts, deletePost, deleteVaultItem, publishPost, updateVaultItem } from '../engine/content'
-import { directionInfo, directionPrompt, setDirection, SPECS, SWITCH_LOSS } from '../engine/directions'
+import { directionInfo, directionPrompt, LEVEL_PERKS, setDirection, SPECS, SWITCH_LOSS } from '../engine/directions'
 import { fanLayers, traitLabel } from '../engine/personas'
 import { postIntensity, postTags } from '../engine/posts'
 import { loyaltyInfo } from '../engine/fans'
@@ -326,11 +326,12 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
     },
 
     async 'dev.special'({ id, kind }) {
-      const { DEV_SPECIALS, forceSpecial } = await dev()
+      const { DEV_RARES, DEV_SPECIALS, forceRare, forceSpecial } = await dev()
       const special = DEV_SPECIALS.find((k) => k === kind)
-      if (!special) throw new SaveError(`No special event called ${kind}`)
+      const rare = DEV_RARES.find((k) => k === kind)
+      if (!special && !rare) throw new SaveError(`No event called ${kind}`)
       const settings = await storage.loadSettings()
-      await update(id, (a) => forceSpecial(a, special, a.meta.seed, settings))
+      await update(id, (a) => (special ? forceSpecial(a, special, a.meta.seed, settings) : forceRare(a, rare!, a.meta.seed)))
       return { delta: [`account:${id}`], events: [] }
     },
 
@@ -476,6 +477,7 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
         chosen: account.direction.chosen,
         switchLoss: SWITCH_LOSS,
         all: DIRECTIONS.map((d) => directionInfo(account, d)),
+        perks: LEVEL_PERKS,
       }
     },
     async getDirectionOptions() {

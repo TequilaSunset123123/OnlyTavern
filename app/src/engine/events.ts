@@ -19,7 +19,7 @@ import { loseSubscribers, subscriberCount } from './audience'
 import { pickWeighted } from './comments'
 import { actingType } from './conditions'
 import { ContentError } from './content'
-import { levelOf, SPECS } from './directions'
+import { levelOf, platformFee, SPECS } from './directions'
 import { paymentLine as line } from './economy'
 import { eventOn, wontTurn } from './eventEffects'
 import { addLoyalty, loyaltyLevel } from './fans'
@@ -122,7 +122,7 @@ function openCommon(rng: Rng, a: Account, day: number): { account: Account; even
   return { account: a, event }
 }
 
-function openRare(rng: Rng, a: Account, kind: RareKind, fan: Regular | undefined, day: number): { account: Account; event: DayEvent } {
+export function openRare(rng: Rng, a: Account, kind: RareKind, fan: Regular | undefined, day: number): { account: Account; event: DayEvent } {
   const event: DayEvent = { id: `ev${day}`, kind, category: 'rare', day, until: day + RARE[kind].days, status: 'open', ...(fan ? { regularId: fan.id } : {}) }
   if (kind === 'brandDeal') return { account: a, event: { ...event, variant: a.direction.id, amountCents: brandFee(a) } }
   // Which porn star asks (his name is the variant).
@@ -131,7 +131,7 @@ function openRare(rng: Rng, a: Account, kind: RareKind, fan: Regular | undefined
     // His anonymous tip arrives with the event.
     const gift = tipCents(rng, fan) * E.rare.secretAdmirer.gifts.arrive
     const b = updateRegular(a, { ...fan, spent: fan.spent + gift })
-    return { account: { ...b, ledger: [...b.ledger, line(day, 'tip', `${event.id}-admirer`, gift)] }, event: { ...event, amountCents: gift } }
+    return { account: { ...b, ledger: [...b.ledger, line(day, 'tip', `${event.id}-admirer`, gift, platformFee(a))] }, event: { ...event, amountCents: gift } }
   }
   return { account: a, event }
 }
@@ -215,12 +215,12 @@ function settle(account: Account, eventId: string, choice: string, seed: string,
   const gift = (factor: number, anonymous = false) => {
     const r = fan()
     cents = tipCents(rng, r) * factor
-    ledger.push(line(day, 'tip', `${e.id}-${choice}`, cents))
+    ledger.push(line(day, 'tip', `${e.id}-${choice}`, cents, platformFee(account)))
     a = updateRegular(a, { ...r, spent: r.spent + cents })
     if (!anonymous) events.push({ day, type: 'dm-tip', regularId: r.id, gross: cents })
   }
   /** Money off the platform: a brand's fee in, or what you paid out. */
-  const cash = (gross: number) => ledger.push(line(day, 'offline', `${e.id}-${gross > 0 ? 'brand' : 'cost'}`, gross))
+  const cash = (gross: number) => ledger.push(line(day, 'offline', `${e.id}-${gross > 0 ? 'brand' : 'cost'}`, gross, 0))
   const scandal = (share: number) => {
     const s = loseSubscribers(rng, a.audience, share)
     a = { ...a, audience: s.audience }

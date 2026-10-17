@@ -4,7 +4,7 @@ import economy from '../presets/economy.json'
 import { type Account, type DailyStat, DEFAULT_SETTINGS, type EngineEvent, LedgerKindSchema, SEGMENTS, type Settings } from '../store/schema'
 import { simulateAudienceDay, subscriberCount } from './audience'
 import { simulateDealsDay } from './deals'
-import { directionEffects } from './directions'
+import { directionEffects, platformFee } from './directions'
 import { eventEffects } from './eventEffects'
 import { rollDayEvent } from './events'
 import { ledgerLine } from './economy'
@@ -62,12 +62,14 @@ export function simulate(
     })
     const after = subscriberCount(r.audience)
 
+    // The platform's cut at your level today (directions.ts platformFee).
+    const fee = platformFee(acc)
     const lines = [
-      ledgerLine(day, 'subscription', r.newSubscribers, r.newSubscribers * price),
-      ledgerLine(day, 'renewal', r.renewals, r.renewals * price),
-      ledgerLine(day, 'tip', r.tips.count, r.tips.gross),
-      ledgerLine(day, 'post', pd.purchases, pd.gross),
-      ledgerLine(day, 'message', md.purchases, md.gross),
+      ledgerLine(day, 'subscription', r.newSubscribers, r.newSubscribers * price, fee),
+      ledgerLine(day, 'renewal', r.renewals, r.renewals * price, fee),
+      ledgerLine(day, 'tip', r.tips.count, r.tips.gross, fee),
+      ledgerLine(day, 'post', pd.purchases, pd.gross, fee),
+      ledgerLine(day, 'message', md.purchases, md.gross, fee),
     ].filter((l) => l.gross > 0)
     acc = { ...acc, audience: r.audience, ledger: [...acc.ledger, ...lines] }
 

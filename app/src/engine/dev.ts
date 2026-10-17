@@ -10,6 +10,7 @@ import { addPoints, levelOf } from './directions'
 import { pickLanguage } from './personas'
 import { arrivingRegular } from './regulars'
 import { rngFor } from './rng'
+import { openRare, type RareKind } from './events'
 import { isHumanAtm, isSuitor, openSpecial, reachable, type SpecialKind } from './specials'
 import { addFanMessage } from './threads'
 
@@ -71,4 +72,17 @@ export function forceSpecial(account: Account, kind: DevSpecial, seed: string, s
   const id = `dev-${kind}-${day}-${a.dayEvents.length}`
   const o = openSpecial(rngFor(seed, day, `dev:${id}`), a, kind, fan, day, id)
   return { ...o.account, dayEvents: [...o.account.dayEvents, o.event], events: [...o.account.events, ...o.events] }
+}
+
+/** The rare events the console can start (2026-10-17: the brand deal, to see its popup and #ad post). */
+export const DEV_RARES = ['brandDeal'] as const satisfies readonly RareKind[]
+export type DevRare = (typeof DEV_RARES)[number]
+
+/** Starts a rare event today, whatever your level: the Brand Deal for your direction's brand (its fee at your level). */
+export function forceRare(account: Account, kind: DevRare, seed: string): Account {
+  if (account.dayEvents.some((e) => e.status === 'open')) throw new ContentError('Deal with the event that is waiting first')
+  const day = account.clock.day
+  const id = `dev-${kind}-${day}-${account.dayEvents.length}`
+  const o = openRare(rngFor(seed, day, `dev:${id}`), account, kind, undefined, day)
+  return { ...o.account, dayEvents: [...o.account.dayEvents, { ...o.event, id }] }
 }
