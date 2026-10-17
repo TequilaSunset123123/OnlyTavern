@@ -157,6 +157,13 @@ function DeveloperCard() {
           {maxed ? 'Max level' : `Level up to ${direction.level + 1}`}
         </Button>
         <p className="text-xs text-content-tertiary">For testing: adds just enough points for the next level of this account's direction, with the usual level-up notification.</p>
+        <Button variant="secondary" loading={dispatch.isPending} onClick={() => dispatch.mutate({ type: 'dev.charity', id: active.id })}>
+          Start The Charity
+        </Button>
+        <p className="text-xs text-content-tertiary">
+          For testing: the special event waits on Home today, without being a Sub who has been had for free 8 times. It turns all your regulars, so try it on a spare account.
+        </p>
+        {dispatch.error && <p className="text-xs text-error-content">{dispatch.error.message}</p>}
       </CardContent>
     </Card>
   )

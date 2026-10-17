@@ -6,7 +6,7 @@ import { eventArt } from '../eventArt'
 import { count, errorText } from '../format'
 import { BLUR } from './shared'
 
-// A rare daily event (engine/events.ts): its picture and story, your options with the odds
+// A rare (or special) daily event (engine/events.ts): its picture and story, your options with the odds
 // the engine will roll, then what came of it. Unlike a stalker incident you can put it off
 // for a day; left too long, it settles itself with its default choice.
 
@@ -60,7 +60,9 @@ export function DayEventDialog({
       <DialogContent size="sm" mobilePresentation="card" overlayProps={BLUR}>
         <DialogHeader showClose={false}>
           <DialogTitle>{view.title}</DialogTitle>
-          <DialogDescription>Rare event · day {view.day}</DialogDescription>
+          <DialogDescription>
+            {view.category === 'special' ? 'Special' : 'Rare'} event · day {view.day}
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-3">
           <EventArt kind={view.kind} />

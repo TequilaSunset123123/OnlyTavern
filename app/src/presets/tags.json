@@ -3,63 +3,142 @@
     "id": "casual_outfit",
     "en": "Casual Outfit",
     "zh": "休闲装",
-    "intensity": 1
+    "intensity": 1,
+    "audience": {
+      "regular": 1.3,
+      "lurker": 1.4,
+      "hater": 0.8
+    },
+    "attracts": {
+      "shy": 1.5
+    }
   },
   {
     "id": "lingerie",
     "en": "Lingerie",
     "zh": "内衣",
-    "intensity": 3
+    "intensity": 3,
+    "audience": {
+      "whale": 1.5,
+      "simp": 1.3
+    },
+    "attracts": {
+      "older_gentleman": 1.5,
+      "pet_names": 1.3
+    }
   },
   {
     "id": "cosplay",
     "en": "Cosplay",
     "zh": "角色扮演",
-    "intensity": 2
+    "intensity": 2,
+    "audience": {
+      "simp": 2.2,
+      "lurker": 1.3
+    },
+    "attracts": {
+      "obsessive": 2,
+      "stalker": 1.5,
+      "pet_names": 1.5,
+      "shy": 1.5,
+      "lowercase": 1.4
+    }
   },
   {
     "id": "fully_nude",
     "en": "Fully Nude",
     "zh": "全裸",
-    "intensity": 5
+    "intensity": 5,
+    "audience": {
+      "freeloader": 1.8,
+      "regular": 1.2
+    },
+    "attracts": {
+      "horny_direct": 2,
+      "creepy_compliments": 1.3
+    }
   },
   {
     "id": "bedroom",
     "en": "Bedroom",
     "zh": "卧室",
-    "intensity": 2
+    "intensity": 2,
+    "audience": {
+      "regular": 1.2,
+      "simp": 1.2
+    },
+    "attracts": {
+      "pet_names": 1.3
+    }
   },
   {
     "id": "bathroom",
     "en": "Bathroom",
     "zh": "浴室",
-    "intensity": 3
+    "intensity": 3,
+    "audience": {
+      "regular": 1.2
+    },
+    "attracts": {
+      "horny_direct": 1.4,
+      "creepy_compliments": 1.4
+    }
   },
   {
     "id": "outdoor",
     "en": "Outdoor",
     "zh": "户外",
-    "intensity": 2
+    "intensity": 2,
+    "audience": {
+      "lurker": 1.2,
+      "freeloader": 1.3
+    },
+    "attracts": {
+      "creepy_compliments": 1.6,
+      "stalker": 1.3
+    }
   },
   {
     "id": "studio",
     "en": "Studio",
     "zh": "摄影棚",
-    "intensity": 1
+    "intensity": 1,
+    "audience": {
+      "whale": 1.4
+    },
+    "attracts": {
+      "older_gentleman": 1.4
+    }
   },
   {
     "id": "roleplay",
     "en": "Roleplay",
     "zh": "情景扮演",
-    "intensity": 3
+    "intensity": 3,
+    "audience": {
+      "simp": 1.5
+    },
+    "attracts": {
+      "obsessive": 1.4,
+      "pet_names": 1.3
+    }
   },
   {
     "id": "bdsm",
     "en": "BDSM",
     "zh": "BDSM",
     "intensity": 5,
+    "audience": {
+      "freeloader": 3,
+      "hater": 2.5,
+      "simp": 0.7,
+      "whale": 0.8
+    },
     "attracts": {
-      "misogynist": 2
+      "misogynist": 4,
+      "dominant": 2.5,
+      "creepy_compliments": 3,
+      "negging": 1.5
     }
   },
   {
@@ -67,8 +146,19 @@
     "en": "Degradation",
     "zh": "羞辱",
     "intensity": 5,
+    "audience": {
+      "freeloader": 4,
+      "hater": 3.5,
+      "regular": 0.8,
+      "simp": 0.6,
+      "whale": 0.6
+    },
     "attracts": {
-      "misogynist": 3
+      "misogynist": 6,
+      "creepy_compliments": 3.5,
+      "negging": 2.5,
+      "troll": 2,
+      "dominant": 2
     }
   },
   {
@@ -76,8 +166,15 @@
     "en": "Domination",
     "zh": "支配",
     "intensity": 4,
+    "audience": {
+      "freeloader": 2.5,
+      "hater": 2,
+      "simp": 0.8
+    },
     "attracts": {
-      "misogynist": 2
+      "misogynist": 3.5,
+      "dominant": 3,
+      "creepy_compliments": 2.5
     }
   },
   {
@@ -85,39 +182,93 @@
     "en": "Femdom",
     "zh": "女王",
     "intensity": 4,
+    "audience": {
+      "whale": 2.5,
+      "simp": 2.2,
+      "freeloader": 0.5,
+      "hater": 0.8
+    },
     "attracts": {
-      "submissive": 2
+      "submissive": 4,
+      "creepy_compliments": 1.8,
+      "obsessive": 1.5,
+      "older_gentleman": 1.5
     }
   },
   {
     "id": "romantic",
     "en": "Romantic",
     "zh": "浪漫",
-    "intensity": 1
+    "intensity": 1,
+    "audience": {
+      "regular": 1.3,
+      "simp": 1.4,
+      "hater": 0.7,
+      "freeloader": 0.7
+    },
+    "attracts": {
+      "pet_names": 1.6,
+      "shy": 1.5,
+      "obsessive": 1.3
+    }
   },
   {
     "id": "joi",
     "en": "JOI",
     "zh": "指令",
-    "intensity": 4
+    "intensity": 4,
+    "audience": {
+      "simp": 1.5,
+      "freeloader": 1.4
+    },
+    "attracts": {
+      "submissive": 2,
+      "horny_direct": 1.4
+    }
   },
   {
     "id": "ass",
     "en": "Ass",
     "zh": "臀部",
-    "intensity": 4
+    "intensity": 4,
+    "audience": {
+      "freeloader": 1.6,
+      "regular": 1.2
+    },
+    "attracts": {
+      "horny_direct": 1.8,
+      "creepy_compliments": 1.5
+    }
   },
   {
     "id": "breasts",
     "en": "Breasts",
     "zh": "胸部",
-    "intensity": 4
+    "intensity": 4,
+    "audience": {
+      "freeloader": 1.6,
+      "regular": 1.2
+    },
+    "attracts": {
+      "horny_direct": 1.8,
+      "creepy_compliments": 1.5
+    }
   },
   {
     "id": "feet",
     "en": "Feet",
     "zh": "脚",
-    "intensity": 2
+    "intensity": 2,
+    "audience": {
+      "simp": 1.6,
+      "whale": 1.2
+    },
+    "attracts": {
+      "creepy_compliments": 3,
+      "submissive": 1.8,
+      "obsessive": 1.5,
+      "stalker": 1.3
+    }
   },
   {
     "id": "full_body",
@@ -135,42 +286,99 @@
     "id": "video",
     "en": "Video",
     "zh": "视频",
-    "intensity": 3
+    "intensity": 3,
+    "audience": {
+      "freeloader": 1.5
+    },
+    "attracts": {
+      "horny_direct": 1.3
+    }
   },
   {
     "id": "voice_note",
     "en": "Voice Note",
     "zh": "语音",
-    "intensity": 1
+    "intensity": 1,
+    "audience": {
+      "simp": 2
+    },
+    "attracts": {
+      "obsessive": 2,
+      "stalker": 1.6,
+      "pet_names": 1.5,
+      "shy": 1.4
+    }
   },
   {
     "id": "text_post",
     "en": "Text Post",
     "zh": "文字",
-    "intensity": 1
+    "intensity": 1,
+    "audience": {
+      "lurker": 1.4,
+      "simp": 1.3
+    },
+    "attracts": {
+      "obsessive": 1.3,
+      "minimal": 1.3
+    }
   },
   {
     "id": "boy_girl",
     "en": "Boy/Girl",
     "zh": "男女",
-    "intensity": 4
+    "intensity": 4,
+    "audience": {
+      "hater": 1.5,
+      "freeloader": 1.5,
+      "regular": 1.2
+    },
+    "attracts": {
+      "misogynist": 1.6,
+      "horny_direct": 1.5,
+      "negging": 1.3
+    }
   },
   {
     "id": "girl_girl",
     "en": "Girl/Girl",
     "zh": "女女",
-    "intensity": 4
+    "intensity": 4,
+    "audience": {
+      "regular": 1.3,
+      "freeloader": 1.4
+    },
+    "attracts": {
+      "horny_direct": 1.6
+    }
   },
   {
     "id": "threesome",
     "en": "Threesome",
     "zh": "三人",
-    "intensity": 5
+    "intensity": 5,
+    "audience": {
+      "freeloader": 2.2,
+      "hater": 1.8
+    },
+    "attracts": {
+      "misogynist": 2.5,
+      "negging": 1.8,
+      "creepy_compliments": 1.8,
+      "horny_direct": 1.5
+    }
   },
   {
     "id": "mutual_masturbation",
     "en": "Mutual Masturbation",
     "zh": "互相自慰",
-    "intensity": 5
+    "intensity": 5,
+    "audience": {
+      "regular": 1.2,
+      "freeloader": 1.4
+    },
+    "attracts": {
+      "horny_direct": 1.6
+    }
   }
 ]

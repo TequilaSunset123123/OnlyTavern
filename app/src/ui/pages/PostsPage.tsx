@@ -126,7 +126,7 @@ function PostCard({ post, accountId, name, handle, today }: { post: FeedPost; ac
                 <Avatar size={32} alt={c.name} fallback={c.name.slice(0, 1).toUpperCase()} />
                 <div className="min-w-0">
                   <div className="text-xs text-content-tertiary">
-                    <span className="typography-body-small-14px-semibold text-content-primary">{c.name}</span> @{c.handle} · Day {c.day}
+                    <span className="typography-body-small-14px-semibold text-content-primary">{c.name}</span> @{c.handle} · {c.who} · Day {c.day}
                   </div>
                   <p className="break-words">{c.text}</p>
                 </div>

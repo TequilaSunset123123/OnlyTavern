@@ -1,9 +1,10 @@
 import { AddIcon, Alert, Button, Card, CardContent, Chip, EmptyState, SegmentedControl, TextArea, TextField } from '@fanvue/ui'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import type { CaptionKind, PostInput, Settings } from '../../api'
+import type { CaptionKind, PostInput, Settings, Tag, TagDraw } from '../../api'
 import { useActiveAccount, useDispatch } from '../../hooks/useAccounts'
-import { useCaptions, useFeed, useSettings, useVault } from '../../hooks/useContent'
+import { useCaptions, useFeed, useSettings, useTags, useVault } from '../../hooks/useContent'
+import { useCurrentDirection } from '../direction'
 import { errorText } from '../format'
 import { MediaTile } from '../MediaTile'
 import { VaultPickerDialog } from '../VaultPickerDialog'
@@ -20,6 +21,25 @@ const IDEAS: { kind: CaptionKind; label: string }[] = [
 const randomItem = <T,>(list: T[]): T => list[Math.floor(Math.random() * list.length)]
 const chineseCaption = (language: Settings['fanLanguage'] | undefined) => language === 'zh' || (language === 'mix' && Math.random() < 0.3)
 
+/** The strongest few draws over the picked items' tags (each label once, at its strongest). */
+function strongest(lists: TagDraw[][], n: number): string[] {
+  const best = new Map<string, number>()
+  for (const d of lists.flat()) best.set(d.label, Math.max(best.get(d.label) ?? 0, d.factor))
+  return [...best].sort(([, a], [, b]) => b - a).slice(0, n).map(([label]) => label)
+}
+
+/** “Draws more: Freeloaders, Haters · Misogynist, Creepy”: who your recent posts bring in (presets/tags.json). */
+function DrawsLine({ tags }: { tags: Tag[] }) {
+  const types = strongest(tags.map((t) => t.draws.types), 3)
+  const traits = strongest(tags.map((t) => t.draws.traits), 4)
+  if (!types.length && !traits.length) return null
+  return (
+    <p className="text-xs text-content-tertiary">
+      Draws more: <span className="text-content-secondary">{[types.join(', '), traits.join(', ')].filter(Boolean).join(' · ')}</span>
+    </p>
+  )
+}
+
 const ACCESS = [
   { value: 'free', label: 'Free for subscribers' },
   { value: 'locked', label: 'Locked (pay to view)' },
@@ -32,7 +52,9 @@ export function NewPostPage() {
   const { data: vault = [] } = useVault(active?.id)
   const { data: feed } = useFeed(active?.id)
   const { data: captions } = useCaptions()
+  const { data: tags = [] } = useTags()
   const { data: settings } = useSettings()
+  const direction = useCurrentDirection(active?.id)
   const dispatch = useDispatch()
   const [text, setText] = useState('')
   const [vaultIds, setVaultIds] = useState<string[]>([])
@@ -47,11 +69,12 @@ export function NewPostPage() {
   // A paid page can only post for subscribers (the engine refuses locked posts there).
   const postAccess = canLock ? access : 'free'
   const chosen = vaultIds.map((id) => vault.find((v) => v.id === id) ?? null)
+  const chosenTags = tags.filter((t) => chosen.some((v) => v?.tags.includes(t.id)))
 
-  // Ready-made captions in your fans' language (mixed: mostly English), so you don't have to type.
+  // Ready-made captions in your direction's voice and your fans' language (mixed: mostly English), so you don't have to type.
   const suggest = (kind: CaptionKind) => {
     if (!captions) return
-    const list = captions[chineseCaption(settings?.fanLanguage) ? 'zh' : 'en'][kind].filter((c) => c !== text)
+    const list = captions[chineseCaption(settings?.fanLanguage) ? 'zh' : 'en'][direction?.id ?? 'girl_next_door'][kind].filter((c) => c !== text)
     setText(randomItem(list))
   }
 
@@ -94,6 +117,7 @@ export function NewPostPage() {
             </button>
           </div>
           {chosen.length > 0 && <p className="text-xs text-content-tertiary">Tap an item to remove it.</p>}
+          <DrawsLine tags={chosenTags} />
         </CardContent>
       </Card>
 

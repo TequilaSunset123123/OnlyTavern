@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { buildFanPrompt, parseFanMessage } from '../llm/fanMessage'
 import { createAccount } from '../store/account'
-import type { Account } from '../store/schema'
+import audience from '../presets/audience.json'
+import { type Account, SEGMENTS } from '../store/schema'
 import { addVaultItem, publishPost } from './content'
 import { sendMass, simulateMassDay } from './massMessages'
-import { activeCap, fallbackText, fillMessage, markRead, sendDm, simulateRegularsDay, tagAttracts } from './regulars'
+import { activeCap, fallbackText, fillMessage, markRead, sendDm, simulateRegularsDay } from './regulars'
+import { tagAttracts, tagMix } from './posts'
 import { simulate } from './simulate'
 
 function grown(seed = 'a', days = 40): Account {
@@ -40,19 +42,32 @@ describe('regulars', () => {
     expect(a.regulars.every((r) => r.language === 'zh')).toBe(true)
   })
 
-  it('degradation, domination and BDSM posts draw in more misogynists', () => {
+  it('degradation, domination and BDSM posts draw in misogynists and creeps', () => {
     let a = createAccount({ id: 'x', seed: 'm', now: 0, name: 'Mia', handle: 'mia' })
     a = addVaultItem(a, 'v0', { description: 'Collar and leash', tags: ['degradation', 'domination'], intensity: 5, cast: 'me' })
     a = addVaultItem(a, 'v1', { description: 'Red lace set', tags: ['lingerie'], intensity: 3, cast: 'me' })
     expect(tagAttracts(a, 0)).toEqual({})
     const kinky = publishPost(a, 'p0', { text: '', vaultIds: ['v0'], access: 'free', priceCents: 0 })
-    // The strongest tag on a post counts: degradation ×3.
-    expect(tagAttracts(kinky, 0)).toEqual({ misogynist: 3 })
+    // The strongest tag on a post counts: degradation's ×6 misogynists, domination's ×3 bossy men.
+    expect(tagAttracts(kinky, 0)).toMatchObject({ misogynist: 6, creepy_compliments: 3.5, dominant: 3 })
     // Half your recent posts: half the pull.
     const mixed = publishPost(kinky, 'p1', { text: '', vaultIds: ['v1'], access: 'free', priceCents: 0 })
-    expect(tagAttracts(mixed, 0)).toEqual({ misogynist: 2 })
+    expect(tagAttracts(mixed, 0)).toMatchObject({ misogynist: 3.5, creepy_compliments: 2.25, older_gentleman: 1.25 })
     // Older than regulars.recentDays: no pull.
     expect(tagAttracts(mixed, 30)).toEqual({})
+  })
+
+  it('degradation posts bring freeloaders and haters instead of others, not more visitors', () => {
+    let a = createAccount({ id: 'x', seed: 'm', now: 0, name: 'Mia', handle: 'mia' })
+    a = addVaultItem(a, 'v0', { description: 'Collar and leash', tags: ['degradation', 'bdsm'], intensity: 5, cast: 'me' })
+    expect(Object.values(tagMix(a, 0)).every((f) => f === 1)).toBe(true)
+    const mix = tagMix(publishPost(a, 'p0', { text: '', vaultIds: ['v0'], access: 'free', priceCents: 0 }), 0)
+    expect(mix.freeloader).toBeGreaterThan(2)
+    expect(mix.hater).toBeGreaterThan(1.8)
+    expect(mix.simp).toBeLessThan(0.5)
+    // The crowd's usual mix still adds up to the same.
+    const total = SEGMENTS.reduce((sum, s) => sum + audience.segments[s].mix * mix[s], 0)
+    expect(total).toBeCloseTo(SEGMENTS.reduce((sum, s) => sum + audience.segments[s].mix, 0))
   })
 
   it('a lower cap in Settings sends the regulars you neglected longest to sleep', () => {

@@ -3,7 +3,8 @@
 // explicitness matches its taste and how fresh the tags are. Locked posts sell
 // to viewers; every post also brings some new profile visitors.
 import preset from '../presets/audience.json'
-import { type Account, type Audience, type EngineEvent, type Post, SEGMENTS } from '../store/schema'
+import tags from '../presets/tags.json'
+import { type Account, type Audience, type EngineEvent, type Post, SEGMENTS, type Segment } from '../store/schema'
 import { subscriberCount } from './audience'
 import { eventEffects } from './eventEffects'
 import { PLATFORM_FEE } from './economy'
@@ -19,6 +20,51 @@ export function postIntensity(post: Post, account: Account): number {
 
 export function postTags(post: Post, account: Account): string[] {
   return [...new Set(post.vaultIds.flatMap((id) => account.vault.find((v) => v.id === id)?.tags ?? []))]
+}
+
+/**
+ * What your recent posts pull in (presets/tags.json): each key's factor is the average,
+ * over your last posts (audience.json regulars.recentDays), of the strongest factor a post's tags give
+ * it (the one furthest from ×1, so a post with BDSM and romance still draws haters).
+ * Posting only degradation gives its full factors; one such post in four, a quarter of the way.
+ */
+function tagPull(account: Account, day: number, field: 'audience' | 'attracts'): Record<string, number> {
+  const recent = account.posts.filter((p) => p.day > day - preset.regulars.recentDays && p.day <= day)
+  if (!recent.length) return {}
+  const pull = new Map<string, number>()
+  for (const p of recent) {
+    const ids = new Set(postTags(p, account))
+    const strongest: Record<string, number> = {}
+    for (const t of tags) {
+      if (!ids.has(t.id) || !(field in t)) continue
+      for (const [id, m] of Object.entries((t as Record<string, unknown>)[field] as Record<string, number>)) {
+        if (Math.abs(Math.log(m)) > Math.abs(Math.log(strongest[id] ?? 1))) strongest[id] = m
+      }
+    }
+    for (const [id, m] of Object.entries(strongest)) pull.set(id, (pull.get(id) ?? 0) + (m - 1))
+  }
+  return Object.fromEntries([...pull].map(([id, extra]) => [id, 1 + extra / recent.length]))
+}
+
+/**
+ * Which personalities and behaviours your recent posts draw in (tags.json `attracts`):
+ * BDSM, degradation and domination bring misogynists and creeps, femdom submissive men,
+ * cosplay and voice notes obsessed ones.
+ */
+export const tagAttracts = (account: Account, day: number) => tagPull(account, day, 'attracts')
+
+/**
+ * Which fan types your recent posts draw in (tags.json `audience`, 2026-10-16): degradation
+ * and BDSM bring freeloaders and haters, femdom whales and simps, cosplay simps. It changes
+ * who comes, not how many: the factors are scaled so the crowd's usual mix
+ * (audience.json `mix`) still adds up to the same number of visitors.
+ */
+export function tagMix(account: Account, day: number): Record<Segment, number> {
+  const pull = tagPull(account, day, 'audience')
+  const raw = Object.fromEntries(SEGMENTS.map((s) => [s, pull[s] ?? 1])) as Record<Segment, number>
+  const mix = (f: Record<Segment, number>) => SEGMENTS.reduce((sum, s) => sum + preset.segments[s].mix * f[s], 0)
+  const k = mix(Object.fromEntries(SEGMENTS.map((s) => [s, 1])) as Record<Segment, number>) / mix(raw)
+  return Object.fromEntries(SEGMENTS.map((s) => [s, raw[s] * k])) as Record<Segment, number>
 }
 
 /** 1 when the tags are new; lower the more the same tags were posted in the recent window. */

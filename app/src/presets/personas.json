@@ -1639,7 +1639,9 @@
     "misogynist": 3,
     "troll": 2
    },
-   "behaviours": {},
+   "behaviours": {
+    "creepy_compliments": 0.1
+   },
    "fan": {
     "dmDaily": 0.4,
     "maxUnanswered": 3,
@@ -1703,7 +1705,8 @@
     "misogynist": 0.5
    },
    "behaviours": {
-    "cheapskate": 0.75
+    "cheapskate": 0.75,
+    "creepy_compliments": 0.12
    },
    "fan": {
     "dmDaily": 0.2,

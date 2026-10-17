@@ -99,7 +99,7 @@ function RequestsPanel({ accountId, onOpen }: { accountId: string; onOpen: () =>
   )
 }
 
-const CATEGORY: Record<DayEventView['category'], string> = { default: 'Nothing special today', common: 'Changes the odds', rare: 'Rare event' }
+const CATEGORY: Record<DayEventView['category'], string> = { default: 'Nothing special today', common: 'Changes the odds', rare: 'Rare event', special: 'Special event' }
 
 /** Today's event (engine/events.ts): what it does, how long it lasts; a rare one waits for your choice. */
 function TodaysEvent({ accountId }: { accountId: string }) {

@@ -91,6 +91,8 @@ export type Action =
   | { type: 'direction.set'; id: string; direction: DirectionId }
   /** Developer: jump to the next level of the current direction. */
   | { type: 'dev.levelUp'; id: string }
+  /** Developer: The Charity waits for you today, whatever led there. */
+  | { type: 'dev.charity'; id: string }
   | { type: 'dm.send'; id: string; regularId: string; message: DmInput }
   /** The model wrote a pending fan message. */
   | { type: 'dm.fill'; id: string; regularId: string; messageId: string; text: string }
@@ -142,11 +144,19 @@ export type Statistics = {
   segments: { id: Segment; label: string; count: number }[]
 }
 
-export type Tag = { id: string; en: string; zh: string; intensity: number }
+export type Tag = {
+  id: string
+  en: string
+  zh: string
+  intensity: number
+  /** Who posting it draws in, strongest first (presets/tags.json `audience` and `attracts`, ×1.5 or more): fan types, then personalities and behaviours. */
+  draws: { types: TagDraw[]; traits: TagDraw[] }
+}
+export type TagDraw = { label: string; factor: number }
 
-/** Ready-made post captions by kind, in English and Chinese (presets/captions.json). */
+/** Ready-made post captions by direction and kind, in English and Chinese (presets/captions.json). */
 export type CaptionKind = 'tease' | 'newSet' | 'locked' | 'chat'
-export type Captions = Record<'en' | 'zh', Record<CaptionKind, string[]>>
+export type Captions = Record<'en' | 'zh', Record<DirectionId, Record<CaptionKind, string[]>>>
 
 /** A post with what the UI needs to show it. */
 export type FeedPost = Post & {

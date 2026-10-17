@@ -4,7 +4,7 @@
 import { subscriberCount } from '../engine/audience'
 import { addVaultItem, canLockPosts, deletePost, deleteVaultItem, publishPost, updateVaultItem } from '../engine/content'
 import { directionInfo, directionPrompt, levelUpForTesting, setDirection, SPECS, SWITCH_LOSS } from '../engine/directions'
-import { fanLayers } from '../engine/personas'
+import { fanLayers, traitLabel } from '../engine/personas'
 import { postIntensity, postTags } from '../engine/posts'
 import { loyaltyInfo } from '../engine/fans'
 import { awayNow, conditionOf } from '../engine/conditions'
@@ -18,7 +18,25 @@ import { migrate, SaveError, versionOf } from '../store/migrate'
 import { type Account, type AccountIndex, DIRECTIONS, DirectionIdSchema, LedgerKindSchema, type Message, SCHEMA_VERSION, SEGMENTS, SettingsSchema } from '../store/schema'
 import type { AccountStorage } from '../store/storage'
 import { exportAccount, exportFileName, importAccount } from '../store/transfer'
-import type { Action, Api, DispatchResult, InboxThread, ProfilePatch, Statements } from './types'
+import type { Action, Api, DispatchResult, InboxThread, ProfilePatch, Statements, Tag, TagDraw } from './types'
+
+/** Who a tag draws in, for the New post page: anything it makes ×1.5 or likelier, strongest first. */
+function tagDraws(factors: Partial<Record<string, number>> | undefined, label: (id: string) => string): TagDraw[] {
+  return Object.entries(factors ?? {})
+    .filter((e): e is [string, number] => (e[1] ?? 0) >= 1.5)
+    .sort(([, a], [, b]) => b - a)
+    .map(([id, factor]) => ({ label: label(id), factor }))
+}
+const TAGS: Tag[] = tags.map((t) => ({
+  id: t.id,
+  en: t.en,
+  zh: t.zh,
+  intensity: t.intensity,
+  draws: {
+    types: tagDraws('audience' in t ? t.audience : undefined, (s) => `${audiencePreset.segments[s as keyof typeof audiencePreset.segments].label}s`),
+    traits: tagDraws('attracts' in t ? t.attracts : undefined, traitLabel),
+  },
+}))
 
 // Loaded on demand: these pull in the comment corpus and the fan persona parts.
 const engine = () => import('../engine/simulate')
@@ -284,6 +302,12 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       return { delta: [`account:${id}`], events: [] }
     },
 
+    async 'dev.charity'({ id }) {
+      const { openSpecialForTesting } = await dayEvents()
+      await update(id, (a) => openSpecialForTesting(a, 'charity'))
+      return { delta: [`account:${id}`], events: [] }
+    },
+
     async 'settings.update'({ patch }) {
       const next = SettingsSchema.parse({ ...(await storage.loadSettings()), ...patch })
       await storage.saveSettings(next)
@@ -353,7 +377,7 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       return [...(await mustLoad(id)).events].reverse()
     },
     async getTags() {
-      return tags
+      return TAGS
     },
     async getCaptions() {
       return captions

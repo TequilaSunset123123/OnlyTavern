@@ -124,6 +124,23 @@ describe('comments', () => {
     }
   })
 
+  it('come from the fans you have: degradation brings freeloaders, haters, misogynists and creeps', () => {
+    const share = (tag: string) => {
+      let a = addVaultItem(account('free', 'mix'), 'v0', item(0, [tag], tag === 'degradation' ? 5 : 2))
+      for (let d = 0; d < 40; d++) a = simulate(publishPost(a, `p${d}`, { text: 'x', vaultIds: ['v0'], access: 'free', priceCents: 0 }), 1, 'mix').account
+      const post = { ...a.posts[0], stats: { ...a.posts[0].stats, comments: 150 } }
+      const who = generateComments(a, post, { fanLanguage: 'en' as const }).map((c) => c.who)
+      return {
+        types: who.filter((w) => /^(Freeloader|Hater)/.test(w)).length / who.length,
+        styles: who.filter((w) => /(Misogynist|Creepy)$/.test(w)).length / who.length,
+      }
+    }
+    const kinky = share('degradation')
+    const sweet = share('romantic')
+    expect(kinky.types).toBeGreaterThan(sweet.types * 2)
+    expect(kinky.styles).toBeGreaterThan(sweet.styles * 2)
+  })
+
   it('use the chosen language', () => {
     const a = setup()
     const zh = generateComments(a, a.posts[0], { fanLanguage: 'zh' as const })

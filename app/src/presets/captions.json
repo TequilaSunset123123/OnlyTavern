@@ -1,80 +1,492 @@
 {
  "en": {
-  "tease": [
-   "Guess what I'm wearing under this 😇",
-   "Couldn't sleep… so I took some pics for you 🌙",
-   "Rate this fit 1–10, be honest 😏",
-   "Felt cute, might delete later 🙈",
-   "Who wants to see the rest? 👀",
-   "Staying in bed all day, wanna join? 🛏️",
-   "Sweaty after the gym… shower next 💦",
-   "Caught in the mirror again 🪞",
-   "Just a little preview for my favorites 💋",
-   "Good morning from my bed ☀️"
-  ],
-  "newSet": [
-   "New set just dropped ✨",
-   "First time wearing this… what do you think? 🖤",
-   "Shot this one with the steam still on 🛁",
-   "Brand new outfit, brand new pics 📸",
-   "This set took forever but it was worth it 😈",
-   "Weekend set is here 🔥",
-   "Lights low, camera on 🕯️"
-  ],
-  "locked": [
-   "The full set is too spicy for the feed 🔥 Unlock to see everything",
-   "You've been good… here's your reward 😈",
-   "No censor, no filter. Unlock if you dare 🔒",
-   "This one is only for the brave ones 💦",
-   "Everything I couldn't post for free 🙊",
-   "Unlock it and tell me your favorite pic 😘"
-  ],
-  "chat": [
-   "Check your DMs, I'm in a giving mood 💌",
-   "Who's up late with me? 🌙",
-   "Tell me what you want to see next 👇",
-   "Missed you guys today 💕",
-   "Feeling extra naughty tonight… 😈",
-   "Comment your favorite emoji and I'll pick someone to DM 😏"
-  ]
+  "girl_next_door": {
+   "tease": [
+    "Guess what I'm wearing under this 😇",
+    "Couldn't sleep… so I took some pics for you 🌙",
+    "Rate this fit 1–10, be honest 😏",
+    "Felt cute, might delete later 🙈",
+    "Who wants to see the rest? 👀",
+    "Staying in bed all day, wanna join? 🛏️",
+    "Sweaty after the gym… shower next 💦",
+    "Caught in the mirror again 🪞",
+    "Just a little preview for my favorites 💋",
+    "Good morning from my bed ☀️"
+   ],
+   "newSet": [
+    "New set just dropped ✨",
+    "First time wearing this… what do you think? 🖤",
+    "Shot this one with the steam still on 🛁",
+    "Brand new outfit, brand new pics 📸",
+    "This set took forever but it was worth it 😈",
+    "Weekend set is here 🔥",
+    "Lights low, camera on 🕯️"
+   ],
+   "locked": [
+    "The full set is too spicy for the feed 🔥 Unlock to see everything",
+    "You've been good… here's your reward 😈",
+    "No censor, no filter. Unlock if you dare 🔒",
+    "This one is only for the brave ones 💦",
+    "Everything I couldn't post for free 🙊",
+    "Unlock it and tell me your favorite pic 😘"
+   ],
+   "chat": [
+    "Check your DMs, I'm in a giving mood 💌",
+    "Who's up late with me? 🌙",
+    "Tell me what you want to see next 👇",
+    "Missed you guys today 💕",
+    "Feeling extra naughty tonight… 😈",
+    "Comment your favorite emoji and I'll pick someone to DM 😏"
+   ]
+  },
+  "porn_star": {
+   "tease": [
+    "Took him 4 minutes. Took me 4 rounds 💦",
+    "Guess who's on her knees in tomorrow's video 😈",
+    "No panties, no plans, camera rolling 🎥",
+    "This is the SFW part. You know where the rest is 🍑",
+    "Still shaking from that last scene…",
+    "Filmed three scenes today. Legs don't work anymore 🥵"
+   ],
+   "newSet": [
+    "NEW VIDEO 🎬 18 minutes, zero cuts, one very lucky guy",
+    "Fresh scene just dropped: me, two toys and no mercy 💦",
+    "Girl/girl scene with my favorite costar is LIVE 👭🔥",
+    "Behind the scenes from today's shoot. Yes, that's all real 🎥",
+    "New full-length video is up. Watch till the end, trust me 😈",
+    "Shot this one in one take. You'll see why 🥵"
+   ],
+   "locked": [
+    "Full uncut scene, every angle 🎬 Unlock it",
+    "The feed gets the trailer. This gets everything 🔞",
+    "No blur, no cuts, no shame. Unlock and enjoy 💦",
+    "My filthiest scene yet is behind this lock 😈",
+    "Unlock for the ending. You've never seen a finish like this 🥵",
+    "This one got banned on Twitter. It's all here 🔒"
+   ],
+   "chat": [
+    "Who should I film with next? Drop names 👇",
+    "Rate my last scene 1–10. Be honest, I can take it 😏",
+    "Tell me your wildest fantasy, I might film it 🎥",
+    "Boy/girl or girl/girl next? Vote in the comments 🔥",
+    "Comment 🍑 if you watched the whole thing",
+    "Reply with what you want me to try on camera next 😈"
+   ]
+  },
+  "egirl": {
+   "tease": [
+    "new cosplay arc incoming (｡•̀ᴗ-)✧ guess the character",
+    "cat ears on, brain off, nya~ 🐾",
+    "lost my ranked game so now i'm posting thighs instead",
+    "senpai noticed me… did you? 👉👈",
+    "pov: you're my player 2 🎮",
+    "is this skirt too short for a magical girl? asking for a friend 🌸"
+   ],
+   "newSet": [
+    "new cos set!! the wig took 3 hours pls appreciate it (╥﹏╥)",
+    "maid set is up~ welcome home, master 🎀",
+    "bunny suit set just dropped, gaming chair included 🐰🎮",
+    "new voice note: me whispering your name till you fall asleep 💤",
+    "school uniform set!! tell me which pic is your favorite >w<",
+    "finally finished the bodysuit cos, it's SO tight 😳"
+   ],
+   "locked": [
+    "the lewd version of my cosplay is here, don't tell my discord 🙈🔒",
+    "unlock for the pics where the costume comes off (⁄ ⁄•⁄ω⁄•⁄ ⁄)",
+    "only my top simps get to see this one 💕🔒",
+    "spicy voice note, wear headphones pls 🎧",
+    "the uncensored waifu set. you've been warned uwu",
+    "unlock and i'll call you onii-chan in the next one 🥺"
+   ],
+   "chat": [
+    "who should i cosplay next?? drop characters below 👇",
+    "rate my cos 1–10 or no headpats for you",
+    "anyone wanna duo tonight? 🎮 winner picks my next outfit",
+    "say 'good girl' in the comments and see what happens 👀",
+    "i'm bored, tell me your weirdest anime crush",
+    "comment a 🐾 and maybe i'll send you a voice note hehe"
+   ]
+  },
+  "escort": {
+   "tease": [
+    "Dinner was lovely. The dress came off before dessert 🥂",
+    "Back from Monaco. Only a few of you will see what I wore 🖤",
+    "Silk, heels and a hotel key. Use your imagination",
+    "Some evenings are private. This is a glimpse 🕯️",
+    "Fresh manicure, fresh lingerie, empty suite",
+    "He booked the whole weekend. I'm still wearing his gift 💎"
+   ],
+   "newSet": [
+    "A new set from the penthouse shoot. Natural light only 🖤",
+    "La Perla, champagne, city lights. New set is up 🥂",
+    "Shot in Paris last week. Tasteful, mostly 😏",
+    "New studio set, for gentlemen with taste",
+    "Black lace and a private balcony. The set is live 🕯️",
+    "My new favorite lingerie, photographed properly at last"
+   ],
+   "locked": [
+    "The full set is reserved for my most generous admirers 💎",
+    "What happened after the champagne stays behind this lock 🥂🔒",
+    "Discretion has a price. Unlock to see the rest",
+    "Not for everyone. That's the point 🖤",
+    "The private gallery. Gentlemen only 🔒",
+    "Everything my dinner date saw, and more"
+   ],
+   "chat": [
+    "Where should I travel next? The best suggestion gets a private message ✈️",
+    "Tell me about your perfect evening. I'm listening 🥂",
+    "Gentlemen, what's your favorite color on me? 🖤",
+    "My DMs are open tonight, for the right man",
+    "Red wine or champagne? Choose wisely 🍷",
+    "Who's taking me to dinner this month? 💎"
+   ]
+  },
+  "couple": {
+   "tease": [
+    "He said I couldn't post this. Posting it anyway 😇",
+    "Morning-after hair, don't care ☀️",
+    "Caught him staring again 👀 can you blame him?",
+    "Our bed, our rules, your view 🛏️",
+    "Date night ended early… for reasons 😏",
+    "He's still asleep. Wanna see how I wake him up? 🫣"
+   ],
+   "newSet": [
+    "New video: anniversary night, unscripted 💕",
+    "We tried the position you all voted for. Full video is up 🎥",
+    "Shower together, film together 🚿 New set!",
+    "Lazy Sunday in bed. New video, very lazy, very not 😈",
+    "We put the camera on the dresser and forgot about it 🙈",
+    "A couples' massage that got out of hand. Up now 🕯️"
+   ],
+   "locked": [
+    "The uncut version of last night. He didn't hold back 🔒",
+    "Everything we couldn't post for free 💦",
+    "Real couple, real sex, no acting. Unlock it 🫶",
+    "His favorite video of us. Now it's yours 😏🔒",
+    "The full tape. Volume down if you're at work 🔞",
+    "Unlock and tell us which part was your favorite 💕"
+   ],
+   "chat": [
+    "What should we try next? The best idea gets filmed 👇",
+    "Rate our chemistry 1–10 😏",
+    "Ask us anything, we're answering from bed tonight 🛏️",
+    "He wants to know who's watching. Say hi 👋",
+    "Vote: shower or kitchen counter next? 🔥",
+    "Couples in the comments, what's your favorite thing to do together? 💕"
+   ]
+  },
+  "sub": {
+   "tease": [
+    "Waiting on my knees for instructions 🥺",
+    "Collar on. Tell me where to sit 🐾",
+    "Good girls don't wear anything at home, right?",
+    "Still marked from last night and proud of it 😳",
+    "I'll do anything you say. Anything 🙈",
+    "Tied up, can't reach my phone… someone posted this for me 😇"
+   ],
+   "newSet": [
+    "New set: rope, a blindfold and nowhere to go 🪢",
+    "He made me beg for this one. New video is up 🥺",
+    "Collar, leash, new set. I'm such a good pet 🐾",
+    "Filmed my punishment. Every single one 😳",
+    "New JOI: we'll do it your way, step by step",
+    "Wrote 'property' on myself for this set 🖊️"
+   ],
+   "locked": [
+    "The full punishment, uncut. I couldn't sit for days 🔒",
+    "Unlock to see what I look like when I beg 🥺",
+    "I'm just a toy in this one. Use it however you like 🔒",
+    "Everything I let him do to me, all of it 😳",
+    "Pay to watch me get put in my place 🪢",
+    "Good girls get used. Unlock it 🔞"
+   ],
+   "chat": [
+    "Tell me what to do today. I'll obey the first comment 👇",
+    "What should my next punishment be? 🥺",
+    "Give me orders in the comments. I'll pick one 🐾",
+    "Who wants to train me? 🙈",
+    "Should I wear the collar all week? Vote 👇",
+    "Say something mean to me, I've been too good lately 😳"
+   ]
+  },
+  "domme": {
+   "tease": [
+    "Kneel. You know the rules 👠",
+    "You don't get to see more until you've earned it",
+    "My boots were polished by a very obedient boy this morning 🖤",
+    "Look all you want. Touching costs extra",
+    "Another pathetic boy begging in my DMs. Cute",
+    "Hear my heels? You should already be on your knees 👠"
+   ],
+   "newSet": [
+    "New set: latex, leather and a riding crop. Behave 🖤",
+    "Fresh JOI. You'll follow every instruction, won't you? 😈",
+    "New foot worship set. Thank me after 👣",
+    "Voice note: me telling you exactly how worthless you are 🎧",
+    "Shot this one on my throne. Grovel accordingly 👑",
+    "New humiliation clip is up. You know you'll watch it twice"
+   ],
+   "locked": [
+    "Tribute first. Then you may look 💸🔒",
+    "Pay for the privilege, pig 👠",
+    "Locked, like you should be 🔒",
+    "My boots, your wallet. Unlock it",
+    "Only my good little paypigs see the full set 💸",
+    "Unlock to hear me laugh at you 🎧"
+   ],
+   "chat": [
+    "Tell me why you deserve my attention. Make it good 👇",
+    "Which of you sent tribute today? I'm keeping a list 💸",
+    "Confess something embarrassing in the comments 😈",
+    "Rate yourself 1–10. Then I'll tell you the real number",
+    "Who's spoiling me this week? 👑",
+    "Beg in the comments. The best beggar gets a DM 👠"
+   ]
+  }
  },
  "zh": {
-  "tease": [
-   "猜猜我里面穿的什么😇",
-   "睡不着…就给你们拍了几张🌙",
-   "这身给打几分？说实话😏",
-   "今天有点可爱，说不定会删🙈",
-   "想看剩下的吗？👀",
-   "今天赖床一整天，要来陪我吗🛏️",
-   "刚练完一身汗…接下来去洗澡💦",
-   "又在镜子前被抓到了🪞",
-   "给最爱我的人一点小预告💋",
-   "床上早安☀️"
-  ],
-  "newSet": [
-   "新的一组来啦✨",
-   "第一次穿这件…觉得怎么样🖤",
-   "浴室雾气还没散就拍了🛁",
-   "新衣服，新照片📸",
-   "这组拍了好久，但值得😈",
-   "周末福利来了🔥",
-   "灯调暗，开拍🕯️"
-  ],
-  "locked": [
-   "完整版太辣了动态里放不下🔥解锁看全部",
-   "乖了这么久…给你的奖励😈",
-   "无码无滤镜，敢解锁吗🔒",
-   "只给胆子大的人看💦",
-   "所有不能免费发的都在这里🙊",
-   "解锁之后告诉我你最喜欢哪张😘"
-  ],
-  "chat": [
-   "去看私信，今天心情好💌",
-   "谁还没睡，陪我聊聊🌙",
-   "下面告诉我下次想看什么👇",
-   "今天有点想你们💕",
-   "今晚特别想使坏…😈",
-   "评论区留个表情，我挑一个人私聊😏"
-  ]
+  "girl_next_door": {
+   "tease": [
+    "猜猜我里面穿的什么😇",
+    "睡不着…就给你们拍了几张🌙",
+    "这身给打几分？说实话😏",
+    "今天有点可爱，说不定会删🙈",
+    "想看剩下的吗？👀",
+    "今天赖床一整天，要来陪我吗🛏️",
+    "刚练完一身汗…接下来去洗澡💦",
+    "又在镜子前被抓到了🪞",
+    "给最爱我的人一点小预告💋",
+    "床上早安☀️"
+   ],
+   "newSet": [
+    "新的一组来啦✨",
+    "第一次穿这件…觉得怎么样🖤",
+    "浴室雾气还没散就拍了🛁",
+    "新衣服，新照片📸",
+    "这组拍了好久，但值得😈",
+    "周末福利来了🔥",
+    "灯调暗，开拍🕯️"
+   ],
+   "locked": [
+    "完整版太辣了动态里放不下🔥解锁看全部",
+    "乖了这么久…给你的奖励😈",
+    "无码无滤镜，敢解锁吗🔒",
+    "只给胆子大的人看💦",
+    "所有不能免费发的都在这里🙊",
+    "解锁之后告诉我你最喜欢哪张😘"
+   ],
+   "chat": [
+    "去看私信，今天心情好💌",
+    "谁还没睡，陪我聊聊🌙",
+    "下面告诉我下次想看什么👇",
+    "今天有点想你们💕",
+    "今晚特别想使坏…😈",
+    "评论区留个表情，我挑一个人私聊😏"
+   ]
+  },
+  "porn_star": {
+   "tease": [
+    "他四分钟就交代了，我还要了四轮💦",
+    "猜猜明天的视频里谁跪着😈",
+    "没穿内裤，没有计划，机器已经开了🎥",
+    "这是能放出来的部分，剩下的在哪你懂🍑",
+    "刚拍完那场，腿还在抖…",
+    "今天连拍三场，腿已经不是我的了🥵"
+   ],
+   "newSet": [
+    "新片上线🎬十八分钟，一刀没剪，一个幸运的男人",
+    "新场景：我、两个玩具，毫不留情💦",
+    "和最喜欢的女搭档拍的女女场上线了👭🔥",
+    "今天的拍摄花絮，对，全是真的🎥",
+    "完整长片已上传，一定看到最后😈",
+    "一镜到底拍的，看了就知道为什么🥵"
+   ],
+   "locked": [
+    "完整无剪辑版，所有机位🎬解锁看",
+    "动态里是预告，这里是全部🔞",
+    "无码，无剪辑，无羞耻。解锁享用💦",
+    "我拍过最脏的一场就锁在这里😈",
+    "解锁看结尾，你没见过这样收尾的🥵",
+    "这条在推特被封了，这里全都有🔒"
+   ],
+   "chat": [
+    "下一部跟谁拍？评论区报名👇",
+    "上一部打几分？说实话，我扛得住😏",
+    "说说你最野的幻想，说不定我就拍了🎥",
+    "下一部男女还是女女？评论区投票🔥",
+    "看完全片的评论区扣个🍑",
+    "回复我下次镜头前该试什么😈"
+   ]
+  },
+  "egirl": {
+   "tease": [
+    "新cos即将上线(｡•̀ᴗ-)✧猜猜是谁",
+    "猫耳戴上，脑子关机，喵~🐾",
+    "排位又输了，那就发腿吧",
+    "前辈注意到我了…你呢？👉👈",
+    "你现在是我的2P了🎮",
+    "魔法少女的裙子这么短可以吗🌸帮朋友问的"
+   ],
+   "newSet": [
+    "新cos图集！！假发弄了三个小时，快夸我(╥﹏╥)",
+    "女仆装上线啦~欢迎回家，主人🎀",
+    "兔女郎图集，电竞椅附赠🐰🎮",
+    "新语音：小声叫你的名字哄你睡觉💤",
+    "JK制服图集！！告诉我你最喜欢哪张>w<",
+    "紧身衣cos终于做完了，真的好紧😳"
+   ],
+   "locked": [
+    "cos的涩涩版在这里，别告诉群里的人🙈🔒",
+    "解锁看衣服脱掉的那几张(⁄ ⁄•⁄ω⁄•⁄ ⁄)",
+    "只有最宠我的哥哥们能看💕🔒",
+    "涩涩语音，请戴耳机🎧",
+    "无修老婆图集，提醒过你了哦uwu",
+    "解锁的话下一条叫你欧尼酱🥺"
+   ],
+   "chat": [
+    "下次cos谁？？评论区点角色👇",
+    "给我的cos打分，不打不给摸头",
+    "今晚有人双排吗🎮赢的人选我下一套衣服",
+    "评论区说一句“乖女孩”看看会发生什么👀",
+    "好无聊，说说你最奇怪的纸片人老婆",
+    "评论区扣个🐾，说不定给你发语音嘿嘿"
+   ]
+  },
+  "escort": {
+   "tease": [
+    "晚餐很愉快，甜点之前裙子就没了🥂",
+    "刚从摩纳哥回来，那晚穿了什么只给少数人看🖤",
+    "丝绸、高跟鞋、一张房卡，自己想象",
+    "有些夜晚是私人的，这里只是一瞥🕯️",
+    "新做的指甲，新买的内衣，空着的套房",
+    "他订了整个周末，我还戴着他送的礼物💎"
+   ],
+   "newSet": [
+    "顶层套房拍的新图集，只用自然光🖤",
+    "La Perla、香槟、城市夜景，新图集上线🥂",
+    "上周在巴黎拍的，大体上还算得体😏",
+    "新的棚拍图集，给有品味的绅士",
+    "黑色蕾丝和私人阳台，图集已上线🕯️",
+    "最近最爱的一套内衣，终于好好拍了"
+   ],
+   "locked": [
+    "完整图集只留给最慷慨的仰慕者💎",
+    "香槟之后发生的事，锁在这里🥂🔒",
+    "低调是有价格的，解锁看剩下的",
+    "不是给所有人看的，这正是重点🖤",
+    "私人相册，只限绅士🔒",
+    "那晚陪我吃饭的人看到的，还有更多"
+   ],
+   "chat": [
+    "下一站去哪？最好的建议我私信回你✈️",
+    "说说你心中完美的夜晚，我在听🥂",
+    "先生们，我穿什么颜色最好看？🖤",
+    "今晚私信开着，给对的人",
+    "红酒还是香槟？想好再选🍷",
+    "这个月谁带我去吃饭？💎"
+   ]
+  },
+  "couple": {
+   "tease": [
+    "他说这张不能发，我偏要发😇",
+    "一觉醒来头发乱糟糟，懒得管☀️",
+    "又被我抓到他在盯着看👀能怪他吗",
+    "我们的床，我们的规矩，你们的视角🛏️",
+    "约会提前结束了…原因你懂😏",
+    "他还在睡，想看我怎么叫醒他吗🫣"
+   ],
+   "newSet": [
+    "新视频：纪念日那晚，没有剧本💕",
+    "试了你们投票选的姿势，完整视频已上线🎥",
+    "一起洗澡，一起拍🚿新图集！",
+    "周日在床上赖着，新视频，很懒，又一点都不懒😈",
+    "把相机放在梳妆台上就忘了🙈",
+    "情侣按摩按着按着就失控了，已上线🕯️"
+   ],
+   "locked": [
+    "昨晚的无剪辑版，他一点没收着🔒",
+    "所有不能免费发的都在这里💦",
+    "真情侣，真做，不演。解锁看🫶",
+    "他最喜欢的一条，现在给你了😏🔒",
+    "完整录像，在上班的话把音量调小🔞",
+    "解锁后告诉我们你最喜欢哪段💕"
+   ],
+   "chat": [
+    "下次试什么？最好的点子就拍👇",
+    "给我们的默契打个分😏",
+    "随便问，今晚躺床上一起回答🛏️",
+    "他想知道谁在看，打个招呼👋",
+    "投票：下次浴室还是厨房台面？🔥",
+    "评论区的情侣们，说说你们最喜欢一起做什么💕"
+   ]
+  },
+  "sub": {
+   "tease": [
+    "跪着等你的指令🥺",
+    "项圈戴好了，告诉我该坐哪🐾",
+    "乖女孩在家不穿衣服的，对吧？",
+    "昨晚留下的印子还在，还挺骄傲的😳",
+    "你说什么我都做，什么都做🙈",
+    "被绑着够不到手机…这条是别人替我发的😇"
+   ],
+   "newSet": [
+    "新图集：绳子、眼罩，哪也去不了🪢",
+    "这条是他逼我求着才给拍的，新视频上线🥺",
+    "项圈、牵引绳、新图集，我是不是很乖🐾",
+    "把我的惩罚拍下来了，每一下都拍了😳",
+    "新指令视频：按你的方式来，一步一步",
+    "为了这组在身上写了“私有物”🖊️"
+   ],
+   "locked": [
+    "完整惩罚无剪辑版，好几天坐不下🔒",
+    "解锁看我求饶的样子🥺",
+    "这条里我只是个玩具，随你怎么用🔒",
+    "我让他对我做的一切，全在这里😳",
+    "付钱看我被教训🪢",
+    "乖女孩就是拿来用的，解锁🔞"
+   ],
+   "chat": [
+    "今天我该做什么？第一条评论我照做👇",
+    "下次该怎么罚我？🥺",
+    "评论区给我下命令，我挑一条🐾",
+    "谁想来调教我？🙈",
+    "要不要一整周都戴着项圈？投票👇",
+    "骂我两句吧，最近太乖了😳"
+   ]
+  },
+  "domme": {
+   "tease": [
+    "跪下。规矩你懂👠",
+    "想看更多？先证明你配",
+    "今早有个很听话的男孩替我擦了靴子🖤",
+    "随便看，碰要另外付钱",
+    "又一个可怜虫在私信里求我，真可爱",
+    "听见高跟鞋的声音了吗？你早该跪好了👠"
+   ],
+   "newSet": [
+    "新图集：乳胶、皮革、马鞭。老实点🖤",
+    "新指令视频，每一条你都会照做的，对吧？😈",
+    "新的恋足图集，看完记得谢我👣",
+    "新语音：告诉你你有多没用🎧",
+    "坐在我的王座上拍的，趴好再看👑",
+    "新的羞辱视频上线了，你知道你会看两遍"
+   ],
+   "locked": [
+    "先进贡，再看💸🔒",
+    "想看就付钱，贱狗👠",
+    "锁着，就像你该被锁着一样🔒",
+    "我的靴子，你的钱包。解锁",
+    "只有乖乖进贡的小钱包能看完整版💸",
+    "解锁听我笑你🎧"
+   ],
+   "chat": [
+    "说说你凭什么值得我看一眼，好好说👇",
+    "今天谁进贡了？我记着名单呢💸",
+    "在评论区坦白一件丢人的事😈",
+    "给自己打个分，然后我告诉你真实分数",
+    "这周谁来宠我？👑",
+    "在评论区求我，求得最好的有私信👠"
+   ]
+  }
  }
 }

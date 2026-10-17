@@ -159,6 +159,67 @@ describe('daily events', () => {
   })
 })
 
+/** A Sub who has been had for free `n` times (done meetups on her terms: free). */
+function freeSub(a: Account, n: number): Account {
+  const fan = a.regulars[0]
+  const meetups = Array.from({ length: n }, (_, i) => ({
+    id: `m-free-${i}`,
+    regularId: fan.id,
+    day: 1,
+    offerCents: 0,
+    replyBy: 2,
+    status: 'done' as const,
+    meetDay: 2,
+    hidden: false,
+    outcome: 'smooth' as const,
+    paidCents: 0,
+    closedDay: 2,
+    messageId: `${fan.id}-m0`,
+    askedBy: 'you' as const,
+    terms: 'free' as const,
+  }))
+  return { ...a, direction: { ...a.direction, id: 'sub', chosen: true }, meetups: [...a.meetups, ...meetups] }
+}
+
+describe('The Charity (special)', () => {
+  it('comes to a Sub who has been had for free often enough, and only once', () => {
+    const a = grown('charity', 60)
+    const quiet = { ...a, dayEvents: [] }
+    // Not a Sub, or not had for free enough: never.
+    const domme = freeSub(quiet, 8)
+    expect(simulate({ ...domme, direction: { ...domme.direction, id: 'domme' } }, 40, 'charity', SETTINGS).account.dayEvents.some((e) => e.kind === 'charity')).toBe(false)
+    expect(simulate(freeSub(quiet, 7), 40, 'charity', SETTINGS).account.dayEvents.some((e) => e.kind === 'charity')).toBe(false)
+    const b = simulate(freeSub(quiet, 8), 120, 'charity', SETTINGS).account
+    const charity = b.dayEvents.filter((e) => e.kind === 'charity')
+    expect(charity).toHaveLength(1)
+    expect(charity[0]).toMatchObject({ category: 'special', status: 'done', result: expect.stringMatching(/^opened/) })
+  })
+
+  it('turns every regular into a freeloading, creepy misogynist, makes nothing, and old money walks out', () => {
+    const base = freeSub(grown('charity', 60), 8)
+    const [withRich, rich] = fanWith(base, (r) => ({ ...r, behaviours: ['older_gentleman'], status: 'active' }))
+    const day = withRich.clock.day
+    const a: Account = { ...withRich, dayEvents: [{ id: `ev${day}`, kind: 'charity', category: 'special', day, until: day + 1, status: 'open' }] }
+    const view = openDayEvents(a)[0]
+    expect(view).toMatchObject({ category: 'special', title: 'The Charity', options: [{ choice: 'open' }] })
+    expect(view.text).toContain('8 men')
+    const r = resolveDayEvent(a, `ev${day}`, 'open', 'charity')
+    expect(r.account.ledger).toEqual(a.ledger)
+    const gone = r.account.regulars.find((x) => x.id === rich.id)!
+    expect(gone.conditions).toContainEqual({ id: 'blocked', since: day, by: 'him' })
+    for (const x of r.account.regulars.filter((x) => x.id !== rich.id && !hasCondition(x, 'blocked') && !hasCondition(x, 'lyingLow'))) {
+      expect(x).toMatchObject({ segment: 'freeloader', personality: 'misogynist' })
+      expect(x.behaviours).toContain('creepy_compliments')
+    }
+    const done = r.events.find((e) => e.type === 'day-event-done')!
+    expect(done).toMatchObject({ result: 'openedRich', bad: true })
+    expect(done.type === 'day-event-done' && done.text).toContain(`${rich.name} pulled up his trousers`)
+    expect(r.account.posts[0].text).toMatch(/Thank you to all [\d,]+ of you/)
+    // Freeloaders flock in for two weeks after.
+    expect(eventEffects(r.account, day + 1).regularMix.freeloader).toBe(3)
+  })
+})
+
 describe('schema 15', () => {
   it('drops events that were taken out', () => {
     const fresh = createAccount({ id: 'a1', seed: 's1', now: 0, name: 'Mia', handle: 'mia' })

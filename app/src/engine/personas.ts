@@ -60,6 +60,20 @@ export function fanIdentity(rng: Rng, language: Language): { name: string; handl
 export type Persona = { name: string; handle: string; age: number; country: string; bio: string; relationship: string; personality: string; behaviours: string[] }
 
 /**
+ * His personality and behaviours: by his type's odds (presets/personas.json segments), times
+ * `attracts` (your direction, your recent posts). Crowd commenters get theirs the same way (comments.ts).
+ */
+export function rollTraits(rng: Rng, segment: Segment, attracts: Record<string, number> = {}): { personality: string; behaviours: string[] } {
+  const S = personas.segments[segment]
+  const f = (id: string) => attracts[id] ?? 1
+  const personality = weighted(rng, Object.fromEntries(Object.entries(S.personalities).map(([id, w]) => [id, w * f(id)])))
+  const behaviours = Object.entries(S.behaviours as Record<string, number>)
+    .filter(([id, p]) => rng() < Math.min(0.9, p * f(id)))
+    .map(([id]) => id)
+  return { personality, behaviours }
+}
+
+/**
  * A whole regular: identity, age, job, where he lives, relationship, his personality
  * and behaviours. `attracts` (your direction, your recent posts) makes some likelier.
  */
@@ -70,12 +84,7 @@ export function makePersona(rng: Rng, segment: Segment, language: Language, attr
   const job = at(S.jobs[language], rng())
   const status = weighted(rng, S.relationships)
   const relationship = personas.relationships[status][language]
-  const f = (id: string) => attracts[id] ?? 1
-  const personality = weighted(rng, Object.fromEntries(Object.entries(S.personalities).map(([id, w]) => [id, w * f(id)])))
-  const behaviours = Object.entries(S.behaviours as Record<string, number>)
-    .filter(([id, p]) => rng() < Math.min(0.9, p * f(id)))
-    .map(([id]) => id)
-  const who = { relationship: status, personality, behaviours }
+  const who = { relationship: status, ...rollTraits(rng, segment, attracts) }
   if (language === 'zh') {
     const place = at(personas.zh.cities, rng())
     return { name, handle, age, country: place.country, bio: `${age}岁，${place.city}，${job}，${relationship}`, ...who }
@@ -146,6 +155,9 @@ export function pickDistinct(rng: Rng, weights: Record<string, number>, n: numbe
 }
 
 /** His three layers as labels (for the UI) and descriptions (for the model). */
+/** A personality's or behaviour's name (“Misogynist”, “Creepy”). */
+export const traitLabel = (id: string) => PERSONALITIES[id]?.label ?? BEHAVIOURS[id]?.label ?? id
+
 export function fanLayers(r: Regular) {
   return {
     personality: info(PERSONALITIES, r.personality),

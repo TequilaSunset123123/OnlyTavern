@@ -95,9 +95,9 @@ export function afterMeetup(rng: Rng, account: Account, r: Regular, meetupId: st
   return open(rng, account, r, kind, day, meetupId)
 }
 
-/** You block him: gone for good, and whatever was open with him is off. */
-export function blockFan(account: Account, regularId: string, day: number): Account {
-  const a = updateRegular(account, { ...withCondition(account.regulars.find((x) => x.id === regularId)!, { id: 'blocked', since: day, by: 'you' }), status: 'dormant' })
+/** You block him (or he blocks you, `by`): gone for good, and whatever was open with him is off. */
+export function blockFan(account: Account, regularId: string, day: number, by: 'you' | 'him' = 'you'): Account {
+  const a = updateRegular(account, { ...withCondition(account.regulars.find((x) => x.id === regularId)!, { id: 'blocked', since: day, by }), status: 'dormant' })
   return {
     ...a,
     requests: a.requests.map((q) => (q.regularId === regularId && (q.status === 'open' || q.status === 'accepted') ? { ...q, status: 'expired' as const, closedDay: day } : q)),

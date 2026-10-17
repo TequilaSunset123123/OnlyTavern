@@ -224,15 +224,16 @@ export const INCIDENT_CHOICES = ['playAlong', 'letDown', 'calm', 'block'] as con
 export const INCIDENT_RESULTS = ['gift', 'ok', 'turned', 'calmed', 'escalated', 'blocked', 'backlash'] as const
 
 /**
- * A daily event (engine/events.ts, presets/events.json, 2026-10-16). `kind` is a common or
- * rare event id. Common ones just change the odds from `day` to `until`. Rare ones are about
- * one of your fans (`regularId`) and wait for your choice (`open`) for a couple of days; what
- * you chose can leave effects behind (`after`, until its own day).
+ * A daily event (engine/events.ts, presets/events.json, 2026-10-16). `kind` is a common,
+ * rare or special event id. Common ones just change the odds from `day` to `until`. Rare ones
+ * are about one of your fans (`regularId`) and wait for your choice (`open`) for a couple of
+ * days; what you chose can leave effects behind (`after`, until its own day). Special ones
+ * (The Charity) wait like rare ones, once per account.
  */
 export const DayEventSchema = z.object({
   id: z.string(),
   kind: z.string(),
-  category: z.enum(['common', 'rare']),
+  category: z.enum(['common', 'rare', 'special']),
   day: z.number().int(),
   until: z.number().int(),
   /** Which rumor, which trending tag. */
@@ -247,6 +248,10 @@ export const DayEventSchema = z.object({
   closedDay: z.number().int().optional(),
   /** Money the result brought or cost: his gift, the brand's fee after haggling. */
   resultCents: Cents.optional(),
+  /** How many men came (The Charity). */
+  count: z.number().int().optional(),
+  /** The fans who walked out for good (The Charity: the old money men). */
+  leftIds: z.array(z.string()).optional(),
   /** Odds left behind by what you chose, from the day after `closedDay` to `until`. */
   after: z.object({ until: z.number().int(), effects: z.record(z.string(), z.union([z.number(), z.record(z.string(), z.number())])) }).optional(),
 })

@@ -12,7 +12,7 @@ import { haterFame, simulateHatersDay } from './haters'
 import { simulateIncidentsDay } from './incidents'
 import { simulateMassDay } from './massMessages'
 import { simulateMeetupsDay } from './meetups'
-import { activityFactor, simulatePostsDay } from './posts'
+import { activityFactor, simulatePostsDay, tagMix } from './posts'
 import { priceSpend } from './price'
 import { simulateRegularsDay } from './regulars'
 import { simulateRequestsDay } from './requests'
@@ -22,7 +22,7 @@ export type SimulateResult = { account: Account; events: EngineEvent[] }
 /**
  * Advances the account by `days` days (default seed: the account's own).
  * Settings only affect who new regulars are (their language). `stopAtRare`: stop at the
- * end of a day a rare event comes up, so you get to choose (skipping ahead in the app).
+ * end of a day a rare or special event comes up, so you get to choose (skipping ahead in the app).
  */
 export function simulate(
   account: Account,
@@ -47,10 +47,12 @@ export function simulate(
     const md = simulateMassDay({ ...acc, posts: pd.posts }, acc.audience, seed, day)
     acc = { ...acc, posts: pd.posts, massMessages: md.massMessages }
     const fx = directionEffects(acc)
+    // Who your recent posts draw in (posts.ts tagMix): degradation brings freeloaders and haters.
+    const drawn = tagMix(acc, day)
     const r = simulateAudienceDay(acc.audience, acc.profile, seed, day, {
       extraVisitors: pd.extraVisitors,
       renewalFactor: activityFactor(acc, day) * ev.renewal,
-      mixFactors: Object.fromEntries(SEGMENTS.map((s) => [s, fx.mix[s] * (ev.mix[s] ?? 1)])),
+      mixFactors: Object.fromEntries(SEGMENTS.map((s) => [s, fx.mix[s] * (ev.mix[s] ?? 1) * drawn[s]])),
       // Haters badmouthing you keep some visitors away (haters.ts).
       visitorFactor: fx.visitors * haterFame(acc) * ev.visitors,
       conversionFactor: ev.conversion,
@@ -105,7 +107,7 @@ export function simulate(
       if (before < m && after >= m) events.push({ day, type: 'milestone', subscribers: m })
     }
     events.push(...hd.events, ...rd.events, ...qd.events, ...od.events, ...dd.events, ...id.events)
-    if (stopAtRare && acc.dayEvents.some((e) => e.day === day && e.category === 'rare')) break
+    if (stopAtRare && acc.dayEvents.some((e) => e.day === day && (e.category === 'rare' || e.category === 'special'))) break
   }
 
   const keepFrom = today - economy.eventDays

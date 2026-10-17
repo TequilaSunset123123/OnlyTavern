@@ -69,15 +69,17 @@ describe('directions', () => {
       const post = switched.posts[0]
       expect(post).toMatchObject({ day: base.clock.day, vaultIds: [], access: 'free', transition: { from: 'girl_next_door', to: 'escort' } })
       expect(transitions.posts[language]['girl_next_door>escort']).toContain(post.text)
-      // A few days later the comments (say 30 of them) are about the switch.
+      // A few days later the comments (say 20 of them: the switch has about that many lines) are about the switch.
       const later = simulate(switched, 3, 's').account
       const seen = later.posts.find((p) => p.id === post.id)!
       expect(seen.stats.views).toBeGreaterThan(0)
-      const comments = generateComments(later, { ...seen, stats: { ...seen.stats, comments: 30 } }, { fanLanguage: language })
-      expect(comments).toHaveLength(30)
+      const comments = generateComments(later, { ...seen, stats: { ...seen.stats, comments: 20 } }, { fanLanguage: language })
+      expect(comments).toHaveLength(20)
       const c = transitions.comments[language]
-      const switchLines = new Set([...c.to.escort, ...c.from.girl_next_door, ...c.hate.escort, ...c.pair['girl_next_door>escort']])
-      expect(comments.filter((x) => switchLines.has(x.text)).length / comments.length).toBeGreaterThan(0.8)
+      // Sloppy typers lowercase the line and drop its punctuation.
+      const plain = (text: string) => text.toLowerCase().replace(/[.,!?;:'’]/g, '')
+      const switchLines = new Set([...c.to.escort, ...c.from.girl_next_door, ...c.hate.escort, ...c.pair['girl_next_door>escort']].map(plain))
+      expect(comments.filter((x) => switchLines.has(plain(x.text))).length / comments.length).toBeGreaterThan(0.8)
     }
     // Every switch has its posts and remarks, in both languages.
     for (const from of DIRECTIONS) for (const to of DIRECTIONS) {

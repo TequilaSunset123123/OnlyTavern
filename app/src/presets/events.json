@@ -1,12 +1,13 @@
 {
-  "_doc": "Daily events (plan.md §10.2, 2026-10-16). Categories: default (an ordinary day, no event), common (random, effects only, no choice; weight is boosted by what is going on: engine/events.ts BOOSTS), rare (only if you have the fans for it; you choose what to do), special (to come). Effects are multipliers on the day's odds (engine/events.ts Effects). Words: {name} the fan, {product} the brand's product, {fee} money, {tag} a tag, {amount} money. A rare event's `after.<result>` is what that result leaves behind: {days, effects} from the next day on.",
+  "_doc": "Daily events (plan.md §10.2, 2026-10-16). Categories: default (an ordinary day, no event), common (random, effects only, no choice; weight is boosted by what is going on: engine/events.ts BOOSTS), rare (only if you have the fans for it; you choose what to do), special (a turning point your path leads to, once per account; you click it through like a rare one, and it settles itself if you leave it). Effects are multipliers on the day's odds (engine/events.ts Effects). Words: {name} the fan, {product} the brand's product, {fee} money, {tag} a tag, {amount} money. A rare event's `after.<result>` is what that result leaves behind: {days, effects} from the next day on.",
   "daily": {
     "commonChance": 0.3,
     "commonEveryDays": 7,
     "rareChance": 0.1,
     "rareGapDays": 6,
     "rareRepeatDays": 20,
-    "answerDays": 2
+    "answerDays": 2,
+    "specialChance": 0.35
   },
   "ordinary": {
     "title": "An ordinary day",
@@ -478,6 +479,54 @@
             "visitors": 1.3
           }
         }
+      }
+    }
+  },
+  "special": {
+    "charity": {
+      "title": "The Charity",
+      "text": "Word is out: you're the girl who never makes them pay. {freebies} men have had you for free or for pocket change, and your DMs are a queue of men asking for their turn. You built your name on it. Maybe it's time to give back to the community: one day, one rented flat, the door open from noon till midnight. ID at the door, no charge, everyone gets a turn.",
+      "days": 1,
+      "default": "open",
+      "minFreebies": 8,
+      "men": [600, 1100],
+      "options": {
+        "open": {
+          "label": "Open the doors",
+          "help": "You make nothing. Every regular who comes walks out a freeloader, a creep and a misogynist. Old money men won't stay after this."
+        }
+      },
+      "odds": {},
+      "post": "Thank you to all {count} of you who came today 💦 Charity's over… for now",
+      "after": {
+        "opened": {
+          "days": 14,
+          "effects": {
+            "mix": {
+              "freeloader": 3,
+              "hater": 1.5
+            },
+            "regularMix": {
+              "freeloader": 3
+            }
+          }
+        },
+        "openedRich": {
+          "days": 14,
+          "effects": {
+            "mix": {
+              "freeloader": 3,
+              "hater": 1.5
+            },
+            "regularMix": {
+              "freeloader": 3
+            }
+          }
+        }
+      },
+      "results": {
+        "opened": "{count} men came through the door in twelve hours, and not one of them paid. All your regulars were in the queue. Now every one of them is a freeloader, a creep and a misogynist, and more men like them are on their way.",
+        "openedRich": "{count} men came through the door in twelve hours, and not one of them paid. All your regulars were in the queue. Now every one of them is a freeloader, a creep and a misogynist, and more men like them are on their way. {gone} pulled up {his} trousers and left for good: this is beneath {his} caliber."
       }
     }
   }

@@ -30,7 +30,7 @@ import { type EventEffects, eventEffects, targetFactor } from './eventEffects'
 import { dormantAfterDays } from './haters'
 import { actingType, awayNow, conditionOf, hasCondition, loveHate, withoutCondition } from './conditions'
 import { likeWeights, makePersona, pickDistinct, pickLanguage } from './personas'
-import { intensityMatch, postTags } from './posts'
+import { intensityMatch, tagAttracts, tagMix } from './posts'
 import { priceAttracts, priceFreeloaders, priceSpend } from './price'
 import { logNormal, type Rng, rngFor } from './rng'
 import { addLoyalty, fanProfile, loyaltyEffects } from './fans'
@@ -94,28 +94,6 @@ function newRegular(rng: Rng, id: string, segment: Segment, day: number, setting
     loyalty: 0,
     conditions: [],
   }
-}
-
-/**
- * Who your recent posts draw in (presets/tags.json `attracts`, 2026-10-15): BDSM,
- * degradation and domination bring more misogynists. Each personality's or behaviour's
- * odds are scaled by the share of your last posts (regulars.recentDays) that carry such
- * a tag, up to the tag's factor.
- */
-export function tagAttracts(account: Account, day: number): Record<string, number> {
-  const recent = account.posts.filter((p) => p.day > day - R.recentDays && p.day <= day)
-  if (!recent.length) return {}
-  const pull = new Map<string, number>()
-  for (const p of recent) {
-    const ids = new Set(postTags(p, account))
-    const strongest: Record<string, number> = {}
-    for (const t of tags) {
-      if (!ids.has(t.id) || !('attracts' in t)) continue
-      for (const [id, m] of Object.entries(t.attracts as Record<string, number | undefined>)) strongest[id] = Math.max(strongest[id] ?? 1, m ?? 1)
-    }
-    for (const [id, m] of Object.entries(strongest)) pull.set(id, (pull.get(id) ?? 0) + (m - 1))
-  }
-  return Object.fromEntries([...pull].map(([id, extra]) => [id, 1 + extra / recent.length]))
 }
 
 /** Your direction's pull times your posts' pull times your price's (engine/price.ts). */
@@ -196,8 +174,10 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
   const ev = eventEffects(a, day)
   // What he tips: the day's event, and what he pays to subscribe (engine/price.ts).
   const spend = ev.tipSize * priceSpend(a.profile)
+  // Your recent posts: the men they drew in are the ones who write to you (tagMix).
+  const drawn = tagMix(a, day)
   const weights = Object.fromEntries(
-    SEGMENTS.map((s) => [s, subscriberCount(audience, s) * preset.segments[s].reachOut * (ev.regularMix[s] ?? 1)]),
+    SEGMENTS.map((s) => [s, subscriberCount(audience, s) * preset.segments[s].reachOut * (ev.regularMix[s] ?? 1) * drawn[s]]),
   ) as Record<Segment, number>
   // Word gets around that you give it away: men hoping for a freebie of their own come
   // looking for you, as freeloaders, and take up your regulars' slots.
