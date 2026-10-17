@@ -62,6 +62,13 @@ describe('90 days stay in a sensible range', () => {
     }
   })
 
+  it('a new page has no renewals in its first month: everyone renews a month after joining', () => {
+    const { ledger } = simulate(account('a'), 45).account
+    const renewals = ledger.filter((l) => l.kind === 'renewal')
+    expect(renewals.length).toBeGreaterThan(0)
+    expect(Math.min(...renewals.map((l) => l.day))).toBeGreaterThanOrEqual(30)
+  })
+
   it('keeps only the last 30 days of events', () => {
     const { events } = simulate(account('a'), 90).account
     expect(events.length).toBeGreaterThan(0)

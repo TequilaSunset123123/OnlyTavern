@@ -13,12 +13,14 @@ export type NewAccountInput = {
 
 export const noPoints = () => Object.fromEntries(DIRECTIONS.map((d) => [d, 0])) as Record<DirectionId, number>
 
-/** The starting crowd from presets/audience.json, spread over renewal days without randomness. */
+/**
+ * The starting crowd from presets/audience.json. They subscribed the day the page opened (day
+ * 0), so like everyone else they first renew a month later, on day 30 (until 2026-10-17 they
+ * were spread as if they had joined the month before, and renewed in the first week).
+ */
 export function initialAudience(start: Partial<Record<Segment, number>> = audiencePreset.start): Audience {
   const cohorts = Object.fromEntries(SEGMENTS.map((s) => [s, Array<number>(30).fill(0)])) as Audience['cohorts']
-  for (const s of SEGMENTS) {
-    for (let i = 0; i < (start[s] ?? 0); i++) cohorts[s][(i * 7 + 1) % 30] += 1
-  }
+  for (const s of SEGMENTS) cohorts[s][0] = start[s] ?? 0
   return { cohorts }
 }
 

@@ -1,4 +1,4 @@
-import type { RouteObject } from 'react-router'
+import { Navigate, type RouteObject } from 'react-router'
 import { AccountsPage } from './pages/AccountsPage'
 import { FansPage } from './pages/FansPage'
 import { HomePage } from './pages/HomePage'
@@ -26,7 +26,8 @@ export const routes: RouteObject[] = [
       { path: '/vault', element: <VaultPage /> },
       // Pages with charts load on first visit, so recharts stays out of the startup bundle.
       { path: '/statements', lazy: () => import('./pages/StatementsPage').then((m) => ({ Component: m.StatementsPage })) },
-      { path: '/statistics', lazy: () => import('./pages/StatisticsPage').then((m) => ({ Component: m.StatisticsPage })) },
+      // Statistics is part of Statements since 2026-10-17.
+      { path: '/statistics', element: <Navigate to="/statements" replace /> },
       { path: '/fans', element: <FansPage /> },
       { path: '/profile', element: <ProfilePage /> },
       { path: '/accounts', element: <AccountsPage /> },

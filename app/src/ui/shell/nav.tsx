@@ -1,5 +1,4 @@
 import {
-  ChartIcon,
   FolderIcon,
   GalleryIcon,
   HomeIcon,
@@ -27,7 +26,6 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/requests', label: 'Requests', icon: TaskIcon },
   { path: '/vault', label: 'Vault', icon: VaultIcon },
   { path: '/statements', label: 'Statements', icon: WalletIcon },
-  { path: '/statistics', label: 'Statistics', icon: ChartIcon },
   { path: '/fans', label: 'Fans', icon: UsersIcon },
   { path: '/profile', label: 'My Profile', icon: UserIcon },
   { path: '/accounts', label: 'Accounts', icon: FolderIcon },

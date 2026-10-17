@@ -1,14 +1,17 @@
 // How posts perform (plan.md §4.3). A post is seen over its first days after
 // publishing (heat); each fan type reacts according to how well the post's
 // explicitness matches its taste and how fresh the tags are. Locked posts sell
-// to viewers; every post also brings some new profile visitors.
+// to viewers, and viewers tip (2026-10-17: crowd tips only come from posts, each
+// fan type's `tipPerView`, likelier the better the post suits him); every post
+// also brings some new profile visitors.
 import preset from '../presets/audience.json'
 import tags from '../presets/tags.json'
 import { type Account, type Audience, type EngineEvent, type Post, SEGMENTS, type Segment } from '../store/schema'
 import { subscriberCount } from './audience'
 import { eventEffects } from './eventEffects'
 import { platformFee } from './directions'
-import { binomial, rngFor } from './rng'
+import { priceSpend } from './price'
+import { binomial, logNormal, rngFor } from './rng'
 
 const P = preset.post
 
@@ -87,6 +90,8 @@ export type PostsDay = {
   extraVisitors: number
   purchases: number
   gross: number
+  /** Tips viewers left on your posts today. */
+  tips: { count: number; gross: number }
   events: EngineEvent[]
 }
 
@@ -97,9 +102,12 @@ export function simulatePostsDay(account: Account, audience: Audience, seed: str
   let extraVisitors = 0
   let purchases = 0
   let gross = 0
+  const tips = { count: 0, gross: 0 }
   const events: EngineEvent[] = []
-  // The day's event (engine/eventEffects.ts): a trending tag, an algorithm shift.
+  // The day's event (engine/eventEffects.ts): a trending tag, an algorithm shift, fans in a tipping mood.
   const ev = eventEffects(account, day)
+  // Fans who pay more for the page tip more (engine/price.ts).
+  const tipSize = ev.tipSize * priceSpend(account.profile)
 
   const posts = account.posts.map((post) => {
     const age = day - post.day // 1 = the day after publishing
@@ -112,7 +120,7 @@ export function simulatePostsDay(account: Account, audience: Audience, seed: str
     const intensity = postIntensity(post, account)
     const fresh = freshness(post, account)
     const price = post.access === 'locked' ? post.priceCents : 0
-    const today = { views: 0, likes: 0, comments: 0, purchases: 0 }
+    const today = { views: 0, likes: 0, comments: 0, purchases: 0, tips: 0, tipped: 0 }
 
     for (const s of SEGMENTS) {
       const p = preset.segments[s]
@@ -125,15 +133,23 @@ export function simulatePostsDay(account: Account, audience: Audience, seed: str
       if (price > 0) {
         today.purchases += binomial(rng, views, Math.min(1, p.ppvRate * match * Math.exp((-p.priceSensitivity * price) / 1000)))
       }
+      const tippers = binomial(rng, views, Math.min(1, p.tipPerView * match * ev.crowdTips))
+      for (let i = 0; i < tippers; i++) {
+        today.tips += 1
+        today.tipped += Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(rng, p.tipMedian * tipSize, p.tipSpread)))) * 100
+      }
     }
 
     extraVisitors += P.visitorsPerPost * reach * fresh + today.likes * P.visitorsPerLike
     purchases += today.purchases
     gross += today.purchases * price
+    tips.count += today.tips
+    tips.gross += today.tipped
     if (today.views) events.push({ day, type: 'post', postId: post.id, views: today.views, likes: today.likes, comments: today.comments })
     if (today.purchases) events.push({ day, type: 'purchases', postId: post.id, count: today.purchases, gross: today.purchases * price })
 
-    const net = today.purchases * price - Math.round(today.purchases * price * platformFee(account))
+    const cut = (cents: number) => cents - Math.round(cents * platformFee(account))
+    const net = cut(today.purchases * price)
     return {
       ...post,
       stats: {
@@ -142,11 +158,12 @@ export function simulatePostsDay(account: Account, audience: Audience, seed: str
         comments: post.stats.comments + today.comments,
         purchases: post.stats.purchases + today.purchases,
         earned: post.stats.earned + net,
+        ...(today.tipped || post.stats.tips ? { tips: (post.stats.tips ?? 0) + cut(today.tipped) } : {}),
       },
     }
   })
 
-  return { posts, extraVisitors: Math.round(extraVisitors), purchases, gross, events }
+  return { posts, extraVisitors: Math.round(extraVisitors), purchases, gross, tips, events }
 }
 
 /** Fans drift away from creators who stop posting. */

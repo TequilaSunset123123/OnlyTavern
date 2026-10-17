@@ -47,7 +47,8 @@ export const PostSchema = z.object({
   author: z.string(),
   /** A Brand Deal's #ad (engine/events.ts): the product it links to, a key of events.json rare.brandDeal.products. */
   sponsor: z.string().optional(),
-  stats: z.object({ views: Count, likes: Count, comments: Count, purchases: Count, earned: Cents }),
+  /** `earned`: net from sales (locked posts); `tips`: net tips viewers left on it (since 2026-10-17). */
+  stats: z.object({ views: Count, likes: Count, comments: Count, purchases: Count, earned: Cents, tips: Cents.optional() }),
 })
 
 /** The crowd as counts only (plan.md §2.4): per segment, subscribers by renewal day (day % 30). */

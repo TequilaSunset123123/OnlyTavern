@@ -63,6 +63,23 @@ describe('post performance', () => {
     expect(balances(a).earned).toBeGreaterThan(0)
   })
 
+  it('the crowd only tips on posts: none on a page that posts nothing', () => {
+    const idle = simulate(account('free'), 30)
+    expect(idle.events.filter((e) => e.type === 'tips')).toEqual([])
+
+    let a = simulate(account('free'), 30).account
+    a = publishPost(withVault(a), 'p1', { text: 'new set', vaultIds: ['v0'], access: 'free', priceCents: 0 })
+    let tipped = 0
+    for (const seed of ['a', 'b', 'c', 'd']) {
+      const r = simulate(a, 3, seed)
+      const crowd = r.events.filter((e) => e.type === 'tips').reduce((n, e) => n + (e.type === 'tips' ? e.gross : 0), 0)
+      tipped += crowd
+      // What viewers tipped is on the post, net of the platform's cut.
+      expect(r.account.posts[0].stats.tips ?? 0).toBe(crowd - Math.round(crowd * 0.2))
+    }
+    expect(tipped).toBeGreaterThan(0)
+  })
+
   it('repeating the same tags makes posts less fresh', () => {
     let a = withVault(account())
     a = publishPost(a, 'p1', { text: 'a', vaultIds: ['v0'], access: 'free', priceCents: 0 })

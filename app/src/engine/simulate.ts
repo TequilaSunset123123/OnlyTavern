@@ -13,7 +13,6 @@ import { simulateIncidentsDay } from './incidents'
 import { simulateMassDay } from './massMessages'
 import { simulateMeetupsDay } from './meetups'
 import { activityFactor, simulatePostsDay, tagMix } from './posts'
-import { priceSpend } from './price'
 import { simulateRegularsDay } from './regulars'
 import { simulateRequestsDay } from './requests'
 
@@ -56,9 +55,6 @@ export function simulate(
       // Haters badmouthing you keep some visitors away (haters.ts).
       visitorFactor: fx.visitors * haterFame(acc) * ev.visitors,
       conversionFactor: ev.conversion,
-      tipFactor: ev.crowdTips,
-      // Fans who pay more tip more (engine/price.ts).
-      tipSize: ev.tipSize * priceSpend(acc.profile),
     })
     const after = subscriberCount(r.audience)
 
@@ -67,7 +63,8 @@ export function simulate(
     const lines = [
       ledgerLine(day, 'subscription', r.newSubscribers, r.newSubscribers * price, fee),
       ledgerLine(day, 'renewal', r.renewals, r.renewals * price, fee),
-      ledgerLine(day, 'tip', r.tips.count, r.tips.gross, fee),
+      // Crowd tips: left on your posts (posts.ts).
+      ledgerLine(day, 'tip', pd.tips.count, pd.tips.gross, fee),
       ledgerLine(day, 'post', pd.purchases, pd.gross, fee),
       ledgerLine(day, 'message', md.purchases, md.gross, fee),
     ].filter((l) => l.gross > 0)
@@ -104,7 +101,7 @@ export function simulate(
     events.push(...ed.events, ...pd.events, ...md.events)
     if (r.newSubscribers) events.push({ day, type: 'subscribers', count: r.newSubscribers })
     if (r.churned) events.push({ day, type: 'churn', count: r.churned })
-    if (r.tips.count) events.push({ day, type: 'tips', count: r.tips.count, gross: r.tips.gross })
+    if (pd.tips.count) events.push({ day, type: 'tips', count: pd.tips.count, gross: pd.tips.gross })
     for (const m of economy.milestones) {
       if (before < m && after >= m) events.push({ day, type: 'milestone', subscribers: m })
     }

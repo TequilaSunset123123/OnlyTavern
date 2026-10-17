@@ -1,5 +1,6 @@
 // One day of the crowd (plan.md §4.2). Fans are counts in renewal-day buckets:
 // on day d, bucket d % 30 comes up for renewal; new subscribers join that bucket.
+// Their tips come from your posts (posts.ts, 2026-10-17): no posts, no crowd tips.
 import preset from '../presets/audience.json'
 import { type Audience, type Profile, SEGMENTS, type Segment } from '../store/schema'
 import { priceRenewal } from './price'
@@ -13,7 +14,6 @@ export type AudienceDay = {
   newSubscribers: number
   renewals: number
   churned: number
-  tips: { count: number; gross: number }
 }
 
 export function subscriberCount(audience: Audience, segment?: Segment): number {
@@ -58,8 +58,6 @@ export type DayInputs = {
   visitorFactor?: number
   /** The day's event (engine/eventEffects.ts): multiplies how many visitors subscribe, how often subscribers tip, and how much. */
   conversionFactor?: number
-  tipFactor?: number
-  tipSize?: number
 }
 
 export function simulateAudienceDay(
@@ -67,7 +65,7 @@ export function simulateAudienceDay(
   profile: Profile,
   seed: string,
   day: number,
-  { extraVisitors = 0, renewalFactor = 1, mixFactors = {}, visitorFactor = 1, conversionFactor = 1, tipFactor = 1, tipSize = 1 }: DayInputs = {},
+  { extraVisitors = 0, renewalFactor = 1, mixFactors = {}, visitorFactor = 1, conversionFactor = 1 }: DayInputs = {},
 ): AudienceDay {
   const bucket = day % 30
   const cohorts = structuredClone(audience.cohorts)
@@ -80,7 +78,6 @@ export function simulateAudienceDay(
   let renewals = 0
   let churned = 0
   let newSubscribers = 0
-  const tips = { count: 0, gross: 0 }
 
   for (const s of SEGMENTS) {
     const p = preset.segments[s]
@@ -92,15 +89,6 @@ export function simulateAudienceDay(
     churned += due - stay
     cohorts[s][bucket] = stay
 
-    // Tips from current subscribers (before today's newcomers).
-    const tipRng = rngFor(seed, day, `tips:${s}`)
-    const tippers = binomial(tipRng, cohorts[s].reduce((a, b) => a + b, 0), Math.min(1, p.tipDaily * tipFactor))
-    for (let i = 0; i < tippers; i++) {
-      const dollars = Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(tipRng, p.tipMedian * tipSize, p.tipSpread))))
-      tips.count += 1
-      tips.gross += dollars * 100
-    }
-
     // Newcomers: visitors of this segment who subscribe.
     const arrivals = binomial(rngFor(seed, day, `arrive:${s}`), visitors, Math.min(1, p.mix * (mixFactors[s] ?? 1)))
     const joined = binomial(rngFor(seed, day, `join:${s}`), arrivals, Math.min(1, conversionRate(p, profile) * conversionFactor))
@@ -108,5 +96,5 @@ export function simulateAudienceDay(
     newSubscribers += joined
   }
 
-  return { audience: { cohorts }, visitors, newSubscribers, renewals, churned, tips }
+  return { audience: { cohorts }, visitors, newSubscribers, renewals, churned }
 }

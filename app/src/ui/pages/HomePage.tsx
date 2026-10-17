@@ -40,7 +40,7 @@ export function HomePage() {
         <RequestsPanel accountId={active.id} onOpen={() => navigate('/requests')} />
         <TodaysEvent accountId={active.id} />
       </div>
-      <SummaryPanel accountId={active.id} onOpen={() => navigate('/statistics')} />
+      <SummaryPanel accountId={active.id} onOpen={() => navigate('/statements')} />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardContent,
+  CoinIcon,
   CommentIcon,
   EmptyState,
   EyeIcon,
@@ -104,6 +105,7 @@ function PostCard({ post, accountId, name, handle, today }: { post: FeedPost; ac
           <Stat icon={<HeartIcon size={16} />} value={count(post.stats.likes)} label="Likes" />
           <Stat icon={<CommentIcon size={16} />} value={count(post.stats.comments)} label="Comments" />
           {locked && <Stat icon={<WalletIcon size={16} />} value={`${post.stats.purchases} · ${money(post.stats.earned)}`} label="Purchases · net" />}
+          {!!post.stats.tips && <Stat icon={<CoinIcon size={16} />} value={money(post.stats.tips)} label="Tips · net" />}
           <Button
             variant="tertiaryDestructive"
             size="24"
