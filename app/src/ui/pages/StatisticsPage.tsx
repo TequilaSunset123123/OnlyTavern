@@ -25,13 +25,17 @@ const RANGES = [
 const earningsConfig = {
   subscriptions: { label: 'Subscriptions', color: 'var(--color-brand-primary-default)' },
   tips: { label: 'Tips', color: 'var(--color-special-chart-pink)' },
+  paid: { label: 'Paid posts & messages', color: 'var(--color-special-chart-purple)' },
+  customs: { label: 'Customs', color: 'var(--color-special-chart-sky)' },
+  cash: { label: 'Cash', color: 'var(--color-special-chart-orange)' },
 } satisfies ChartConfig
 
 const subscribersConfig = {
   subscribers: { label: 'Subscribers', color: 'var(--color-brand-primary-default)' },
 } satisfies ChartConfig
 
-const earned = (d: DailyStat) => d.net.subscription + d.net.renewal + d.net.tip
+/** Everything you made that day, as on Statements: the platform (after its fee) and cash off it; payouts are not earnings. */
+const earned = (d: DailyStat) => Object.entries(d.net).reduce((s, [kind, cents]) => (kind === 'payout' ? s : s + cents), 0)
 const sum = (days: DailyStat[], f: (d: DailyStat) => number) => days.reduce((a, d) => a + f(d), 0)
 
 export function StatisticsPage() {
@@ -52,6 +56,9 @@ export function StatisticsPage() {
     day: `D${d.day}`,
     subscriptions: (d.net.subscription + d.net.renewal) / 100,
     tips: d.net.tip / 100,
+    paid: (d.net.post + d.net.message) / 100,
+    customs: d.net.custom / 100,
+    cash: d.net.offline / 100,
     subscribers: d.subscribers,
   }))
   const dateInfo = days.length ? `Day ${days[0].day} – ${days.at(-1)!.day}` : undefined
@@ -87,7 +94,9 @@ export function StatisticsPage() {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} />
                 <Area dataKey="subscriptions" stackId="a" type="monotone" stroke="var(--color-subscriptions)" fill="var(--color-subscriptions)" fillOpacity={0.3} />
-                <Area dataKey="tips" stackId="a" type="monotone" stroke="var(--color-tips)" fill="var(--color-tips)" fillOpacity={0.3} />
+                {(['tips', 'paid', 'customs', 'cash'] as const).map((k) => (
+                  <Area key={k} dataKey={k} stackId="a" type="monotone" stroke={`var(--color-${k})`} fill={`var(--color-${k})`} fillOpacity={0.3} />
+                ))}
               </AreaChart>
             </ChartContainer>
           </ChartCard>

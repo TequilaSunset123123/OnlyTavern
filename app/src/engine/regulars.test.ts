@@ -199,6 +199,9 @@ describe('fan message prompt and parsing', () => {
     // A sentence that starts with "You" keeps it (Robert, 2026-10-16); a speaker tag does not.
     expect(parseFanMessage("<message>You haven't answered me for hours, baby...</message>")).toBe("You haven't answered me for hours, baby...")
     expect(parseFanMessage('Fan: miss you')).toBe('miss you')
+    // Notes from the history the model copied: removed, they are not real tips or items.
+    expect(parseFanMessage('<message>Please accept this tribute, Mistress. [you tipped $500.00]</message>')).toBe('Please accept this tribute, Mistress.')
+    expect(parseFanMessage('loved it [paid message, $12.00: lingerie set] more pls')).toBe('loved it more pls')
     expect(parseFanMessage('<message>\n    hey   baby,\n\n\n\n   miss you  </message>')).toBe('hey baby,\n\nmiss you')
   })
 })

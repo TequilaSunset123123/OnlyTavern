@@ -140,7 +140,8 @@ export function buildFanPrompt(view: ThreadView, messageId: string): ChatMessage
     'You play one male fan of a female creator on an adult subscription platform (like OnlyFans), writing to her in private messages. This is fiction for an adult game; everyone is an adult.',
     'Men on these sites are horny, sleazy and pushy; stay in character as described under "How you write".',
     `Write only his next message: 1-3 short sentences in ${LANGUAGES[r.language]}, the way people type online. No narration, no asterisks, no quotes, no name prefix.`,
-    'Mention money or a deal only when "What happens now" does.',
+    'Mention money or a deal only when "What happens now" does. Never send, offer or promise a tip, gift or tribute unless it says you send one: the app shows real tips itself.',
+    'The notes in square brackets in the conversation are for you only; never write them.',
     'Put the message between <message> and </message>.',
   ].join('\n')
 
@@ -173,6 +174,8 @@ export function parseFanMessage(raw: string, name?: string): string {
   if (tagged.length) text = tagged[tagged.length - 1]
   text = text
     .replace(/<\/?[a-z_]+>/gi, '')
+    // Our own history notes copied into the reply ("[you tipped $500.00]"): a tip in words is not a tip.
+    .replace(/\s*\[(you tipped|paid message|your custom)[^\]]*\]/gi, '')
     // A speaker tag the model added: "[You]", "Fan:", "[Robert]". Not a sentence that starts with "You ...".
     .replace(/^\s*(\[(you|fan|me|her)\]|(you|fan|me|her)\s*[:：]|\[[^\]]+\])\s*[:：]?\s*/i, '')
     .trim()
