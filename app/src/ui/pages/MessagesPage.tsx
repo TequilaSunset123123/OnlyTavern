@@ -99,11 +99,32 @@ function useDepartures(accountId: string | undefined, all: InboxThread[], listed
   return new Set(leaving.map((t) => t.regular.id))
 }
 
-/** A card tossed onto the pile, and off it (after Motion's spring animations, motion.dev/docs/react-animation). */
+/**
+ * A card tossed onto the pile, and off it (after Motion's spring animations, motion.dev/docs/react-animation).
+ * Cards leave one after another, top to bottom, like blocks taken off a stack (`out` gets the
+ * row's place in the list); when you switch filters, the new list's cards drop in one by one
+ * after them (2026-10-17: they used to fly off all at once).
+ */
+const STAGGER = 0.05
+const OUT_SECONDS = 0.26
+const MAX_STAGGERED = 10
 const TOSS = {
   initial: { opacity: 0, y: -56, x: 28, rotate: -9, scale: 0.86 },
+  drop: { opacity: 0, y: -18, scale: 0.96 },
   animate: { opacity: 1, y: 0, x: 0, rotate: 0, scale: 1 },
-  exit: { opacity: 0, x: 220, y: 36, rotate: 14, scale: 0.82, transition: { duration: 0.45, ease: [0.55, 0, 0.75, 0.2] as const } },
+  out: (i: number) => ({
+    opacity: 0,
+    x: 220,
+    y: 24,
+    rotate: 12,
+    scale: 0.86,
+    transition: { duration: OUT_SECONDS, delay: Math.min(i, MAX_STAGGERED) * STAGGER, ease: [0.55, 0, 0.75, 0.2] as const },
+  }),
+}
+
+/** Whether a conversation shows under a filter chip. */
+function matches(t: InboxThread, filter: (typeof FILTERS)[number]): boolean {
+  return filter === 'Unread' ? t.unread > 0 : filter === 'Tipped' ? t.tipped > 0 : filter === 'Dormant' ? t.regular.status === 'dormant' : t.regular.status === 'active'
 }
 
 export function MessagesPage() {
@@ -113,10 +134,10 @@ export function MessagesPage() {
   const { data: inbox } = useInbox(active?.id)
   const [tab, setTab] = useState(regularId === 'bulk' ? 'bulk' : 'chats')
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('All')
+  // Cards leaving because you switched filters: the new list's cards wait for them (TOSS).
+  const [leavingCount, setLeavingCount] = useState(0)
 
-  const listed = (inbox?.threads ?? []).filter((t) =>
-    filter === 'Unread' ? t.unread > 0 : filter === 'Tipped' ? t.tipped > 0 : filter === 'Dormant' ? t.regular.status === 'dormant' : t.regular.status === 'active',
-  )
+  const listed = (inbox?.threads ?? []).filter((t) => matches(t, filter))
   const arrivals = useArrivals(active?.id, listed)
   const leaving = useDepartures(active?.id, inbox?.threads ?? [], listed, filter === 'All')
   // New ones wait out the time-passing screens; fans going dormant stay a moment, in their
@@ -150,7 +171,16 @@ export function MessagesPage() {
           {tab === 'chats' && (
             <div className="flex flex-wrap gap-2">
               {FILTERS.map((f) => (
-                <Chip key={f} size="32" selected={filter === f} onClick={() => setFilter(f)}>
+                <Chip
+                  key={f}
+                  size="32"
+                  selected={filter === f}
+                  onClick={() => {
+                    const ids = new Set(threads.map((t) => t.regular.id))
+                    setLeavingCount(threads.length ? [...ids].filter((id) => !(inbox?.threads ?? []).some((t) => t.regular.id === id && matches(t, f))).length : 0)
+                    setFilter(f)
+                  }}
+                >
                   {f}
                 </Chip>
               ))}
@@ -168,18 +198,22 @@ export function MessagesPage() {
               />
             )}
             <AnimatePresence mode="popLayout">
-              {threads.map((t) => {
+              {threads.map((t, i) => {
                 const tossed = arrivals.fresh.has(t.regular.id)
                 const order = [...arrivals.fresh].indexOf(t.regular.id)
+                // After a filter switch, the new rows drop in one by one once the old ones are off.
+                const after = Math.min(leavingCount, MAX_STAGGERED) * STAGGER + (leavingCount ? OUT_SECONDS : 0)
                 return (
                   // layout: the other rows slide to make room for a new one, or close the gap a leaving one leaves.
                   <motion.div
                     key={t.regular.id}
                     layout
-                    initial={tossed ? TOSS.initial : false}
+                    custom={i}
+                    initial={tossed ? TOSS.initial : leavingCount || filter !== 'All' ? TOSS.drop : false}
                     animate={TOSS.animate}
-                    exit={TOSS.exit}
-                    transition={{ type: 'spring', stiffness: 260, damping: 18, delay: tossed ? 0.15 + order * 0.14 : 0 }}
+                    exit="out"
+                    variants={{ out: TOSS.out }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 18, delay: tossed ? 0.15 + order * 0.14 : after + Math.min(i, MAX_STAGGERED) * STAGGER }}
                   >
                     <ThreadRow thread={t} active={t.regular.id === open} onClick={() => navigate(`/messages/${t.regular.id}`)} />
                   </motion.div>
@@ -524,11 +558,14 @@ function dealCard(accountId: string, view: ThreadView, m: Message, delay: number
   return null
 }
 
-const AWAY = {
-  gone: 'He blocked you after his wife found out. He will not be back.',
+const AWAY: Record<NonNullable<ThreadView['away']>, string> = {
+  gone: 'He blocked you. He will not be back.',
   lyingLow: 'He is lying low since his wife found out. He was devoted enough to come back once things calm down.',
   blocked: 'You blocked him.',
+  moved: 'The site moved him to the creator he meant to subscribe to (Routing Error).',
+  arrested: 'He was arrested for money laundering. He will not be back.',
 }
+const AWAY_LABEL: Record<NonNullable<ThreadView['away']>, string> = { gone: 'Blocked you', lyingLow: 'Lying low', blocked: 'Blocked', moved: 'Moved away', arrested: 'Arrested' }
 
 function Composer({ accountId, regularId }: { accountId: string; regularId: string }) {
   const dispatch = useDispatch()
@@ -654,7 +691,7 @@ function FanDetails({ view }: { view: ThreadView }) {
         <dt className="text-content-tertiary">Regular since</dt>
         <dd className="text-right">Day {r.since}</dd>
         <dt className="text-content-tertiary">Status</dt>
-        <dd className="text-right">{view.away === 'gone' ? 'Blocked you' : view.away === 'lyingLow' ? 'Lying low' : view.away === 'blocked' ? 'Blocked' : r.status === 'active' ? 'Active' : 'Dormant'}</dd>
+        <dd className="text-right">{view.away ? AWAY_LABEL[view.away] : r.status === 'active' ? 'Active' : 'Dormant'}</dd>
       </dl>
       <div className="flex flex-col gap-2">
         <span className="typography-body-small-14px-semibold">Likes</span>

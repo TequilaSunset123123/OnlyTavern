@@ -101,6 +101,22 @@ describe('meetup outcomes', () => {
     expect(meetupOdds(escort, reg(escort, stalker.id)).creep).toBeLessThan(meetupOdds(stalker.acc, reg(stalker.acc, stalker.id)).creep!)
   })
 
+  it('a devoted, obsessed or stalking man does not stand you up; a Fanatic never does (2026-10-17)', () => {
+    const P = personas.loyalty.points
+    const odds = (patch: Partial<Regular>) => {
+      const m = withMeetup({ segment: 'regular', relationship: 'single', ...patch })
+      return meetupOdds(m.acc, reg(m.acc, m.id))
+    }
+    const cold = odds({ loyalty: 0 }).noShow!
+    expect(cold).toBe(personas.segments.regular.fan.meetup.events.noShow)
+    expect(odds({ loyalty: P[3] }).noShow!).toBeCloseTo(cold * personas.loyalty.noShow[3])
+    expect(odds({ loyalty: P[3] }).noShow!).toBeLessThan(cold * 0.2)
+    // A regular tops out at Devoted (level 4); a simp can be a Fanatic.
+    expect(odds({ segment: 'simp', loyalty: P[4] }).noShow).toBe(0)
+    expect(odds({ loyalty: 0, behaviours: ['obsessive'] }).noShow).toBe(0)
+    expect(odds({ loyalty: 0, behaviours: ['stalker'] }).noShow).toBe(0)
+  })
+
   it('each outcome settles the money and its consequences', () => {
     const seen = new Set<string>()
     for (let i = 0; i < 60 && seen.size < 5; i++) {

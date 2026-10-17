@@ -1,13 +1,12 @@
 {
-  "_doc": "Daily events (plan.md §10.2, 2026-10-16). Categories: default (an ordinary day, no event), common (random, effects only, no choice; weight is boosted by what is going on: engine/events.ts BOOSTS), rare (only if you have the fans for it; you choose what to do), special (a turning point your path leads to, once per account; you click it through like a rare one, and it settles itself if you leave it). Effects are multipliers on the day's odds (engine/events.ts Effects). Words: {name} the fan, {product} the brand's product, {fee} money, {tag} a tag, {amount} money. A rare event's `after.<result>` is what that result leaves behind: {days, effects} from the next day on.",
+  "_doc": "Daily events (plan.md §10.2, 2026-10-16). Categories: default (an ordinary day, no event), common (random, effects only, no choice; weight is boosted by what is going on: engine/events.ts BOOSTS), rare (only if you have the fans for it; you choose what to do), special (turning points your path leads to, engine/specials.ts: each has its own daily `chance` once its conditions are met, and `repeatDays` (null: once per account); `chained` ones are never rolled, an earlier one schedules them; each pops up when it comes (one that just runs for `days` days has a single button to take note of it), The Charity runs until you end it). Effects are multipliers on the day's odds (engine/events.ts Effects). Words: {name} the fan, {product} the brand's product, {fee} money, {tag} a tag, {amount} money. A rare event's `after.<result>` is what that result leaves behind: {days, effects} from the next day on.",
   "daily": {
     "commonChance": 0.3,
     "commonEveryDays": 7,
     "rareChance": 0.1,
     "rareGapDays": 6,
     "rareRepeatDays": 20,
-    "answerDays": 2,
-    "specialChance": 0.35
+    "answerDays": 2
   },
   "ordinary": {
     "title": "An ordinary day",
@@ -326,7 +325,7 @@
     },
     "brandDeal": {
       "title": "Brand Deal",
-      "text": "A brand wants you to promote their {product}. They offer {fee}.",
+      "text": "{pitch} They offer {fee}.",
       "days": 1,
       "default": "decline",
       "options": {
@@ -352,13 +351,41 @@
         "negotiateFactor": 1.5
       },
       "products": {
-        "girl_next_door": "men's skincare set",
-        "porn_star": "condoms",
-        "egirl": "Gamer Girl Bathwater",
-        "escort": "'Eau de Erection' cologne",
-        "couple": "couples' massage candle",
-        "sub": "Late-Stage Capitalism Kit (a leather outfit)",
-        "domme": "Late-Stage Capitalism Kit (a leather outfit)"
+        "girl_next_door": {
+          "name": "BLACKFLAG™ ODOR ELIMINATOR",
+          "pitch": "BLACKFLAG™ wants you as the face of their ODOR ELIMINATOR: Men's Tactical Shampoo, Charcoal + Arctic Steel.",
+          "ad": "#ad Every man in my life gets BLACKFLAG™ ODOR ELIMINATOR now 🖤 Men's Tactical Shampoo · Charcoal + Arctic Steel. Link in bio"
+        },
+        "porn_star": {
+          "name": "condoms",
+          "pitch": "A condom brand wants you to promote their condoms.",
+          "ad": "#ad Obsessed with my new condoms. Link in bio 💕"
+        },
+        "egirl": {
+          "name": "innocent.zip",
+          "pitch": "innocent.zip, a cloud storage platform that will not stop telling you how private it is (“anti FBI level cybersecurity”), wants you as its face.",
+          "ad": "#ad all my files live on innocent.zip now 🔒 anti fbi level cybersecurity, no logs, no questions asked (｡•̀ᴗ-)✧ link in bio"
+        },
+        "escort": {
+          "name": "'Eau de Erection' cologne",
+          "pitch": "A perfume house wants you to promote 'Eau de Erection', their new cologne.",
+          "ad": "#ad Obsessed with 'Eau de Erection' 💕 Gentlemen, you know what to do. Link in bio"
+        },
+        "couple": {
+          "name": "The Male Perspective",
+          "pitch": "The Male Perspective wants an ad read: a podcast where two bearded men in baseball caps spend two hours an episode discussing “females”.",
+          "ad": "#ad We gave The Male Perspective a listen 🎙️ Two hours on “females” every episode. He took notes. Link in bio"
+        },
+        "sub": {
+          "name": "Late-Stage Capitalism Kit",
+          "pitch": "A brand wants you to promote their Late-Stage Capitalism Kit (it is a leather outfit).",
+          "ad": "#ad Obsessed with my new Late-Stage Capitalism Kit (it's a leather outfit). Link in bio 💕"
+        },
+        "domme": {
+          "name": "Late-Stage Capitalism Kit",
+          "pitch": "A brand wants you to promote their Late-Stage Capitalism Kit (it is a leather outfit).",
+          "ad": "#ad Obsessed with my new Late-Stage Capitalism Kit (it's a leather outfit). Link in bio 💕"
+        }
       },
       "results": {
         "accepted": "Deal done: {amount}. Your #ad is up; a few fans are rolling their eyes.",
@@ -379,8 +406,7 @@
             "renewal": 0.97
           }
         }
-      },
-      "adPost": "#ad Obsessed with my new {product}. Link in bio 💕"
+      }
     },
     "guestStar": {
       "title": "Guest Star",
@@ -485,48 +511,186 @@
   "special": {
     "charity": {
       "title": "The Charity",
-      "text": "Word is out: you're the girl who never makes them pay. {freebies} men have had you for free or for pocket change, and your DMs are a queue of men asking for their turn. You built your name on it. Maybe it's time to give back to the community: one day, one rented flat, the door open from noon till midnight. ID at the door, no charge, everyone gets a turn.",
+      "text": "Word is out: you're the girl who never makes them pay. {freebies} men have had you for free or for pocket change, and your DMs are a queue of men asking for their turn. You built your name on it. Maybe it's time to give back to the community: a rented flat, the door open from noon till midnight, ID at the door, no charge, everyone gets a turn. Once the doors open, they stay open until you close them.",
+      "chance": 0.35,
+      "repeatDays": 30,
       "days": 1,
-      "default": "open",
+      "default": "decline",
       "minFreebies": 8,
       "men": [600, 1100],
       "options": {
         "open": {
           "label": "Open the doors",
-          "help": "You make nothing. Every regular who comes walks out a freeloader, a creep and a misogynist. Old money men won't stay after this."
+          "help": "You make nothing. Every regular who comes walks out a freeloader, a creep and a misogynist, and so does every new one while the doors are open; old money men won't stay. The doors stay open, day after day, until you close them on Home."
+        },
+        "decline": {
+          "label": "Not yet",
+          "help": "Nothing happens for now. Your name is still out there, so the idea may come back."
         }
       },
       "odds": {},
-      "post": "Thank you to all {count} of you who came today 💦 Charity's over… for now",
-      "after": {
-        "opened": {
-          "days": 14,
-          "effects": {
-            "mix": {
-              "freeloader": 3,
-              "hater": 1.5
-            },
-            "regularMix": {
-              "freeloader": 3
-            }
-          }
+      "ongoing": {
+        "mix": {
+          "freeloader": 3,
+          "hater": 1.5
         },
-        "openedRich": {
-          "days": 14,
-          "effects": {
-            "mix": {
-              "freeloader": 3,
-              "hater": 1.5
-            },
-            "regularMix": {
-              "freeloader": 3
-            }
-          }
+        "regularMix": {
+          "freeloader": 3
         }
       },
+      "afterDays": 14,
+      "openPost": "Doors open today, noon till midnight 💦 Free for everyone, bring ID",
+      "endPost": "Thank you to all {count} of you who came 💦 Charity's over… for now",
+      "endLabel": "Close the doors",
+      "progress": "The doors are open, day {days}: {count} men so far, and not one of them paid. Close the doors when you have had enough.",
       "results": {
-        "opened": "{count} men came through the door in twelve hours, and not one of them paid. All your regulars were in the queue. Now every one of them is a freeloader, a creep and a misogynist, and more men like them are on their way.",
-        "openedRich": "{count} men came through the door in twelve hours, and not one of them paid. All your regulars were in the queue. Now every one of them is a freeloader, a creep and a misogynist, and more men like them are on their way. {gone} pulled up {his} trousers and left for good: this is beneath {his} caliber."
+        "opened": "Day one: {count} men came through the door in twelve hours, and not one of them paid. All your regulars were in the queue. Now every one of them is a freeloader, a creep and a misogynist, and more men like them are on their way. The doors stay open until you close them.",
+        "openedRich": "Day one: {count} men came through the door in twelve hours, and not one of them paid. All your regulars were in the queue. Now every one of them is a freeloader, a creep and a misogynist, and more men like them are on their way. {gone} pulled up {his} trousers and left for good: this is beneath {his} caliber. The doors stay open until you close them.",
+        "declined": "You kept the door shut. For now.",
+        "ended": "You closed the doors after {days} days. {count} men in all, and not one of them paid. Freeloaders will keep turning up for a while."
+      }
+    },
+    "routingError": {
+      "title": "Routing Error",
+      "text": "New email from the OnlyTavern system administrator: “Regarding a customer allocation error.”",
+      "chance": 0.015,
+      "repeatDays": 60,
+      "days": 1,
+      "default": "decline",
+      "options": {
+        "correct": {
+          "label": "I'd like to make a correction.",
+          "help": "Pick one of your regulars and the kind of fan you want instead. He goes to the creator he meant; a new fan of that kind, everything else about him random, takes his place and keeps his loyalty (a freeloader tops out at level 1).",
+          "pick": true
+        },
+        "decline": {
+          "label": "Actually, I'm good.",
+          "help": "Nothing changes."
+        }
+      },
+      "odds": {},
+      "results": {
+        "corrected": "{gone} has been moved to the creator he meant to subscribe to. {name}, a {type}, has finally found his way to you, and keeps the loyalty {gone} had.",
+        "declined": "You kept things as they are."
+      },
+      "email": {
+        "from": "OnlyTavern System Administrator <admin@onlytavern.sys>",
+        "to": "{you}",
+        "subject": "Regarding a customer allocation error",
+        "body": "Hi there!\n\nWe've discovered a small mix-up in our subscriber assignment system.\n\nIt appears one of your current subscribers was trying to subscribe to another content creator, while someone trying to subscribe to you ended up on their account instead.\n\nWe sincerely apologize for the inconvenience and we're happy to arrange a complimentary exchange.\n\nRegards,\nOnlyTavern system administrator"
+      }
+    },
+    "humanAtm": {
+      "title": "Human ATM",
+      "text": "{name} has been on his knees for you for a while. Today he sent $5,000, with a note that it will not be the last.",
+      "chance": 0.15,
+      "repeatDays": null,
+      "days": 3,
+      "default": "ok",
+      "tributeCents": 500000,
+      "options": {
+        "ok": {
+          "label": "Accept the tribute",
+          "help": "He sends $5,000 every day for three days. Until it is over he asks for nothing else, and takes no meetups or customs."
+        }
+      },
+      "odds": {},
+      "results": {
+        "running": "{name} sends $5,000 every day. {amount} so far, no questions asked."
+      },
+      "progress": "{name} sends $5,000 every day. {amount} so far, no questions asked."
+    },
+    "humanAtmArrest": {
+      "title": "Breaking News",
+      "text": "Local news: a wealthy investor was arrested this morning for laundering millions through online platforms. The photo is unmistakably {name}. He is gone for good.",
+      "chained": true,
+      "days": 1,
+      "default": "close",
+      "options": {
+        "close": {
+          "label": "Close the article",
+          "help": "He will not be back."
+        }
+      },
+      "odds": {},
+      "results": {
+        "arrested": "{name} is gone. The {amount} he sent you was dirty money, laundered through your page. For some reason, nobody ever came to recover it."
+      }
+    },
+    "marryMe": {
+      "title": "Marry Me?",
+      "text": "{name} suddenly sends you a photo: a diamond ring next to his keyboard, and on his monitor a screenshot of one of your streams. He has been saving for the ring for a long time, and he has already picked a date for the wedding. He has made a wedding website, with couple photos of the two of you, though you have never taken a picture together. He has invited his family. “My mom thinks you're really pretty. She can't wait to meet you.”",
+      "chance": 0.2,
+      "repeatDays": null,
+      "days": 1,
+      "default": "delusional",
+      "gift": [2000, 6000],
+      "honeymoonAfterDays": 30,
+      "options": {
+        "yes": {
+          "label": "Say Yes, Darling ♡",
+          "help": "A huge gift. From then on he is your fiancé (Imaginary Fiancée) and acts like one, and in a month or so he starts on the honeymoon."
+        },
+        "delusional": {
+          "label": "You're Delusional.",
+          "help": "{chance} he deflates and stops being obsessed with you; otherwise he turns into an angry hater."
+        },
+        "block": {
+          "label": "Block & Report",
+          "help": "He is gone for good."
+        }
+      },
+      "odds": {
+        "delusional": 0.5
+      },
+      "results": {
+        "yes": "You said yes. {name} sent {amount} and has already updated the wedding website. As far as he is concerned, you are engaged.",
+        "deflated": "{name} went quiet, then apologized. He is not as obsessed with you as he was.",
+        "enraged": "{name} did not take it well. He hates you now.",
+        "blocked": "You blocked and reported {name}. He is gone."
+      }
+    },
+    "honeymoonFund": {
+      "title": "The Honeymoon Fund",
+      "text": "{name} has started sending you money every day, each transfer with the same note: “honeymoon fund”.",
+      "chained": true,
+      "days": 7,
+      "default": "ok",
+      "transfer": [200, 600],
+      "saveTheDateAfterDays": 21,
+      "options": {
+        "ok": {
+          "label": "Okay…",
+          "help": "He sends money every day for a week, each transfer with the same note."
+        }
+      },
+      "odds": {},
+      "results": {
+        "running": "{amount} in the honeymoon fund so far."
+      },
+      "progress": "{amount} in the honeymoon fund so far."
+    },
+    "saveTheDate": {
+      "title": "Save the Date",
+      "text": "{name} sends you a wedding invitation with your name printed on it, and asks you to confirm you will be there. His mom would love to meet you before the big day.",
+      "chained": true,
+      "days": 1,
+      "default": "decline",
+      "gift": [1000, 3000],
+      "options": {
+        "mom": {
+          "label": "Go meet his mom",
+          "help": "You play along. His mom adores you, and he sends a thank-you gift."
+        },
+        "decline": {
+          "label": "Decline",
+          "help": "He will think you just have pre-wedding jitters."
+        }
+      },
+      "odds": {},
+      "results": {
+        "mom": "You met his mom. She hugged you and called you her daughter-in-law. {name} sent {amount} to say thank you.",
+        "therapist": "You said you will not come. {name} thinks it is pre-wedding jitters, and has booked (and paid for) an appointment with a therapist for you."
       }
     }
   }

@@ -17,6 +17,7 @@ import audience from '../presets/audience.json'
 import personas from '../presets/personas.json'
 import type { Account, EngineEvent, Regular } from '../store/schema'
 import { actingType, conditionOf, hasCondition, withCondition, withoutCondition } from './conditions'
+import { wontTurn } from './eventEffects'
 import { loyaltyLevel } from './fans'
 import { modifiers } from './personas'
 import { rngFor } from './rng'
@@ -111,7 +112,8 @@ export function simulateHatersDay(account: Account, seed: string, day: number): 
       continue
     }
     const rule = ghostRule(r)
-    if (!rule || unanswered(t) === 0 || day - lastContact(r, t) < rule.afterDays || rr() >= rule.daily) continue
+    // Engaged to you, in his mind (Marry Me?): he waits for you however long it takes.
+    if (!rule || wontTurn(a, r) || unanswered(t) === 0 || day - lastContact(r, t) < rule.afterDays || rr() >= rule.daily) continue
     const turned = turnHater(a, r, day)
     a = turned.account
     events.push(turned.event)

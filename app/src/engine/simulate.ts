@@ -22,7 +22,7 @@ export type SimulateResult = { account: Account; events: EngineEvent[] }
 /**
  * Advances the account by `days` days (default seed: the account's own).
  * Settings only affect who new regulars are (their language). `stopAtRare`: stop at the
- * end of a day a rare or special event comes up, so you get to choose (skipping ahead in the app).
+ * end of a day a rare or special event comes up that waits for your choice (skipping ahead in the app).
  */
 export function simulate(
   account: Account,
@@ -107,7 +107,7 @@ export function simulate(
       if (before < m && after >= m) events.push({ day, type: 'milestone', subscribers: m })
     }
     events.push(...hd.events, ...rd.events, ...qd.events, ...od.events, ...dd.events, ...id.events)
-    if (stopAtRare && acc.dayEvents.some((e) => e.day === day && (e.category === 'rare' || e.category === 'special'))) break
+    if (stopAtRare && acc.dayEvents.some((e) => e.day === day && e.status === 'open')) break
   }
 
   const keepFrom = today - economy.eventDays

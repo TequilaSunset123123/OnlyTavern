@@ -113,14 +113,35 @@ const INCIDENT_LINE: Partial<Record<NonNullable<ThreadView['incidents'][number][
   calmed: 'You would not leave her alone; she talked you down, and you apologize.',
 }
 
-/** A daily event he was part of (engine/events.ts): The Charity. */
+/** A special event he is part of (engine/specials.ts): one line for what is happening to him. */
 function eventLine(view: ThreadView, ev: NonNullable<Intent['event']>): string {
-  const n = view.dayEvents.find((x) => x.id === ev.id)?.count
-  const men = n ? `${n.toLocaleString('en-US')} men` : 'hundreds of men'
-  const what = `Today she opened her door to any man who wanted her, for free, from noon till midnight: ${men} had her, and you were one of them.`
-  return ev.step === 'left'
-    ? `${what} Afterwards you decided this is beneath a man of your standing. Write her a cold, final goodbye: you are done with her and will not be back.`
-    : `${what} Now you see her as free for anyone and not worth paying; write to her about it.`
+  const e = view.dayEvents.find((x) => x.id === ev.id)
+  const men = e?.count ? `${e.count.toLocaleString('en-US')} men` : 'hundreds of men'
+  const charity = `She has opened her door to any man who wants her, for free, from noon till midnight: ${men} have had her so far, and today you were one of them.`
+  switch (ev.step) {
+    case 'left':
+      return `${charity} Afterwards you decided this is beneath a man of your standing. Write her a cold, final goodbye: you are done with her and will not be back.`
+    case 'arrived':
+      return 'You meant to subscribe to her, but the site put you on another creator\'s page by mistake. It has just been fixed and you are finally on her page; this is your first message to her.'
+    case 'tribute':
+      return 'You are sending your mistress a huge tribute, today and every day: serving her is all you want, and the money means nothing to you. Never say where it comes from.'
+    case 'proposal':
+      return "You have just sent her a photo of a diamond ring next to your keyboard, with a screenshot of one of her streams on your monitor. You saved for the ring for a long time, picked a wedding date, made a wedding website with photos of the two of you (edited: you have never met) and invited your family. Propose to her, and tell her: \"My mom thinks you're really pretty. She can't wait to meet you.\""
+    case 'yes':
+      return 'She said yes to your proposal! You are over the moon, you send her a big gift, and you start talking about the wedding.'
+    case 'deflated':
+      return 'You proposed to her and she called you delusional. It hurt; you back off, embarrassed, and apologize.'
+    case 'fund':
+      return 'You send her money for your honeymoon fund (the note on the transfer says "honeymoon fund"); talk about where the two of you will go.'
+    case 'invite':
+      return 'You send her your wedding invitation, with her name printed on it, and ask her to confirm she will be there. Your mom would love to meet her before the big day.'
+    case 'mom':
+      return 'She came to meet your mom, and your mom loved her. You are overjoyed and send her a gift to say thank you.'
+    case 'therapist':
+      return 'She told you she will not come to the wedding. You are sure it is just pre-wedding jitters, so you have booked her an appointment with a therapist and paid for it; tell her, lovingly.'
+    default:
+      return `${charity} Now you see her as free for anyone and not worth paying; write to her about it.`
+  }
 }
 
 /** What happens now: one line each, only for what is happening. */

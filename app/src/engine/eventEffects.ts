@@ -4,7 +4,7 @@
 // rolled: the crowd (audience.ts via simulate.ts), posts, regulars, customs and meetups.
 // Which event happens, and what your choice does, is engine/events.ts.
 import E from '../presets/events.json'
-import type { Account, DayEvent, Segment } from '../store/schema'
+import type { Account, DayEvent, Regular, Segment } from '../store/schema'
 
 export type EventEffects = {
   /** Crowd: how many visit, how many of them subscribe, how many renew, how often and how much subscribers tip. */
@@ -52,8 +52,8 @@ const NONE: EventEffects = {
 const COMMON = E.common as Record<string, { effects: Raw }>
 const RUMORS = E.rumors as Record<string, { effects: Raw }>
 
-/** On from its day to the day before `until`. */
-export const eventOn = (e: DayEvent, day: number) => e.day <= day && day < e.until
+/** On from its day to the day before `until` (a scheduled one is not on yet: it opens on its day, engine/specials.ts). */
+export const eventOn = (e: DayEvent, day: number) => e.status !== 'scheduled' && e.day <= day && day < e.until
 
 /** A common event's own effects (a rumor's are its variant's). Rare ones only have a target. */
 function ownEffects(e: DayEvent): Raw {
@@ -81,9 +81,30 @@ export function eventEffects(account: Account, day: number): EventEffects {
       if (e.kind === 'whaleWatching' && e.regularId) fx = { ...fx, target: { regularId: e.regularId, ...E.rare.whaleWatching.target } }
     }
     if (e.after && e.closedDay !== undefined && e.closedDay < day && day <= e.after.until) fx = fold(fx, e.after.effects)
+    // The Charity's doors are open: freeloaders flock in (engine/specials.ts).
+    if (e.kind === 'charity' && e.status === 'active' && (e.closedDay ?? e.day) < day) fx = fold(fx, E.special.charity.ongoing)
   }
   return fx
 }
+
+/**
+ * A special event has him to itself (2026-10-17): from Human ATM's first $5,000 until you have
+ * read the news of his arrest, he opens no customs or meetups and says no to yours, so nothing
+ * (a wife catching you two) can end it another way (engine/specials.ts, engine/deals.ts).
+ */
+export const heldByEvent = (account: Account, regularId: string, day: number) =>
+  account.dayEvents.some(
+    (e) => e.regularId === regularId && ((e.kind === 'humanAtm' && eventOn(e, day)) || (e.kind === 'humanAtmArrest' && e.status !== 'done')),
+  )
+
+/**
+ * He has proposed to you (Marry Me?, waiting for your answer) or believes you two are engaged
+ * (Imaginary Fiancée): he never turns on you, not when you ignore him (haters.ts), not after a
+ * stalker incident (incidents.ts), not over a rare event (events.ts). Only "You're Delusional."
+ * can (engine/specials.ts).
+ */
+export const wontTurn = (account: Account, r: Regular) =>
+  r.conditions.some((c) => c.id === 'fiancee') || account.dayEvents.some((e) => e.kind === 'marryMe' && e.status === 'open' && e.regularId === r.id)
 
 /** The spotlight's multiplier for this fan (1 for everyone else). */
 export function targetFactor(fx: EventEffects, regularId: string, key: 'tipChance' | 'deal' | 'dms'): number {

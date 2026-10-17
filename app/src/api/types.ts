@@ -92,8 +92,8 @@ export type Action =
   | { type: 'direction.set'; id: string; direction: DirectionId }
   /** Developer: jump to the next level of the current direction. */
   | { type: 'dev.levelUp'; id: string }
-  /** Developer: The Charity waits for you today, whatever led there. */
-  | { type: 'dev.charity'; id: string }
+  /** Developer: a special event starts today, with a regular made up for it if none fits (engine/dev.ts). */
+  | { type: 'dev.special'; id: string; kind: string }
   | { type: 'dm.send'; id: string; regularId: string; message: DmInput }
   /** The model wrote a pending fan message. */
   | { type: 'dm.fill'; id: string; regularId: string; messageId: string; text: string }
@@ -114,7 +114,10 @@ export type Action =
   /** What you do about a stalker incident; the engine rolls how it goes. */
   | { type: 'incident.resolve'; id: string; incidentId: string; choice: IncidentChoice }
   /** What you do about a rare daily event (engine/events.ts); the engine rolls how it goes. */
-  | { type: 'dayEvent.choose'; id: string; eventId: string; choice: string }
+  /** `target`: Routing Error's swap (which regular, for what kind of fan). */
+  | { type: 'dayEvent.choose'; id: string; eventId: string; choice: string; target?: { regularId: string; segment: Segment } }
+  /** End an event that runs until you do (The Charity's doors). */
+  | { type: 'dayEvent.end'; id: string; eventId: string }
 
 /** What changed, so the UI knows which queries to refetch. */
 export type Topic = 'accounts' | 'settings' | `account:${string}`
@@ -196,8 +199,8 @@ export type ThreadView = {
   creator: { name: string; handle: string; accountType: Profile['accountType']; priceCents: number; subscribers: number; direction: string }
   /** How loyal he is (engine/fans.ts): level 1–5, his type's ceiling, and points toward the next level. */
   loyalty: LoyaltyInfo
-  /** His Blocked or Lying low condition, if he has one now: he blocked you (gone), lies low for a while, or you blocked him. You cannot write to him meanwhile. */
-  away: 'gone' | 'lyingLow' | 'blocked' | null
+  /** His Blocked or Lying low condition, if he has one now: he blocked you (gone), lies low for a while, you blocked him, the site moved him to another creator (Routing Error) or he was arrested (Human ATM). You cannot write to him meanwhile. */
+  away: 'gone' | 'lyingLow' | 'blocked' | 'moved' | 'arrested' | null
   /** Who he is in three layers (engine/personas.ts): how he talks, his lasting tendencies, the states he is in now. A label for the UI, a description for the model. */
   personality: LayerInfo
   behaviours: LayerInfo[]

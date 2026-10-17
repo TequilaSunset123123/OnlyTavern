@@ -6,29 +6,44 @@
 //   rare     only when you have the fans for it (GATES), mostly about one of them, and you
 //            choose what to do (the odds are on the buttons). Left unanswered, it settles
 //            itself with its default choice after a couple of days;
-//   special  a turning point your path leads to (SPECIAL_GATES), once per account: The
-//            Charity, for a Sub who has been had for free again and again. It waits for
-//            you like a rare one (one button), and settles itself if you leave it.
+//   special  turning points your path leads to (engine/specials.ts): The Charity, Routing
+//            Error, Human ATM, Marry Me? and what follows. Checked before rare ones.
 // At most one a day, rolled before anything else that day (simulate.ts), and none while a
 // multi-day one is still on. At least one common event a week. What the effects do: engine/eventEffects.ts. Numbers and
 // words: presets/events.json.
+import audience from '../presets/audience.json'
 import E from '../presets/events.json'
 import tags from '../presets/tags.json'
-import type { Account, DayEvent, EngineEvent, LedgerEntry, Post, Regular } from '../store/schema'
+import type { Account, DayEvent, EngineEvent, LedgerEntry, Regular, Segment } from '../store/schema'
 import { loseSubscribers, subscriberCount } from './audience'
 import { pickWeighted } from './comments'
-import { actingType, awayNow, hasCondition } from './conditions'
+import { actingType } from './conditions'
 import { ContentError } from './content'
 import { levelOf, SPECS } from './directions'
 import { paymentLine as line } from './economy'
-import { eventOn } from './eventEffects'
+import { eventOn, wontTurn } from './eventEffects'
 import { addLoyalty, loyaltyLevel } from './fans'
 import { blockFan, turnOnYou } from './incidents'
 import { withBehaviour } from './personas'
 import { postTags } from './posts'
 import { tipCents } from './regulars'
 import { type Rng, rngFor } from './rng'
-import { addFanMessage, updateRegular } from './threads'
+import {
+  endCharity,
+  type EventSpec,
+  eventPost,
+  freebies,
+  friendly,
+  isSpecial,
+  reachable,
+  rollSpecial,
+  settleSpecial,
+  SPECIAL,
+  specialDay,
+  swapChoices,
+  type SwapTarget,
+} from './specials'
+import { updateRegular } from './threads'
 
 const D = E.daily
 /** Old events are dropped after this many days (longer than any repeat rule). */
@@ -36,32 +51,16 @@ const KEEP_DAYS = 60
 
 export const RARE_KINDS = ['whaleWatching', 'tooClose', 'leakedContent', 'doxxed', 'brandDeal', 'guestStar', 'secretAdmirer'] as const
 export type RareKind = (typeof RARE_KINDS)[number]
-type After = { days: number; effects: Record<string, number | Record<string, number>> }
-type RareSpec = {
-  title: string
-  text: string
-  days: number
-  default: string
-  options: Record<string, { label: string; help: string }>
-  odds: Record<string, number>
-  results: Record<string, string>
-  after?: Record<string, After>
-}
-const RARE = E.rare as unknown as Record<RareKind, RareSpec>
+const RARE = E.rare as unknown as Record<RareKind, EventSpec>
 
-export const SPECIAL_KINDS = ['charity'] as const
-export type SpecialKind = (typeof SPECIAL_KINDS)[number]
-const SPECIAL = E.special as unknown as Record<SpecialKind, RareSpec>
 /** A rare or special event's words, options and odds. */
-const specOf = (kind: string): RareSpec => (RARE as Record<string, RareSpec>)[kind] ?? (SPECIAL as Record<string, RareSpec>)[kind]
+const specOf = (kind: string): EventSpec => (isSpecial(kind) ? SPECIAL[kind] : RARE[kind as RareKind])
 const COMMON = E.common as Record<string, { title: string; text: string; weight: number; days: number }>
 
 /** Results that went badly for you (the popup shows them as a warning). */
-const BAD_RESULTS = new Set(['cooled', 'deeper', 'turned', 'spread', 'ignored', 'dragged', 'escalated', 'walked', 'jealous', 'opened', 'openedRich'])
+const BAD_RESULTS = new Set(['cooled', 'deeper', 'turned', 'spread', 'ignored', 'dragged', 'escalated', 'walked', 'jealous', 'opened', 'openedRich', 'enraged'])
 
 const level = (a: Account) => levelOf(a.direction.points[a.direction.id])
-const reachable = (a: Account) => a.regulars.filter((r) => r.status === 'active' && !hasCondition(r, 'blocked'))
-const friendly = (r: Regular) => !hasCondition(r, 'hostile')
 const misogynistOrCreep = (r: Regular) => r.personality === 'misogynist' || r.behaviours.includes('creepy_compliments')
 
 /**
@@ -70,37 +69,13 @@ const misogynistOrCreep = (r: Regular) => r.personality === 'misogynist' || r.be
  */
 const GATES: Record<RareKind, (a: Account) => (Regular | undefined)[]> = {
   whaleWatching: (a) => reachable(a).filter((r) => r.behaviours.includes('older_gentleman') && loyaltyLevel(r) >= 2 && friendly(r)),
-  tooClose: (a) => reachable(a).filter((r) => r.behaviours.includes('stalker') || (r.behaviours.includes('obsessive') && loyaltyLevel(r) >= 3)),
+  // Not about a man who proposed or thinks you are engaged: he would never turn on you (eventEffects.ts wontTurn).
+  tooClose: (a) => reachable(a).filter((r) => (r.behaviours.includes('stalker') || (r.behaviours.includes('obsessive') && loyaltyLevel(r) >= 3)) && !wontTurn(a, r)),
   leakedContent: (a) => (a.vault.length ? reachable(a).filter(misogynistOrCreep) : []),
   doxxed: (a) => reachable(a).filter(misogynistOrCreep),
   brandDeal: (a) => (a.direction.chosen && level(a) >= 3 ? [undefined] : []),
   guestStar: (a) => (a.direction.chosen && level(a) >= 3 ? [undefined] : []),
   secretAdmirer: (a) => reachable(a).filter((r) => (r.segment === 'simp' || r.behaviours.includes('obsessive')) && loyaltyLevel(r) >= 2 && friendly(r)),
-}
-
-/** Meetups where a man had you for free, for a few insulting dollars or for grovelling thanks (Meetup.terms). */
-export const freebies = (a: Account) => a.meetups.filter((m) => m.status === 'done' && m.terms && m.outcome !== 'noShow' && m.outcome !== 'wife').length
-
-/** When a special event can come: where your path has led. Each comes once per account. */
-const SPECIAL_GATES: Record<SpecialKind, (a: Account) => boolean> = {
-  // A Sub who has been had for free again and again: everyone knows her as the girl who never makes them pay.
-  charity: (a) => a.direction.id === 'sub' && freebies(a) >= E.special.charity.minFreebies,
-}
-
-/** Special events you could get today (none while another event waits for your choice). */
-const specialCandidates = (a: Account): SpecialKind[] =>
-  a.dayEvents.some((e) => e.status === 'open') ? [] : SPECIAL_KINDS.filter((k) => !a.dayEvents.some((e) => e.kind === k) && SPECIAL_GATES[k](a))
-
-function openSpecial(a: Account, kind: SpecialKind, day: number): { account: Account; event: DayEvent } {
-  return { account: a, event: { id: `ev${day}`, kind, category: 'special', day, until: day + SPECIAL[kind].days, status: 'open' } }
-}
-
-/** For testing (Settings, Developer): a special event waiting for you today, whatever led there. */
-export function openSpecialForTesting(account: Account, kind: SpecialKind): Account {
-  if (account.dayEvents.some((e) => e.status === 'open')) throw new ContentError('Deal with the event that is waiting first')
-  const day = account.clock.day
-  const { event } = openSpecial(account, kind, day)
-  return { ...account, dayEvents: [...account.dayEvents.filter((e) => e.id !== event.id), event] }
 }
 
 const recentDays = 7
@@ -181,15 +156,21 @@ export function rollDayEvent(account: Account, seed: string, day: number): { acc
     a = s.account
     events.push(...s.events)
   }
-  // Special events are kept for good: each comes once.
+  // Special events are kept for good (some come once, some are scheduled for later).
   a = { ...a, dayEvents: a.dayEvents.filter((e) => e.status === 'open' || e.category === 'special' || e.day > day - KEEP_DAYS || (e.after?.until ?? 0) >= day) }
+  // Special events that run for days do today's part; a chained one whose day has come takes the day.
+  const sd = specialDay(a, seed, day)
+  a = sd.account
+  events.push(...sd.events)
+  if (sd.opened) {
+    events.push({ day, type: 'day-event', eventId: sd.opened.id, kind: sd.opened.kind, title: viewOf(a, sd.opened, day).title })
+    return { account: a, events }
+  }
   if (a.dayEvents.some((e) => e.day < day && eventOn(e, day))) return { account: a, events }
 
   const rng = rngFor(seed, day, 'day-event')
-  // A special event first, when your path has led to one (on its own dice, so the other events roll as before).
-  const special = specialCandidates(a)
-  let opened: { account: Account; event: DayEvent } | null =
-    special.length && rngFor(seed, day, 'day-event:special')() < D.specialChance ? openSpecial(a, special[0], day) : null
+  // A special event first, when your path has led to one (each on its own dice, so the other events roll as before).
+  let opened: { account: Account; event: DayEvent; events?: EngineEvent[] } | null = rollSpecial(a, seed, day)
   const rare = opened ? [] : rareCandidates(a, day)
   if (opened) {
     // Today is taken.
@@ -203,6 +184,7 @@ export function rollDayEvent(account: Account, seed: string, day: number): { acc
   }
   if (!opened) return { account: a, events }
   const { event } = opened
+  events.push(...(opened.events ?? []))
   const next = { ...opened.account, dayEvents: [...opened.account.dayEvents, event] }
   const { title } = viewOf(next, event, day)
   events.push({ day, type: 'day-event', eventId: event.id, kind: event.kind, ...(event.variant ? { variant: event.variant } : {}), title })
@@ -210,9 +192,9 @@ export function rollDayEvent(account: Account, seed: string, day: number): { acc
 }
 
 /** How a rare (or special) event's choice turns out, on `day`. */
-function settle(account: Account, eventId: string, choice: string, seed: string, day: number): { account: Account; events: EngineEvent[] } {
+function settle(account: Account, eventId: string, choice: string, seed: string, day: number, target?: SwapTarget): { account: Account; events: EngineEvent[] } {
   const e = account.dayEvents.find((x) => x.id === eventId)!
-  const kind = e.kind as RareKind | SpecialKind
+  const kind = e.kind
   const spec = specOf(kind)
   const rng = rngFor(seed, day, `day-event:${e.id}:${choice}`)
   const ok = rng() < (spec.odds[choice] ?? 1)
@@ -225,9 +207,8 @@ function settle(account: Account, eventId: string, choice: string, seed: string,
   let until = e.until
   /** Who it turned out to be about, if it was nobody before (the jealous fan). */
   let about: string | undefined
-  /** How many men came, and who walked out for good (The Charity). */
-  let count: number | undefined
-  const left: string[] = []
+  /** What a special event keeps besides its result (engine/specials.ts). */
+  let patch: Partial<DayEvent> = {}
 
   const fan = () => a.regulars.find((x) => x.id === e.regularId)!
   /** He sends you a big tip (`factor` × one of his). */
@@ -251,7 +232,7 @@ function settle(account: Account, eventId: string, choice: string, seed: string,
     events.push(...t.events)
   }
 
-  switch (kind) {
+  switch (kind as RareKind) {
     case 'whaleWatching':
       if (choice === 'pamper') {
         gift(E.rare.whaleWatching.gifts.pamper)
@@ -314,7 +295,7 @@ function settle(account: Account, eventId: string, choice: string, seed: string,
       if (paid) {
         cents = paid
         cash(paid)
-        a = { ...a, posts: [eventPost(a, E.rare.brandDeal.adPost.replace('{product}', product(e)), day), ...a.posts] }
+        a = { ...a, posts: [eventPost(a, brand(e).ad, day), ...a.posts] }
       }
       result = choice === 'accept' ? 'accepted' : choice === 'negotiate' ? (ok ? 'negotiated' : 'walked') : 'declined'
       break
@@ -325,7 +306,7 @@ function settle(account: Account, eventId: string, choice: string, seed: string,
         a = { ...a, posts: [eventPost(a, G.post.replace('{star}', e.variant ?? ''), day), ...a.posts] }
         // Not taken well: some subscribers cancel, and the most attached of your devoted fans turns on you.
         const jealous = reachable(a)
-          .filter((r) => friendly(r) && (r.segment === 'simp' || r.behaviours.includes('obsessive') || r.behaviours.includes('stalker')))
+          .filter((r) => friendly(r) && !wontTurn(a, r) && (r.segment === 'simp' || r.behaviours.includes('obsessive') || r.behaviours.includes('stalker')))
           .sort((x, y) => y.loyalty - x.loyalty)[0]
         if (!ok && jealous) {
           scandal(G.lossShare)
@@ -348,27 +329,15 @@ function settle(account: Account, eventId: string, choice: string, seed: string,
         result = ok ? 'obsessed' : 'unmasked'
       } else result = 'quiet'
       break
-    case 'charity': {
-      // Free for everyone: no money at all. Your regulars were all in the queue, and they
-      // come out of it seeing you as free: freeloaders, creeps and misogynists. Old money
-      // came too, then decided this is beneath him and left for good.
-      const C = E.special.charity
-      const [lo, hi] = C.men
-      const men = lo + Math.floor(rng() * (hi - lo + 1))
-      count = men
-      // Each of them writes to you about it (the model puts it into words): old money says goodbye first.
-      for (const r of a.regulars) {
-        if (awayNow(r, day)) continue
-        if (r.behaviours.includes('older_gentleman')) {
-          a = blockFan(addFanMessage(a, r.id, day, { kind: 'opener', event: { kind: 'charity', step: 'left', id: e.id } }), r.id, day, 'him')
-          left.push(r.id)
-        } else {
-          a = updateRegular(a, withBehaviour({ ...r, segment: 'freeloader', personality: 'misogynist' }, 'creepy_compliments'))
-          a = addFanMessage(a, r.id, day, { kind: 'opener', event: { kind: 'charity', step: 'after', id: e.id } })
-        }
-      }
-      a = { ...a, posts: [eventPost(a, C.post.replace('{count}', men.toLocaleString('en-US')), day), ...a.posts] }
-      result = left.length ? 'openedRich' : 'opened'
+    default: {
+      // A special event (engine/specials.ts).
+      const o = settleSpecial(a, e, choice, rng, ok, day, target)
+      a = o.account
+      events.push(...o.events)
+      result = o.result
+      cents = o.cents
+      about = o.about
+      patch = o.patch ?? {}
       break
     }
   }
@@ -383,9 +352,8 @@ function settle(account: Account, eventId: string, choice: string, seed: string,
     closedDay: day,
     ...(cents !== undefined ? { resultCents: cents } : {}),
     ...(about ? { regularId: about } : {}),
-    ...(count !== undefined ? { count } : {}),
-    ...(left.length ? { leftIds: left } : {}),
     ...(after ? { after: { until: day + after.days, effects: after.effects } } : {}),
+    ...patch,
   }
   a = { ...a, dayEvents: a.dayEvents.map((x) => (x.id === e.id ? done : x)), ledger: [...a.ledger, ...ledger] }
   const text = viewOf(a, done, day).result ?? ''
@@ -393,35 +361,35 @@ function settle(account: Account, eventId: string, choice: string, seed: string,
   return { account: a, events }
 }
 
-/** A post an event makes for you: the brand's #ad, the scene with the guest star. */
-function eventPost(a: Account, text: string, day: number): Post {
-  return {
-    id: `event-${day}-${a.posts.length}`,
-    day,
-    text,
-    vaultIds: [],
-    access: 'free',
-    priceCents: 0,
-    author: 'owner',
-    stats: { views: 0, likes: 0, comments: 0, purchases: 0, earned: 0 },
-  }
-}
-
-const product = (e: DayEvent) => (E.rare.brandDeal.products as Record<string, string>)[e.variant ?? ''] ?? 'products'
+type Brand = { name: string; pitch: string; ad: string }
+/** What the brand behind a Brand Deal sells, by your direction (the variant): its name, the pitch, the #ad you post. */
+const brand = (e: DayEvent): Brand => (E.rare.brandDeal.products as Record<string, Brand>)[e.variant ?? ''] ?? E.rare.brandDeal.products.girl_next_door
 
 /** You chose what to do about a rare (or special) event: the engine rolls how it goes and settles it. */
-export function resolveDayEvent(account: Account, eventId: string, choice: string, seed: string): { account: Account; events: EngineEvent[] } {
+export function resolveDayEvent(account: Account, eventId: string, choice: string, seed: string, target?: SwapTarget): { account: Account; events: EngineEvent[] } {
   const e = account.dayEvents.find((x) => x.id === eventId)
   if (!e) throw new ContentError('Event not found')
   if (e.status !== 'open') throw new ContentError('You already dealt with this')
   if (!(choice in specOf(e.kind).options)) throw new ContentError('Not an option here')
-  const s = settle(account, eventId, choice, seed, account.clock.day)
+  const s = settle(account, eventId, choice, seed, account.clock.day, target)
   return { account: { ...s.account, events: [...s.account.events, ...s.events] }, events: s.events }
+}
+
+/** You end an event that runs until you do (The Charity's doors, Home). */
+export function endDayEvent(account: Account, eventId: string): { account: Account; events: EngineEvent[] } {
+  const e = account.dayEvents.find((x) => x.id === eventId)
+  if (!e) throw new ContentError('Event not found')
+  const day = account.clock.day
+  const a = endCharity(account, e, day)
+  const done = a.dayEvents.find((x) => x.id === eventId)!
+  const events: EngineEvent[] = [{ day, type: 'day-event-done', eventId, kind: e.kind, result: 'ended', text: viewOf(a, done, day).result ?? '' }]
+  return { account: { ...a, events: [...a.events, ...events] }, events }
 }
 
 // What the app shows: today's card (Home) and a rare event's choices (the popup).
 
-export type DayEventOption = { choice: string; label: string; help: string; chance?: number }
+/** `pick`: choosing it also needs a fan and a fan type (DayEventView.pick; Routing Error). */
+export type DayEventOption = { choice: string; label: string; help: string; chance?: number; pick?: boolean }
 export type DayEventView = {
   /** null on an ordinary day. */
   id: string | null
@@ -441,6 +409,13 @@ export type DayEventView = {
   /** The default choice: what happens if you leave it, after `answerBy`. */
   fallback?: string
   answerBy?: number
+  /** It runs until you end it (The Charity), with this button on Home. */
+  ongoing?: boolean
+  endLabel?: string
+  /** Routing Error: the regulars you could swap and the kinds of fan you could have instead. */
+  pick?: { fans: { id: string; name: string; type: Segment }[]; types: { id: Segment; label: string }[] }
+  /** It came as an email (Routing Error): the popup shows the header lines and the body. */
+  email?: { from: string; to: string; subject: string; body: string }
 }
 
 const money = (cents: number) => `$${(cents / 100).toLocaleString('en-US', cents % 100 ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : {})}`
@@ -457,13 +432,17 @@ function fill(text: string, a: Account, e: DayEvent, extra: Record<string, strin
     name: r?.name ?? 'Someone',
     amount: money(e.resultCents ?? e.amountCents ?? 0),
     fee: money(e.amountCents ?? 0),
-    product: product(e),
+    product: brand(e).name,
+    pitch: brand(e).pitch,
     star: e.kind === 'guestStar' ? (e.variant ?? '') : '',
     tag: tagLabel(e.variant ?? ''),
     freebies: String(freebies(a)),
     count: (e.count ?? 0).toLocaleString('en-US'),
     gone: names(gone),
     his: gone.length > 1 ? 'their' : 'his',
+    type: e.variant && e.variant in audience.segments ? audience.segments[e.variant as Segment].label.toLowerCase() : '',
+    days: String(e.days ?? 1),
+    you: `${a.profile.name} <@${a.profile.handle}>`,
     ...extra,
   }
   return text.replace(/\{(\w+)\}/g, (m, k: string) => values[k] ?? m)
@@ -480,8 +459,17 @@ function viewOf(a: Account, e: DayEvent, day: number): DayEventView {
   const options = Object.entries(spec.options).map(([choice, o]) => {
     const chance = spec.odds[choice]
     const fee = costs[e.kind] !== undefined ? money(costs[e.kind]) : money(e.amountCents ?? 0)
-    return { choice, label: o.label, help: fill(o.help, a, e, { chance: chance !== undefined ? percent(chance) : '', fee }), ...(chance !== undefined ? { chance } : {}) }
+    return {
+      choice,
+      label: o.label,
+      help: fill(o.help, a, e, { chance: chance !== undefined ? percent(chance) : '', fee }),
+      ...(chance !== undefined ? { chance } : {}),
+      ...(o.pick ? { pick: true } : {}),
+    }
   })
+  // While it runs, the card says how it is going (The Charity's count, Human ATM's total).
+  const running = e.status === 'active' && spec.progress
+  const ongoing = e.kind === 'charity' && e.status === 'active'
   return {
     ...base,
     category: e.category === 'special' ? 'special' : 'rare',
@@ -490,7 +478,12 @@ function viewOf(a: Account, e: DayEvent, day: number): DayEventView {
     options,
     fallback: spec.default,
     answerBy: e.day + D.answerDays - 1,
-    ...(e.result ? { result: fill(spec.results[e.result], a, e) } : {}),
+    ...(running ? { result: fill(spec.progress!, a, e) } : e.result ? { result: fill(spec.results[e.result], a, e) } : {}),
+    ...(ongoing ? { ongoing: true, endLabel: spec.endLabel } : {}),
+    ...(e.kind === 'routingError' && e.status === 'open' ? { pick: swapChoices(a) } : {}),
+    ...(spec.email
+      ? { email: { from: spec.email.from, to: fill(spec.email.to, a, e), subject: spec.email.subject, body: fill(spec.email.body, a, e) } }
+      : {}),
   }
 }
 

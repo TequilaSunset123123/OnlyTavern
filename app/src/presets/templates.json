@@ -56,6 +56,44 @@
       "I came, I saw, I left. A woman who gives herself to a queue of strangers is beneath me. Goodbye.",
       "That was a mistake, and not one I will repeat. I do not associate with charity cases. Farewell.",
       "I expected discretion. Instead I stood in line behind a plumber. We are done."
+    ],
+    "event_arrived": [
+      "Finally! I tried to subscribe to you weeks ago and the site stuck me on some other girl's page. Hi 😍",
+      "The site messed up my subscription, I've been on the wrong page this whole time. Glad I finally found you."
+    ],
+    "event_tribute": [
+      "For you, Mistress. More tomorrow.",
+      "Another one for my Goddess. Don't thank me, I live to serve.",
+      "Take it. You deserve every cent and more."
+    ],
+    "event_proposal": [
+      "I've been saving for this ring for a long time. Will you marry me? My mom thinks you're really pretty. She can't wait to meet you.",
+      "I already picked the date and made our wedding website. All you have to do is say yes ❤️ My mom can't wait to meet you."
+    ],
+    "event_yes": [
+      "YOU SAID YES!!! I'm the happiest man alive. Here's a little something for my future wife 💍",
+      "I knew it. I'm telling my mom right now. This is for you, my bride ❤️"
+    ],
+    "event_deflated": [
+      "Sorry. I got carried away. I'll stop.",
+      "Ok. I feel stupid now. Forget I asked."
+    ],
+    "event_fund": [
+      "Honeymoon fund 💍 Bali or Maldives?",
+      "Another one for the honeymoon fund. Can't wait to have you all to myself.",
+      "Honeymoon fund ❤️ Only a few more weeks, my love."
+    ],
+    "event_invite": [
+      "Our invitations came back from the printer! Can you confirm you'll be there? My mom wants to meet you first.",
+      "Save the date, baby 💌 Please confirm. Mom's already planning the dinner."
+    ],
+    "event_mom": [
+      "Mom won't stop talking about you. Thank you for coming, this is for you ❤️",
+      "She loved you. I knew she would. A little thank you from your future husband."
+    ],
+    "event_therapist": [
+      "It's just jitters, babe. I booked you a session with a therapist, it's paid for. We'll get through this together.",
+      "Everyone gets cold feet. I found you a really good therapist, already paid. I love you."
     ]
   },
   "zh": {
@@ -115,6 +153,44 @@
       "来了，看了，走了。一个让陌生人排队上的女人配不上我。再见。",
       "这是个错误，我不会再犯。我不和做慈善的人来往。告辞。",
       "我要的是低调，结果在一个水管工后面排队。我们到此为止。"
+    ],
+    "event_arrived": [
+      "终于！我几周前就想订阅你，网站把我塞到别的女生那里去了。嗨😍",
+      "网站把我的订阅弄错了，我一直在错的页面上。总算找到你了。"
+    ],
+    "event_tribute": [
+      "给您的，主人。明天还有。",
+      "又一份给我的女神。不用谢我，伺候您就是我活着的意义。",
+      "收下吧。您值得每一分钱，还不止。"
+    ],
+    "event_proposal": [
+      "这枚戒指我攒了好久的钱。嫁给我好吗？我妈说你特别漂亮，她等不及要见你了。",
+      "日子我都选好了，婚礼网站也做好了。你只要说愿意就行❤️我妈等不及要见你。"
+    ],
+    "event_yes": [
+      "你答应了！！！我是世界上最幸福的男人。给我未来老婆的一点心意💍",
+      "我就知道。我现在就去告诉我妈。这是给你的，我的新娘❤️"
+    ],
+    "event_deflated": [
+      "对不起，我太冲动了。我不说了。",
+      "好吧，我觉得自己像个傻子。当我没问。"
+    ],
+    "event_fund": [
+      "蜜月基金💍巴厘岛还是马尔代夫？",
+      "又存一笔蜜月基金。等不及要和你单独在一起了。",
+      "蜜月基金❤️再过几周就好了，亲爱的。"
+    ],
+    "event_invite": [
+      "请柬印好了！你能确认一下会来吗？我妈想先见见你。",
+      "记得空出那天哦宝贝💌请确认一下。我妈已经在准备晚饭了。"
+    ],
+    "event_mom": [
+      "我妈一直在夸你。谢谢你来，这是给你的❤️",
+      "她可喜欢你了，我就知道。未来老公给你的一点谢意。"
+    ],
+    "event_therapist": [
+      "只是婚前焦虑啦宝贝。我给你约了心理医生，钱已经付了。我们一起度过。",
+      "谁都会紧张的。我给你找了个很好的心理医生，已经付过钱了。我爱你。"
     ]
   }
 }

@@ -17,7 +17,7 @@ import personas from '../presets/personas.json'
 import { actingType, hasCondition } from './conditions'
 import { likeWeights, pickDistinct } from './personas'
 import { directionEffects } from './directions'
-import { eventEffects, targetFactor } from './eventEffects'
+import { eventEffects, heldByEvent, targetFactor } from './eventEffects'
 import { fanProfile, loyaltyEffects, loyaltyLevel } from './fans'
 import { priceSpend } from './price'
 import { logNormal, type Rng, rngFor } from './rng'
@@ -42,12 +42,15 @@ export const wentBadly = (q: Request) =>
 const askedAccept = (r: Regular, kind: DealKind) => (kind === 'custom' ? fanProfile(r).custom.accept : fanProfile(r).meetup.asked.accept)
 
 /**
- * Hard rules: his type does this at all, nothing of this kind is open with him, and the
- * last one ended a while ago (no wait when you ask him to meet: he is always up for it).
+ * Hard rules: his type does this at all, nothing of this kind is open with him, no special
+ * event has him to itself (Human ATM), and the last one ended a while ago (no wait when you
+ * ask him to meet: he is always up for it).
  * A dormant fan only counts when you write to him (that wakes him).
  */
 function eligible(account: Account, r: Regular, kind: DealKind, day: number, youAsked: boolean): boolean {
   if ((r.status !== 'active' && !youAsked) || !(youAsked ? askedAccept(r, kind) : fanProfile(r)[kind].daily)) return false
+  // Human ATM has him (eventEffects.ts heldByEvent): no deals until it is over.
+  if (heldByEvent(account, r.id, day)) return false
   const mine: (Request | Meetup)[] = kind === 'custom' ? account.requests.filter((q) => q.regularId === r.id) : account.meetups.filter((m) => m.regularId === r.id)
   if (mine.some((x) => (kind === 'custom' ? requestOpen(x as Request) : meetupOpen(x as Meetup)))) return false
   if (youAsked && kind === 'meetup') return true

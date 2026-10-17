@@ -19,7 +19,7 @@ import type {
   Segment,
   Settings,
 } from '../store/schema'
-import { SEGMENTS } from '../store/schema'
+import { DEFAULT_SETTINGS, SEGMENTS } from '../store/schema'
 import { subscriberCount } from './audience'
 import { CORPUS, pick, pickWeighted } from './comments'
 import { ContentError } from './content'
@@ -29,7 +29,7 @@ import { directionEffects } from './directions'
 import { type EventEffects, eventEffects, targetFactor } from './eventEffects'
 import { dormantAfterDays } from './haters'
 import { actingType, awayNow, conditionOf, hasCondition, loveHate, withoutCondition } from './conditions'
-import { likeWeights, makePersona, pickDistinct, pickLanguage } from './personas'
+import { type Language, likeWeights, makePersona, pickDistinct, pickLanguage } from './personas'
 import { intensityMatch, tagAttracts, tagMix } from './posts'
 import { priceAttracts, priceFreeloaders, priceSpend } from './price'
 import { logNormal, type Rng, rngFor } from './rng'
@@ -102,6 +102,11 @@ function attracts(account: Account, day: number): Record<string, number> {
   for (const [id, m] of Object.entries(tagAttracts(account, day))) out[id] = (out[id] ?? 1) * m
   for (const [id, m] of Object.entries(priceAttracts(account.profile))) out[id] = (out[id] ?? 1) * m
   return out
+}
+
+/** A new regular of a given type arriving today, made like any other (Routing Error's swap, the developer console). */
+export function arrivingRegular(account: Account, rng: Rng, id: string, segment: Segment, day: number, language: Language): Regular {
+  return newRegular(rng, id, segment, day, { ...DEFAULT_SETTINGS, fanLanguage: language }, attracts(account, day))
 }
 
 /** How many regulars can be active at once: your setting (Settings), or the preset's. */
@@ -366,7 +371,12 @@ function templateText(rng: Rng, account: Account, regular: Regular, intent: Inte
   const d = intent.deal
   if (d?.kind === 'custom' && d.step === 'late') return pick(rng, t.requestLate)
   if (d?.kind === 'meetup' && d.step === 'back') return pick(rng, t.meetupBack)
-  if (intent.event?.kind === 'charity') return pick(rng, intent.event.step === 'left' ? t.charityLeft : t.charityAfter)
+  // A special event he is part of (engine/specials.ts): one set of lines per step.
+  if (intent.event) {
+    const step = intent.event.step
+    const lines = (t as Record<string, string[] | undefined>)[step === 'after' ? 'charityAfter' : step === 'left' ? 'charityLeft' : `event_${step}`]
+    if (lines?.length) return pick(rng, lines)
+  }
   if (intent.incident) {
     const result = account.incidents.find((x) => x.id === intent.incident)?.result
     return pick(rng, result === 'gift' ? t.incidentGift : result === 'calmed' ? t.incidentCalmed : t.incidentOk)

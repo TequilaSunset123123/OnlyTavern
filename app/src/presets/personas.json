@@ -1140,7 +1140,8 @@
     },
     "meetupMinLoyalty": 1,
     "events": {
-     "creep": 2
+     "creep": 2,
+     "noShow": 0
     }
    }
   },
@@ -1158,7 +1159,8 @@
     },
     "meetupMinLoyalty": 1,
     "events": {
-     "creep": 3
+     "creep": 3,
+     "noShow": 0
     },
     "haterHalfLifeDays": 30,
     "fame": 1.5,
@@ -1195,6 +1197,15 @@
     "haterHalfLifeDays": 30,
     "fame": 2,
     "incidents": 2
+   }
+  },
+  "fiancee": {
+   "label": "Imaginary Fiancée",
+   "prompt": "she said yes to your proposal and you believe you two are engaged: you talk to her as her fiancé, about the wedding, your mom and the honeymoon; you call her your future wife and get hurt and jealous when she acts like a creator with other men",
+   "modifiers": {
+    "dmFactor": 1.5,
+    "maxUnanswered": 5,
+    "ignoredFactor": 1
    }
   },
   "blocked": {
@@ -1798,6 +1809,13 @@
    1.5,
    2,
    3
+  ],
+  "noShow": [
+   1,
+   0.7,
+   0.4,
+   0.1,
+   0
   ],
   "buysAnythingAt": 5,
   "gain": {

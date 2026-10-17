@@ -3,7 +3,7 @@
 // deterministic and store/ never calls Date.now() or Math.random() itself.
 import { subscriberCount } from '../engine/audience'
 import { addVaultItem, canLockPosts, deletePost, deleteVaultItem, publishPost, updateVaultItem } from '../engine/content'
-import { directionInfo, directionPrompt, levelUpForTesting, setDirection, SPECS, SWITCH_LOSS } from '../engine/directions'
+import { directionInfo, directionPrompt, setDirection, SPECS, SWITCH_LOSS } from '../engine/directions'
 import { fanLayers, traitLabel } from '../engine/personas'
 import { postIntensity, postTags } from '../engine/posts'
 import { loyaltyInfo } from '../engine/fans'
@@ -15,10 +15,10 @@ import captions from '../presets/captions.json'
 import tags from '../presets/tags.json'
 import { createAccount, summarize } from '../store/account'
 import { migrate, SaveError, versionOf } from '../store/migrate'
-import { type Account, type AccountIndex, DIRECTIONS, DirectionIdSchema, LedgerKindSchema, type Message, SCHEMA_VERSION, SEGMENTS, SettingsSchema } from '../store/schema'
+import { type Account, type AccountIndex, DIRECTIONS, type Regular, DirectionIdSchema, LedgerKindSchema, type Message, SCHEMA_VERSION, SEGMENTS, SettingsSchema } from '../store/schema'
 import type { AccountStorage } from '../store/storage'
 import { exportAccount, exportFileName, importAccount } from '../store/transfer'
-import type { Action, Api, DispatchResult, InboxThread, ProfilePatch, Statements, Tag, TagDraw } from './types'
+import type { Action, Api, DispatchResult, InboxThread, ProfilePatch, Statements, Tag, TagDraw, ThreadView } from './types'
 
 /** Who a tag draws in, for the New post page: anything it makes ×1.5 or likelier, strongest first. */
 function tagDraws(factors: Partial<Record<string, number>> | undefined, label: (id: string) => string): TagDraw[] {
@@ -47,6 +47,16 @@ const meetups = () => import('../engine/meetups')
 const incidents = () => import('../engine/incidents')
 const dayEvents = () => import('../engine/events')
 const timeline = () => import('../engine/report')
+// The developer console's cheats (engine/dev.ts): goes away with it.
+const dev = () => import('../engine/dev')
+
+/** Why you cannot write to him now (ThreadView.away), or null. */
+function awayReason(r: Regular, day: number): ThreadView['away'] {
+  if (!awayNow(r, day)) return null
+  const blocked = conditionOf(r, 'blocked')
+  if (!blocked) return 'lyingLow'
+  return blocked.by === 'you' ? 'blocked' : blocked.by === 'him' ? 'gone' : blocked.by
+}
 
 export type Env = {
   now(): number
@@ -274,11 +284,22 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       return { delta: [`account:${id}`], events }
     },
 
-    async 'dayEvent.choose'({ id, eventId, choice }) {
+    async 'dayEvent.choose'({ id, eventId, choice, target }) {
       const { resolveDayEvent } = await dayEvents()
       let events: DispatchResult['events'] = []
       await update(id, (a) => {
-        const r = resolveDayEvent(a, eventId, choice, a.meta.seed)
+        const r = resolveDayEvent(a, eventId, choice, a.meta.seed, target)
+        events = r.events
+        return r.account
+      })
+      return { delta: [`account:${id}`], events }
+    },
+
+    async 'dayEvent.end'({ id, eventId }) {
+      const { endDayEvent } = await dayEvents()
+      let events: DispatchResult['events'] = []
+      await update(id, (a) => {
+        const r = endDayEvent(a, eventId)
         events = r.events
         return r.account
       })
@@ -297,14 +318,19 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       return { delta: [`account:${id}`], events }
     },
 
+    // Developer console (engine/dev.ts): delete these two with it.
     async 'dev.levelUp'({ id }) {
+      const { levelUpForTesting } = await dev()
       await update(id, levelUpForTesting)
       return { delta: [`account:${id}`], events: [] }
     },
 
-    async 'dev.charity'({ id }) {
-      const { openSpecialForTesting } = await dayEvents()
-      await update(id, (a) => openSpecialForTesting(a, 'charity'))
+    async 'dev.special'({ id, kind }) {
+      const { DEV_SPECIALS, forceSpecial } = await dev()
+      const special = DEV_SPECIALS.find((k) => k === kind)
+      if (!special) throw new SaveError(`No special event called ${kind}`)
+      const settings = await storage.loadSettings()
+      await update(id, (a) => forceSpecial(a, special, a.meta.seed, settings))
       return { delta: [`account:${id}`], events: [] }
     },
 
@@ -432,7 +458,7 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
           direction: directionPrompt(account),
         },
         loyalty: loyaltyInfo(regular),
-        away: !awayNow(regular, account.clock.day) ? null : !conditionOf(regular, 'blocked') ? 'lyingLow' : conditionOf(regular, 'blocked')?.by === 'you' ? 'blocked' : 'gone',
+        away: awayReason(regular, account.clock.day),
         ...fanLayers(regular),
         requests: account.requests.filter((q) => q.regularId === regularId),
         meetups: account.meetups.filter((m) => m.regularId === regularId),

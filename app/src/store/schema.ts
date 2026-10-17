@@ -58,19 +58,23 @@ export const AudienceSchema = z.object({
  *   - hostile: he turned on you (you ignored him, or turned him down); he acts as a hater
  *     until you win him back. `level`: his loyalty level then (Devoted or more hate longer);
  *   - unhinged: a stalker you won back comes back worse;
- *   - blocked: you blocked him, or he blocked you after his wife caught you two; for good;
+ *   - blocked: you blocked him, or he blocked you (after his wife caught you two, or after
+ *     The Charity), or the site moved him to the creator he meant (Routing Error), or he
+ *     was arrested (Human ATM); for good;
  *   - lyingLow: his wife caught you two and he is keeping away until `until`;
  *   - entitled: he had you for free (or a few dollars) too often (askedMeetups.freeloaderAfter)
  *     and turned freeloader: unlike a born freeloader he thinks he is owed it. Always free,
- *     no more loyalty, one no turns him hostile, and so does ignoring him for a few days.
+ *     no more loyalty, one no turns him hostile, and so does ignoring him for a few days;
+ *   - fiancee: you said yes to his proposal (Marry Me?); he believes you two are engaged.
  * You cannot write to him while he is blocked or lying low.
  */
 export const ConditionSchema = z.discriminatedUnion('id', [
   z.object({ id: z.literal('hostile'), since: z.number().int(), level: z.number().int() }),
   z.object({ id: z.literal('unhinged'), since: z.number().int() }),
-  z.object({ id: z.literal('blocked'), since: z.number().int(), by: z.enum(['you', 'him']) }),
+  z.object({ id: z.literal('blocked'), since: z.number().int(), by: z.enum(['you', 'him', 'moved', 'arrested']) }),
   z.object({ id: z.literal('lyingLow'), since: z.number().int(), until: z.number().int() }),
   z.object({ id: z.literal('entitled'), since: z.number().int() }),
+  z.object({ id: z.literal('fiancee'), since: z.number().int() }),
 ])
 export type Condition = z.infer<typeof ConditionSchema>
 export type ConditionId = Condition['id']
@@ -125,11 +129,18 @@ export const IntentSchema = z.object({
   /** He reacts to how a stalker incident turned out (Incident id; engine/incidents.ts). */
   incident: z.string().optional(),
   /**
-   * He reacts to a daily event he was part of (DayEvent id; engine/events.ts, 2026-10-16).
-   * The Charity: he was one of the men who had her for free (after), or he was old money
-   * and walks out for good (left).
+   * He reacts to a special event he is part of (DayEvent id; engine/specials.ts, 2026-10-16/17):
+   * The Charity (he had her for free: after; old money walking out: left), Routing Error (the
+   * new fan's first message: arrived), Human ATM (his daily $5,000: tribute), Marry Me? and
+   * what follows (proposal, yes, deflated, fund, invite, mom, therapist).
    */
-  event: z.object({ kind: z.enum(['charity']), step: z.enum(['after', 'left']), id: z.string() }).optional(),
+  event: z
+    .object({
+      kind: z.enum(['charity', 'routingError', 'humanAtm', 'marryMe', 'honeymoonFund', 'saveTheDate']),
+      step: z.enum(['after', 'left', 'arrived', 'tribute', 'proposal', 'yes', 'deflated', 'fund', 'invite', 'mom', 'therapist']),
+      id: z.string(),
+    })
+    .optional(),
 })
 
 export const MessageSchema = z.object({
@@ -234,7 +245,9 @@ export const INCIDENT_RESULTS = ['gift', 'ok', 'turned', 'calmed', 'escalated', 
  * rare or special event id. Common ones just change the odds from `day` to `until`. Rare ones
  * are about one of your fans (`regularId`) and wait for your choice (`open`) for a couple of
  * days; what you chose can leave effects behind (`after`, until its own day). Special ones
- * (The Charity) wait like rare ones, once per account.
+ * (engine/specials.ts) are turning points: some wait for your choice like rare ones, some run
+ * for a few days (`active`), The Charity runs until you end it, and chained ones wait for
+ * their day (`scheduled`).
  */
 export const DayEventSchema = z.object({
   id: z.string(),
@@ -247,7 +260,7 @@ export const DayEventSchema = z.object({
   regularId: z.string().optional(),
   /** Money the event is about: the brand's fee, the anonymous tip. */
   amountCents: Cents.optional(),
-  status: z.enum(['active', 'open', 'done']),
+  status: z.enum(['active', 'open', 'done', 'scheduled']),
   choice: z.string().optional(),
   result: z.string().optional(),
   /** The day you chose (or the choice made itself because you did not). */
@@ -256,6 +269,8 @@ export const DayEventSchema = z.object({
   resultCents: Cents.optional(),
   /** How many men came (The Charity). */
   count: z.number().int().optional(),
+  /** How many days it has run (The Charity). */
+  days: z.number().int().optional(),
   /** The fans who walked out for good (The Charity: the old money men). */
   leftIds: z.array(z.string()).optional(),
   /** Odds left behind by what you chose, from the day after `closedDay` to `until`. */

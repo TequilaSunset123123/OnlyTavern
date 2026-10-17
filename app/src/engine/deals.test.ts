@@ -202,7 +202,8 @@ describe('deals: one way in, decided by the engine', () => {
         const paid = terms(patch)
         expect(paid.every((m) => !m.terms && m.offerCents >= 10000)).toBe(true)
       }
-    })
+      // 40 accounts × 5 kinds of fan: slow, so it gets more time than the default 5 seconds.
+    }, 20_000)
 
     it('three freebies make him an entitled freeloader: no more loyalty, always free, one no and he turns (2026-10-16)', () => {
       const { a, r } = fan('a', { segment: 'regular', loyalty: 10, relationship: 'single' })

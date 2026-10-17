@@ -88,14 +88,6 @@ export function addPoints(account: Account, gains: Partial<Record<DirectionId, n
   return { ...account, direction: { ...account.direction, points }, events: [...account.events, ...events] }
 }
 
-/** For testing (Settings, Developer): just enough points for the next level of your current direction. */
-export function levelUpForTesting(account: Account): Account {
-  const current = account.direction.id
-  const level = levelOf(account.direction.points[current])
-  if (level >= MAX_LEVEL) return account
-  return addPoints(account, { [current]: LEVELS.points[level] - account.direction.points[current] })
-}
-
 /** A post counts for each direction whose signature tags it carries (couple: also content with your partner). */
 export function postPoints(account: Account, post: Post): Partial<Record<DirectionId, number>> {
   const items = post.vaultIds.map((id) => account.vault.find((v) => v.id === id)).filter((v) => !!v)

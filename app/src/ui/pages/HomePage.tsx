@@ -2,7 +2,7 @@ import { Avatar, Button, ChartIcon, ClockIcon, CommentIcon, EmptyState, EyeIcon,
 import { type ReactNode, useState } from 'react'
 import { useNavigate } from 'react-router'
 import type { DailyStat, DayEventView } from '../../api'
-import { useAccount, useActiveAccount, useStatistics } from '../../hooks/useAccounts'
+import { useAccount, useActiveAccount, useDispatch, useStatistics } from '../../hooks/useAccounts'
 import { useTags } from '../../hooks/useContent'
 import { useInbox, useRequests } from '../../hooks/useMessages'
 import { useTodaysEvent } from '../../hooks/useTime'
@@ -104,9 +104,12 @@ const CATEGORY: Record<DayEventView['category'], string> = { default: 'Nothing s
 /** Today's event (engine/events.ts): what it does, how long it lasts; a rare one waits for your choice. */
 function TodaysEvent({ accountId }: { accountId: string }) {
   const { data: view } = useTodaysEvent(accountId)
+  const dispatch = useDispatch()
   const [deciding, setDeciding] = useState<DayEventView | null>(null)
   if (!view) return <Panel icon={<GiftIcon />} title="Today's event">{null}</Panel>
   const open = view.status === 'open'
+  // The Charity runs until you end it.
+  const end = () => view.id && dispatch.mutate({ type: 'dayEvent.end', id: accountId, eventId: view.id })
   return (
     <Panel icon={<GiftIcon />} title="Today's event" subtitle={CATEGORY[view.category]}>
       <EventArt kind={view.kind} banner />
@@ -115,8 +118,13 @@ function TodaysEvent({ accountId }: { accountId: string }) {
       <div className="flex flex-wrap items-center gap-2">
         {view.status === 'active' && (
           <span className="flex w-fit items-center gap-2 rounded-full bg-(--color-brand-primary-muted) px-3 py-1 text-sm text-(--color-brand-primary-default)">
-            <ClockIcon size={16} /> {view.daysLeft ? `${view.daysLeft} more day${view.daysLeft === 1 ? '' : 's'}` : 'Ends today'}
+            <ClockIcon size={16} /> {view.ongoing ? 'Until you end it' : view.daysLeft ? `${view.daysLeft} more day${view.daysLeft === 1 ? '' : 's'}` : 'Ends today'}
           </span>
+        )}
+        {view.ongoing && (
+          <Button variant="secondary" size="32" loading={dispatch.isPending} onClick={end}>
+            {view.endLabel ?? 'End it'}
+          </Button>
         )}
         {open && (
           <Button variant="brand" size="32" onClick={() => setDeciding(view)}>

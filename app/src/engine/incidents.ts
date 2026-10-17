@@ -13,11 +13,12 @@
 // Numbers: presets/personas.json incidents; stories: presets/incidents.json.
 import personas from '../presets/personas.json'
 import stories from '../presets/incidents.json'
-import type { Account, EngineEvent, Incident, IncidentChoice, IncidentResult, LedgerEntry, Regular } from '../store/schema'
+import type { Account, Condition, EngineEvent, Incident, IncidentChoice, IncidentResult, LedgerEntry, Regular } from '../store/schema'
 import { loseSubscribers } from './audience'
 import { ContentError } from './content'
 import { paymentLine as line } from './economy'
 import { addLoyalty, loyaltyLevel, type MeetupOutcome } from './fans'
+import { wontTurn } from './eventEffects'
 import { turnHater } from './haters'
 import { actingType, hasCondition, withCondition } from './conditions'
 import { modifiers, withBehaviour } from './personas'
@@ -53,7 +54,8 @@ export function incidentOdds(account: Account, incident: Incident): Partial<Reco
 const proneness = (r: Regular) => modifiers(r).incidents
 
 function canHaveOne(account: Account, r: Regular, day: number): boolean {
-  if (r.status !== 'active' || !proneness(r)) return false
+  // Engaged to you, in his mind (Marry Me?): no courting, no scenes (and so no turning on you).
+  if (r.status !== 'active' || !proneness(r) || wontTurn(account, r)) return false
   const his = account.incidents.filter((x) => x.regularId === r.id)
   if (his.some((x) => x.status === 'open')) return false
   const last = his.at(-1)
@@ -95,8 +97,8 @@ export function afterMeetup(rng: Rng, account: Account, r: Regular, meetupId: st
   return open(rng, account, r, kind, day, meetupId)
 }
 
-/** You block him (or he blocks you, `by`): gone for good, and whatever was open with him is off. */
-export function blockFan(account: Account, regularId: string, day: number, by: 'you' | 'him' = 'you'): Account {
+/** You block him (or he blocks you, the site moves him, the police take him: `by`): gone for good, and whatever was open with him is off. */
+export function blockFan(account: Account, regularId: string, day: number, by: Extract<Condition, { id: 'blocked' }>['by'] = 'you'): Account {
   const a = updateRegular(account, { ...withCondition(account.regulars.find((x) => x.id === regularId)!, { id: 'blocked', since: day, by }), status: 'dormant' })
   return {
     ...a,

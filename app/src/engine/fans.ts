@@ -47,9 +47,16 @@ export function fanProfile(r: Regular) {
       daily: hasCondition(r, 'hostile') ? f.meetup.daily : Math.max(f.meetup.daily, b.meetupDaily),
       cooldownDays: Number.isFinite(b.meetupCooldownDays) ? b.meetupCooldownDays : null,
     },
-    /** Chances of what happens when you meet: his type's, times his behaviours'; "wife" only for married men. */
+    /**
+     * Chances of what happens when you meet: his type's, times his behaviours'; "wife" only for
+     * married men. The more loyal he is, the less he stands you up (loyalty.noShow: a Fanatic
+     * never does), and an obsessed man or a stalker never does (2026-10-17).
+     */
     events: Object.fromEntries(
-      (Object.entries(f.meetup.events) as [MeetupOutcome, number][]).map(([k, w]) => [k, k === 'wife' && r.relationship !== 'married' ? 0 : w * (b.events[k] ?? 1)]),
+      (Object.entries(f.meetup.events) as [MeetupOutcome, number][]).map(([k, w]) => [
+        k,
+        k === 'wife' && r.relationship !== 'married' ? 0 : w * (b.events[k] ?? 1) * (k === 'noShow' ? L.noShow[loyaltyLevel(r) - 1] : 1),
+      ]),
     ) as Partial<Record<MeetupOutcome, number>>,
   }
 }

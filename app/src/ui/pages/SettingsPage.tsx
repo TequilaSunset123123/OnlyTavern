@@ -14,8 +14,7 @@ import {
   TextField,
 } from '@fanvue/ui'
 import type { Settings } from '../../api'
-import { useActiveAccount, useDispatch } from '../../hooks/useAccounts'
-import { useDirections } from '../../hooks/useMessages'
+import { useDispatch } from '../../hooks/useAccounts'
 import { useSettings } from '../../hooks/useContent'
 import { getConnectionProfiles, getStContext } from '../../bridge/st'
 import { useTheme } from '../../hooks/useTheme'
@@ -24,6 +23,7 @@ import { type Backdrop, GLASS_RANGE, NIGHT_ROOM, useBackdrop } from '../backgrou
 import { ACCENT } from '../shell/accent'
 import { errorText } from '../format'
 import { PageTitle } from '../shell/PageTitle'
+import { DevConsole } from '../dev/DevConsole'
 
 // Global settings (shared by all accounts), plus the step-0 checks: whether the
 // iframe can reach parent.SillyTavern, and a text field to test the iOS keyboard.
@@ -108,7 +108,8 @@ export function SettingsPage() {
           </p>
         </CardContent>
       </Card>
-      <DeveloperCard />
+      {/* Developer console: remove with ui/dev/ (see DevConsole.tsx). */}
+      <DevConsole />
       <Card>
         <CardHeader>
           <CardTitle>SillyTavern</CardTitle>
@@ -133,39 +134,6 @@ function RegularsCap({ value, onCommit }: { value: number; onCommit: (n: number)
         At the limit, no new regulars reach out. Above it, the ones you have not written to for longest go dormant the next day (except haters who turned on you and fans with an open custom or meetup). Write to a dormant fan to bring him back.
       </p>
     </div>
-  )
-}
-
-/** Testing shortcuts while the game is being built (2026-10-16): level up without posting for days. */
-function DeveloperCard() {
-  const dispatch = useDispatch()
-  const { data: active } = useActiveAccount()
-  const { data: directions } = useDirections(active?.id)
-  const direction = directions?.all.find((d) => d.id === directions.current)
-  if (!active || !direction) return null
-  const maxed = direction.level >= 5
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Developer</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <span className="typography-body-small-14px-semibold">
-          {direction.label} · Lv {direction.level} “{direction.title}”
-        </span>
-        <Button variant="secondary" disabled={maxed} loading={dispatch.isPending} onClick={() => dispatch.mutate({ type: 'dev.levelUp', id: active.id })}>
-          {maxed ? 'Max level' : `Level up to ${direction.level + 1}`}
-        </Button>
-        <p className="text-xs text-content-tertiary">For testing: adds just enough points for the next level of this account's direction, with the usual level-up notification.</p>
-        <Button variant="secondary" loading={dispatch.isPending} onClick={() => dispatch.mutate({ type: 'dev.charity', id: active.id })}>
-          Start The Charity
-        </Button>
-        <p className="text-xs text-content-tertiary">
-          For testing: the special event waits on Home today, without being a Sub who has been had for free 8 times. It turns all your regulars, so try it on a spare account.
-        </p>
-        {dispatch.error && <p className="text-xs text-error-content">{dispatch.error.message}</p>}
-      </CardContent>
-    </Card>
   )
 }
 
