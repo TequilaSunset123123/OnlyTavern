@@ -1,6 +1,4 @@
 import { Navigate, type RouteObject } from 'react-router'
-import { AccountsPage } from './pages/AccountsPage'
-import { FansPage } from './pages/FansPage'
 import { HomePage } from './pages/HomePage'
 import { PostsPage } from './pages/PostsPage'
 import { MessagesPage } from './pages/MessagesPage'
@@ -28,9 +26,11 @@ export const routes: RouteObject[] = [
       { path: '/statements', lazy: () => import('./pages/StatementsPage').then((m) => ({ Component: m.StatementsPage })) },
       // Statistics is part of Statements since 2026-10-17.
       { path: '/statistics', element: <Navigate to="/statements" replace /> },
-      { path: '/fans', element: <FansPage /> },
+      // Fans is part of Statements since 2026-10-17 (who your fans are, your regulars).
+      { path: '/fans', element: <Navigate to="/statements" replace /> },
       { path: '/profile', element: <ProfilePage /> },
-      { path: '/accounts', element: <AccountsPage /> },
+      // Accounts is the top card of Settings since 2026-10-17.
+      { path: '/accounts', element: <Navigate to="/settings" replace /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/more', element: <MorePage /> },
       // Developer: the event gallery (Settings → Developer). Remove with ui/dev/ (see DevConsole.tsx).

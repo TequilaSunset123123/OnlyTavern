@@ -5,6 +5,8 @@ import {
   Button,
   Card,
   CardContent,
+  CardHeader,
+  CardTitle,
   Dialog,
   DialogBody,
   DialogClose,
@@ -13,7 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
   DownloadIcon,
-  EmptyState,
   Select,
   SelectContent,
   SelectItem,
@@ -22,15 +23,17 @@ import {
   UploadIcon,
 } from '@fanvue/ui'
 import { type ChangeEvent, useRef, useState } from 'react'
-import type { AccountSummary, DirectionId } from '../../api'
-import { useAccounts, useDispatch, useExportAccount } from '../../hooks/useAccounts'
-import { useDirectionOptions } from '../../hooks/useMessages'
-import { PageTitle } from '../shell/PageTitle'
+import type { AccountSummary, DirectionId } from '../api'
+import { useAccounts, useDispatch, useExportAccount } from '../hooks/useAccounts'
+import { useDirectionOptions } from '../hooks/useMessages'
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e))
 
-/** Accounts are like SillyTavern group chats: independent of any chat, you can have several (plan.md §1). */
-export function AccountsPage() {
+/**
+ * Accounts are like SillyTavern group chats: independent of any chat, you can have several
+ * (plan.md §1). The top card of Settings (2026-10-17; it was a page of its own).
+ */
+export function AccountsCard() {
   const { data, isLoading } = useAccounts()
   const dispatch = useDispatch()
   const exportAccount = useExportAccount()
@@ -53,67 +56,58 @@ export function AccountsPage() {
   const accounts = data?.accounts ?? []
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4">
-      <PageTitle
-        title="Accounts"
-        actions={
-          <>
-            <Button variant="secondary" size="40" leftIcon={<UploadIcon />} onClick={() => fileInput.current?.click()}>
-              Import
-            </Button>
-            <Button variant="brand" size="40" leftIcon={<AddIcon />} onClick={() => setCreating(true)}>
-              New account
-            </Button>
-            <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={onImport} />
-          </>
-        }
-      />
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <CardTitle className="basis-full sm:mr-auto sm:basis-auto">Accounts</CardTitle>
+          <Button variant="secondary" size="32" leftIcon={<UploadIcon />} onClick={() => fileInput.current?.click()}>
+            Import
+          </Button>
+          <Button variant="brand" size="32" leftIcon={<AddIcon />} onClick={() => setCreating(true)}>
+            New account
+          </Button>
+          <input ref={fileInput} type="file" accept=".json,application/json" hidden onChange={onImport} />
+        </div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {error && (
+          <Alert variant="error" title="Something went wrong" closable onClose={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
 
-      {error && (
-        <Alert variant="error" title="Something went wrong" closable onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
+        {!isLoading && accounts.length === 0 && (
+          <p className="text-content-tertiary">Create a creator account to start. Each account has its own fans, posts and earnings.</p>
+        )}
 
-      {!isLoading && accounts.length === 0 && (
-        <EmptyState
-          title="No accounts yet"
-          description="Create a creator account to start. Each account has its own fans, posts and earnings."
-          primaryAction={
-            <Button variant="brand" leftIcon={<AddIcon />} onClick={() => setCreating(true)}>
-              New account
-            </Button>
-          }
-        />
-      )}
-
-      {accounts.map((a) => {
-        const active = a.id === data?.activeId
-        return (
-          <Card key={a.id}>
-            <CardContent className="flex flex-wrap items-center gap-3">
-              <div className="mr-auto min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="typography-body-default-16px-semibold truncate">{a.name}</span>
-                  {active && <Badge variant="brandLight">Active</Badge>}
+        <div className="divide-y divide-border-primary">
+          {accounts.map((a) => {
+            const active = a.id === data?.activeId
+            return (
+              <div key={a.id} className="flex flex-wrap items-center gap-2 py-3 first:pt-0 last:pb-0">
+                <div className="min-w-0 basis-full sm:mr-auto sm:basis-auto">
+                  <div className="flex items-center gap-2">
+                    <span className="typography-body-default-16px-semibold truncate">{a.name}</span>
+                    {active && <Badge variant="brandLight">Active</Badge>}
+                  </div>
+                  <div className="truncate text-content-tertiary">@{a.handle}</div>
                 </div>
-                <div className="text-content-tertiary truncate">@{a.handle}</div>
-              </div>
-              {!active && (
-                <Button variant="secondary" size="32" onClick={() => run(dispatch.mutateAsync({ type: 'account.select', id: a.id }))}>
-                  Switch
+                {!active && (
+                  <Button variant="secondary" size="32" onClick={() => run(dispatch.mutateAsync({ type: 'account.select', id: a.id }))}>
+                    Switch
+                  </Button>
+                )}
+                <Button variant="tertiary" size="32" leftIcon={<DownloadIcon />} onClick={() => run(exportAccount.mutateAsync(a.id))}>
+                  Export
                 </Button>
-              )}
-              <Button variant="tertiary" size="32" leftIcon={<DownloadIcon />} onClick={() => run(exportAccount.mutateAsync(a.id))}>
-                Export
-              </Button>
-              <Button variant="tertiaryDestructive" size="32" leftIcon={<TrashIcon />} onClick={() => setDeleting(a)}>
-                Delete
-              </Button>
-            </CardContent>
-          </Card>
-        )
-      })}
+                <Button variant="tertiaryDestructive" size="32" leftIcon={<TrashIcon />} onClick={() => setDeleting(a)}>
+                  Delete
+                </Button>
+              </div>
+            )
+          })}
+        </div>
+      </CardContent>
 
       <NewAccountDialog
         open={creating}
@@ -144,7 +138,7 @@ export function AccountsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </Card>
   )
 }
 

@@ -82,7 +82,7 @@ function isActive(current: string, path: string) {
   return path === '/' ? current === '/' : current.startsWith(path)
 }
 
-/** Which account you are working in; tap to manage accounts. */
+/** Which account you are working in; tap to manage accounts (the top of Settings). */
 export function ActiveAccount() {
   const navigate = useNavigate()
   const { data: account, isLoading } = useActiveAccount()
@@ -92,7 +92,7 @@ export function ActiveAccount() {
     <button
       type="button"
       className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-buttons-tertiary-hover"
-      onClick={() => navigate('/accounts')}
+      onClick={() => navigate('/settings')}
     >
       <Avatar size={40} alt={account?.name ?? 'No account'} fallback={initials} />
       <span className="min-w-0">

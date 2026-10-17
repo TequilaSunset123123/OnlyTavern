@@ -23,7 +23,7 @@ export function HomePage() {
   const { data: account } = useAccount(active?.id)
   const direction = useCurrentDirection(active?.id)
 
-  if (!active || !account) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
+  if (!active || !account) return <EmptyState className="p-6" title="No account" description="Create an account first (Settings → Accounts)." />
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4">

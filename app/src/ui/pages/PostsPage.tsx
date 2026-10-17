@@ -33,7 +33,7 @@ export function PostsPage() {
   const { data: feed } = useFeed(active?.id)
   const direction = useCurrentDirection(active?.id)
 
-  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
+  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Settings → Accounts)." />
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4">

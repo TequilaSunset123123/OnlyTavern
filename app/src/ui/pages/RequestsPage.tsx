@@ -56,7 +56,7 @@ export function RequestsPage() {
     ...(data?.meetups.filter((m) => isActive(m.meetup.status)).map((m) => m.meetup.id) ?? []),
   ])
 
-  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
+  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Settings → Accounts)." />
   if (!data) return null
 
   const requests = data.requests.filter((r) => showAll || isActive(r.request.status) || lingering.has(r.request.id))

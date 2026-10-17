@@ -146,7 +146,7 @@ export function MessagesPage() {
     (t) => leaving.has(t.regular.id) || (listed.includes(t) && !(arrivals.hold && arrivals.fresh.has(t.regular.id))),
   )
 
-  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
+  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Settings → Accounts)." />
   const open = regularId && regularId !== 'bulk' ? regularId : undefined
   const showList = !open && tab === 'chats'
 

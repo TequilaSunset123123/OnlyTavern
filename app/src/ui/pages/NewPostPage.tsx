@@ -63,7 +63,7 @@ export function NewPostPage() {
   const [picking, setPicking] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
+  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Settings → Accounts)." />
 
   const canLock = feed?.canLockPosts ?? false
   // A paid page can only post for subscribers (the engine refuses locked posts there).

@@ -26,7 +26,7 @@ export function ProfilePage() {
     }
   }, [account])
 
-  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
+  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Settings → Accounts)." />
   if (!form) return null
 
   const set = (patch: Partial<typeof form>) => setForm({ ...form, ...patch })

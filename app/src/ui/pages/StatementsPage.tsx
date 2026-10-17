@@ -1,6 +1,8 @@
 import {
   Alert,
   ArrowDownIcon,
+  Avatar,
+  Badge,
   ArrowUpIcon,
   BankIcon,
   Button,
@@ -51,22 +53,25 @@ import {
 } from '@fanvue/ui'
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@fanvue/ui/charts'
 import { type ReactNode, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts'
-import type { DailyStat, LedgerEntry, LedgerKind, Statistics } from '../../api'
+import type { DailyStat, InboxThread, LedgerEntry, LedgerKind, Statistics } from '../../api'
 import balanceArt from '../../assets/statements/balance.webp'
 import { useActiveAccount, useDispatch, useStatements, useStatistics } from '../../hooks/useAccounts'
-import { useDirections } from '../../hooks/useMessages'
+import { useDirections, useInbox } from '../../hooks/useMessages'
 import { count, errorText, money } from '../format'
 import { AnimatedNumber } from '../motion/AnimatedNumber'
+import { PanelRow, PanelRows } from '../Panel'
 import { useTimeTravel } from '../time/context'
 import { BLUR, useRevealed } from '../time/shared'
 import { PageTitle } from '../shell/PageTitle'
 
 // Statements (2026-10-17: the Statistics page merged in, then laid out after your mock-up):
 // your balance, then what you made over the period you pick (on the platform and in cash,
-// and the platform part by kind), then earnings over time and your audience. Every
-// transaction is behind the history button, in a drawer; the subscriber chart and who your
-// fans are behind the audience card's info button, in a popup.
+// and the platform part by kind), then earnings over time and your audience, then your
+// regulars by what they have spent (the old Fans page's table). Every transaction is behind
+// the history button, in a drawer; the subscriber chart and who your fans are behind the
+// audience card's info button, in a popup.
 
 // The numbers you last saw on this page, per account (2026-10-16), so coming back shows
 // them rising to what you have now. Kept in this browser only.
@@ -154,11 +159,21 @@ const onPlatform = (d: DailyStat) => KINDS.reduce((s, k) => s + k.net(d), 0)
 const cash = (d: DailyStat) => d.net.offline
 const sum = (days: DailyStat[], f: (d: DailyStat) => number) => days.reduce((a, d) => a + f(d), 0)
 
-/** The period you picked, and the one before it (for "vs previous 30 days"; none for all time). */
+/**
+ * The period you picked, and the one before it for "vs previous 30 days": only once a whole
+ * earlier period has gone by (on day 14 there are no previous 30 days, so `note` says so).
+ * Nothing to compare for all time.
+ */
 function periodOf(history: DailyStat[], range: string) {
   const all = range === 'all'
   const n = all ? history.length : Number(range)
-  return { days: history.slice(-n), previous: all ? null : history.slice(-2 * n, -n), versus: all ? null : `vs previous ${n} days` }
+  const full = !all && history.length >= 2 * n
+  return {
+    days: history.slice(-n),
+    previous: full ? history.slice(-2 * n, -n) : null,
+    versus: full ? `vs previous ${n} days` : null,
+    note: all || full ? null : `No earlier ${n} days to compare yet`,
+  }
 }
 
 export function StatementsPage() {
@@ -166,17 +181,18 @@ export function StatementsPage() {
   const { data } = useStatements(active?.id)
   const { data: stats } = useStatistics(active?.id)
   const { data: directions } = useDirections(active?.id)
+  const { data: inbox } = useInbox(active?.id)
   const [range, setRange] = useState('30')
   const [withdrawing, setWithdrawing] = useState(false)
   // The transactions drawer, with the tab it opens on (null: closed).
   const [ledger, setLedger] = useState<string | null>(null)
   const [info, setInfo] = useState<'balance' | 'revenue' | 'audience' | null>(null)
 
-  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
+  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Settings → Accounts)." />
   if (!data || !stats) return null
 
   const { balances: b } = data
-  const { days, previous, versus } = periodOf(stats.history, range)
+  const { days, previous, versus, note } = periodOf(stats.history, range)
   const current = directions?.all.find((d) => d.id === directions.current)
   const fee = current && directions ? directions.perks.fee[current.level - 1] : null
 
@@ -205,11 +221,11 @@ export function StatementsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <Tile icon={<CoinIcon size={16} />} label="Earned on platform">
                   <Big>{money(sum(days, onPlatform))}</Big>
-                  <Change now={sum(days, onPlatform)} before={previous && sum(previous, onPlatform)} versus={versus} />
+                  <Change now={sum(days, onPlatform)} before={previous && sum(previous, onPlatform)} versus={versus} note={note} />
                 </Tile>
                 <Tile icon={<ReceiveMoneyIcon size={16} />} label="Cash (off platform)">
                   <Big>{money(sum(days, cash))}</Big>
-                  <Change now={sum(days, cash)} before={previous && sum(previous, cash)} versus={versus} />
+                  <Change now={sum(days, cash)} before={previous && sum(previous, cash)} versus={versus} note={note} />
                 </Tile>
               </div>
               <button
@@ -236,13 +252,17 @@ export function StatementsPage() {
           <SegmentedControl className="self-start" options={RANGES} value={range} onChange={setRange} />
 
           <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
-            <EarningsCard days={days} previous={previous} versus={versus} />
+            <EarningsCard days={days} previous={previous} versus={versus} note={note} />
             <Section title="Audience & retention" onInfo={() => setInfo('audience')}>
-              <Audience stats={stats} days={days} previous={previous} versus={versus} />
+              <Audience stats={stats} days={days} previous={previous} versus={versus} note={note} />
             </Section>
           </div>
         </>
       )}
+
+      <Section title="Regulars" aside="All time, by what they spent">
+        <Regulars threads={inbox?.threads ?? []} stats={stats} />
+      </Section>
 
       <Transactions entries={data.entries} filter={ledger} onFilter={setLedger} />
       <InfoDialog open={info === 'balance'} onClose={() => setInfo(null)} title="Your balance">
@@ -299,24 +319,36 @@ function Tile({ icon, label, children }: { icon: ReactNode; label: string; child
 
 const Big = ({ children }: { children: ReactNode }) => <div className="typography-header-heading-xs mt-2">{children}</div>
 
-/** "↑ +12% vs previous 30 days", "— No change"; nothing to compare for all time. Green when it went the good way (`fewerIsBetter`: expired subscribers). */
+/**
+ * "↑ +12% vs previous 30 days", "↑ from $0.00", "— No change"; `note` when there is no whole
+ * earlier period yet; nothing for all time. Green when it went the good way (`fewerIsBetter`:
+ * expired subscribers).
+ */
 function Change({
   now,
   before,
   versus,
+  note = null,
   as = 'percent',
   fewerIsBetter = false,
 }: {
   now: number
   before: number | null
   versus: string | null
+  note?: string | null
   as?: 'percent' | 'count'
   fewerIsBetter?: boolean
 }) {
-  if (before === null || versus === null) return null
+  if (before === null || versus === null) return note ? <div className="mt-1 text-xs text-content-tertiary">{note}</div> : null
   const diff = now - before
   const text =
-    diff === 0 ? null : as === 'count' ? `${diff > 0 ? '+' : ''}${count(diff)}` : before === 0 ? 'New' : `${diff > 0 ? '+' : ''}${Math.round((diff / Math.abs(before)) * 100)}%`
+    diff === 0
+      ? null
+      : as === 'count'
+        ? `${diff > 0 ? '+' : ''}${count(diff)}`
+        : before === 0
+          ? `from ${money(0)}`
+          : `${diff > 0 ? '+' : ''}${Math.round((diff / Math.abs(before)) * 100)}%`
   return (
     <div className="mt-1 text-xs text-content-tertiary">
       {text ? (
@@ -402,7 +434,7 @@ const earningsConfig = { total: { label: 'Earned', color: 'var(--color-brand-pri
 const subscribersConfig = { subscribers: { label: 'Subscribers', color: 'var(--color-brand-primary-default)' } } satisfies ChartConfig
 
 /** Everything you made in the period, platform and cash, day by day. */
-function EarningsCard({ days, previous, versus }: { days: DailyStat[]; previous: DailyStat[] | null; versus: string | null }) {
+function EarningsCard({ days, previous, versus, note }: { days: DailyStat[]; previous: DailyStat[] | null; versus: string | null; note: string | null }) {
   const total = (d: DailyStat) => onPlatform(d) + cash(d)
   const chartData = days.map((d) => ({ day: `D${d.day}`, total: total(d) / 100 }))
   return (
@@ -411,7 +443,7 @@ function EarningsCard({ days, previous, versus }: { days: DailyStat[]; previous:
         <div className="typography-body-default-16px-semibold">Total earned</div>
         <div className="flex flex-wrap items-end gap-4">
           <div className="typography-header-heading-md">{money(sum(days, total))}</div>
-          <Change now={sum(days, total)} before={previous && sum(previous, total)} versus={versus} />
+          <Change now={sum(days, total)} before={previous && sum(previous, total)} versus={versus} note={note} />
         </div>
         <ChartContainer config={earningsConfig} className="h-56 w-full">
           <AreaChart accessibilityLayer data={chartData}>
@@ -434,7 +466,19 @@ function EarningsCard({ days, previous, versus }: { days: DailyStat[]; previous:
 }
 
 /** Subscribers now and over the period: who joined, who left, how many stayed. */
-function Audience({ stats, days, previous, versus }: { stats: Statistics; days: DailyStat[]; previous: DailyStat[] | null; versus: string | null }) {
+function Audience({
+  stats,
+  days,
+  previous,
+  versus,
+  note,
+}: {
+  stats: Statistics
+  days: DailyStat[]
+  previous: DailyStat[] | null
+  versus: string | null
+  note: string | null
+}) {
   const now = stats.history.at(-1)?.subscribers ?? 0
   // Subscribers when the period started (0 when it starts with the page).
   const before = stats.history[stats.history.length - days.length - 1]?.subscribers ?? 0
@@ -445,21 +489,52 @@ function Audience({ stats, days, previous, versus }: { stats: Statistics; days: 
     <div className="grid grid-cols-2 gap-3">
       <Tile icon={<PeopleIcon className="size-4" />} label="Total subscribers">
         <Big>{count(now)}</Big>
-        <Change now={now} before={previous ? before : null} versus={versus} as="count" />
+        <Change now={now} before={previous ? before : null} versus={versus} note={note} as="count" />
       </Tile>
       <Tile icon={<UserAddIcon size={16} />} label="New subscribers">
         <Big>{count(joined)}</Big>
-        <Change now={joined} before={previous && sum(previous, (d) => d.newSubscribers)} versus={versus} as="count" />
+        <Change now={joined} before={previous && sum(previous, (d) => d.newSubscribers)} versus={versus} note={note} as="count" />
       </Tile>
       <Tile icon={<HourglassIcon size={16} />} label="Expired">
         <Big>{count(left)}</Big>
-        <Change now={left} before={previous && sum(previous, (d) => d.churned)} versus={versus} as="count" fewerIsBetter />
+        <Change now={left} before={previous && sum(previous, (d) => d.churned)} versus={versus} note={note} as="count" fewerIsBetter />
       </Tile>
       <Tile icon={<RepeatIcon size={16} />} label="Retention">
         <Big>{Math.round(kept * 100)}%</Big>
         <div className="mt-1 text-xs text-content-tertiary">stayed this period</div>
       </Tile>
     </div>
+  )
+}
+
+/**
+ * Your regulars, the biggest spenders first (the Fans page's table until 2026-10-17): what
+ * each has spent on you (paid messages, tips, customs, meetup cash), his type and loyalty,
+ * since when, and whether he is still around. Click one to open your conversation.
+ */
+function Regulars({ threads, stats }: { threads: InboxThread[]; stats: Statistics }) {
+  const navigate = useNavigate()
+  if (!threads.length) return <p className="text-sm text-content-tertiary">No regulars yet. Fans who start messaging you show up here.</p>
+  const type = (segment: string) => stats.segments.find((s) => s.id === segment)?.label ?? segment
+  const sorted = [...threads].sort((a, b) => b.regular.spent - a.regular.spent)
+  return (
+    <PanelRows className="grid lg:grid-cols-2 lg:gap-x-6 lg:divide-y-0">
+      {sorted.map(({ regular: r, loyalty: l }) => (
+        <PanelRow
+          key={r.id}
+          lead={<Avatar size={32} alt={r.name} fallback={r.name.slice(0, 2).toUpperCase()} />}
+          title={r.name}
+          line={`${type(r.segment)} · Lv ${l.level} ${l.name}${l.cap < 5 ? ` (max ${l.cap})` : ''} · since day ${r.since}`}
+          right={
+            <span className="flex shrink-0 flex-col items-end gap-1">
+              <span className="typography-body-small-14px-semibold">{money(r.spent)}</span>
+              <Badge variant={r.status === 'active' ? 'success' : 'default'}>{r.status === 'active' ? 'Active' : 'Dormant'}</Badge>
+            </span>
+          }
+          onClick={() => navigate(`/messages/${r.id}`)}
+        />
+      ))}
+    </PanelRows>
   )
 }
 

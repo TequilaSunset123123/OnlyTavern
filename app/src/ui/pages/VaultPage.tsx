@@ -32,7 +32,7 @@ export function VaultPage() {
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [editing, setEditing] = useState<VaultItem | 'new' | null>(null)
 
-  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Accounts page)." />
+  if (!active) return <EmptyState className="p-6" title="No account" description="Create an account first (Settings → Accounts)." />
 
   const label = (id: string) => tags.find((t) => t.id === id)?.en ?? id
   const q = query.trim().toLowerCase()

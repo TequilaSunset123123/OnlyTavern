@@ -1,9 +1,7 @@
 import {
-  FolderIcon,
   GalleryIcon,
   HomeIcon,
   MessageIcon,
-  UsersIcon,
   SettingsIcon,
   TaskIcon,
   UserIcon,
@@ -26,9 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
   { path: '/requests', label: 'Requests', icon: TaskIcon },
   { path: '/vault', label: 'Vault', icon: VaultIcon },
   { path: '/statements', label: 'Statements', icon: WalletIcon },
-  { path: '/fans', label: 'Fans', icon: UsersIcon },
   { path: '/profile', label: 'My Profile', icon: UserIcon },
-  { path: '/accounts', label: 'Accounts', icon: FolderIcon },
   { path: '/settings', label: 'Settings', icon: SettingsIcon },
 ]
 

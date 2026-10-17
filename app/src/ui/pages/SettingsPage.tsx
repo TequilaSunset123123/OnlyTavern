@@ -24,9 +24,11 @@ import { ACCENT } from '../shell/accent'
 import { errorText } from '../format'
 import { PageTitle } from '../shell/PageTitle'
 import { DevConsole } from '../dev/DevConsole'
+import { AccountsCard } from '../AccountsCard'
 
-// Global settings (shared by all accounts), plus the step-0 checks: whether the
-// iframe can reach parent.SillyTavern, and a text field to test the iOS keyboard.
+// Your accounts first (the Accounts page until 2026-10-17), then the global settings (shared
+// by all accounts), plus the step-0 checks: whether the iframe can reach parent.SillyTavern,
+// and a text field to test the iOS keyboard.
 const FOLLOW_ST = '__sillytavern__'
 
 const FAN_LANGUAGES = [
@@ -49,6 +51,7 @@ export function SettingsPage() {
   return (
     <div className="mx-auto flex max-w-xl flex-col gap-4 p-4">
       <PageTitle title="Settings" />
+      <AccountsCard />
       <Card>
         <CardHeader>
           <CardTitle>Appearance</CardTitle>
