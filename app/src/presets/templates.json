@@ -45,6 +45,17 @@
     "incidentCalmed": [
       "Sorry. I got carried away. I just can't stop thinking about you.",
       "You're right, I went too far. I'll back off. Please don't block me."
+    ],
+    "charityAfter": [
+      "Waited two hours in that queue. Worth it, but I'm never paying for you again lol",
+      "So that's what you're worth: nothing. See you next charity day, slut.",
+      "Me and a thousand other guys, for free. Don't ever ask me for money again.",
+      "Can't believe I used to tip you. Now everyone knows you're free."
+    ],
+    "charityLeft": [
+      "I came, I saw, I left. A woman who gives herself to a queue of strangers is beneath me. Goodbye.",
+      "That was a mistake, and not one I will repeat. I do not associate with charity cases. Farewell.",
+      "I expected discretion. Instead I stood in line behind a plumber. We are done."
     ]
   },
   "zh": {
@@ -93,6 +104,17 @@
     "incidentCalmed": [
       "对不起，我太冲动了，就是控制不住想你。",
       "你说得对，我过分了，我收敛点，别拉黑我。"
+    ],
+    "charityAfter": [
+      "排了两个小时队，值了，不过以后我一分钱都不会再给你了哈哈",
+      "原来你就值这个价：零。下次慈善日见，骚货。",
+      "我和其他一千个男人，免费。以后别再跟我要钱。",
+      "真不敢相信我以前还给你打赏。现在谁都知道你是免费的。"
+    ],
+    "charityLeft": [
+      "来了，看了，走了。一个让陌生人排队上的女人配不上我。再见。",
+      "这是个错误，我不会再犯。我不和做慈善的人来往。告辞。",
+      "我要的是低调，结果在一个水管工后面排队。我们到此为止。"
     ]
   }
 }

@@ -61,6 +61,7 @@ import type {
   MassMessage,
   Meetup,
   Message,
+  DayEvent,
   Post,
   Profile,
   Regular,
@@ -206,6 +207,8 @@ export type ThreadView = {
   meetups: Meetup[]
   /** Stalker incidents with him (engine/incidents.ts). */
   incidents: Incident[]
+  /** Daily events his messages react to (The Charity). */
+  dayEvents: DayEvent[]
 }
 
 export type RequestRow = {

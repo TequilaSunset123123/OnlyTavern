@@ -437,6 +437,7 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
         requests: account.requests.filter((q) => q.regularId === regularId),
         meetups: account.meetups.filter((m) => m.regularId === regularId),
         incidents: account.incidents.filter((x) => x.regularId === regularId),
+        dayEvents: account.dayEvents.filter((e) => thread.messages.some((m) => m.intent?.event?.id === e.id)),
       }
     },
     async getMassMessages(id) {

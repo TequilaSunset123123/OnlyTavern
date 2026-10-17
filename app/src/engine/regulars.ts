@@ -366,6 +366,7 @@ function templateText(rng: Rng, account: Account, regular: Regular, intent: Inte
   const d = intent.deal
   if (d?.kind === 'custom' && d.step === 'late') return pick(rng, t.requestLate)
   if (d?.kind === 'meetup' && d.step === 'back') return pick(rng, t.meetupBack)
+  if (intent.event?.kind === 'charity') return pick(rng, intent.event.step === 'left' ? t.charityLeft : t.charityAfter)
   if (intent.incident) {
     const result = account.incidents.find((x) => x.id === intent.incident)?.result
     return pick(rng, result === 'gift' ? t.incidentGift : result === 'calmed' ? t.incidentCalmed : t.incidentOk)

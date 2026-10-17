@@ -188,6 +188,7 @@ describe('fan message prompt and parsing', () => {
       loyalty: { points: 0, level: 1, cap: 5, name: 'Curious', from: 0, next: 5 },
       away: null,
       incidents: [],
+      dayEvents: [],
       personality: { id: 'horny_direct', label: 'Horny', prompt: 'always horny' },
       behaviours: [{ id: 'creepy_compliments', label: 'Creepy', prompt: 'sleazy compliments' }],
       conditions: [{ id: 'hostile', label: 'Hostile', prompt: 'you resent her' }],

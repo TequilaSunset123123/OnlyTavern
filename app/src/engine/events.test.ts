@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import { buildFanPrompt } from '../llm/fanMessage'
 import E from '../presets/events.json'
+import templates from '../presets/templates.json'
 import { createAccount } from '../store/account'
 import { migrate } from '../store/migrate'
 import type { Account, DayEvent, Regular } from '../store/schema'
 import { hasCondition } from './conditions'
 import { eventEffects } from './eventEffects'
 import { dayEventView, openDayEvents, resolveDayEvent, rollDayEvent } from './events'
+import { fallbackText } from './regulars'
 import { lapsing, periodReport } from './report'
 import { simulate } from './simulate'
 
@@ -217,6 +220,46 @@ describe('The Charity (special)', () => {
     expect(r.account.posts[0].text).toMatch(/Thank you to all [\d,]+ of you/)
     // Freeloaders flock in for two weeks after.
     expect(eventEffects(r.account, day + 1).regularMix.freeloader).toBe(3)
+  })
+
+  it('every regular writes to you about it: the freeloaders after it, old money to say goodbye', () => {
+    const base = freeSub(grown('charity', 60), 8)
+    const [withRich, rich] = fanWith(base, (r) => ({ ...r, behaviours: ['older_gentleman'], status: 'active' }))
+    const day = withRich.clock.day
+    const a: Account = { ...withRich, dayEvents: [{ id: `ev${day}`, kind: 'charity', category: 'special', day, until: day + 1, status: 'open' }] }
+    const done = resolveDayEvent(a, `ev${day}`, 'open', 'charity').account
+    const last = (id: string) => done.threads.find((t) => t.regularId === id)!.messages.at(-1)!
+    const there = a.regulars.filter((x) => !hasCondition(x, 'blocked') && !hasCondition(x, 'lyingLow'))
+    expect(there.length).toBeGreaterThan(1)
+    for (const x of there) {
+      expect(last(x.id)).toMatchObject({ from: 'fan', state: 'pending', day, intent: { kind: 'opener', event: { kind: 'charity', step: x.id === rich.id ? 'left' : 'after', id: `ev${day}` } } })
+    }
+    // Without the model: a line of its own.
+    expect(templates.en.charityLeft).toContain(fallbackText({ ...done, regulars: done.regulars.map((x) => ({ ...x, language: 'en' as const })) }, rich.id, last(rich.id).id))
+    // For the model: what happened, with the number of men.
+    const fan = done.regulars.find((x) => x.id === there.find((y) => y.id !== rich.id)!.id)!
+    const t = done.threads.find((x) => x.regularId === fan.id)!
+    const view = {
+      day,
+      regular: fan,
+      messages: t.messages,
+      read: 0,
+      items: {},
+      creator: { name: 'Mia', handle: 'mia', accountType: 'free' as const, priceCents: 0, subscribers: 100, direction: 'a submissive creator' },
+      loyalty: { points: 0, level: 1, cap: 1, name: 'Curious', from: 0, next: null },
+      away: null,
+      personality: { id: 'misogynist', label: 'Misogynist', prompt: 'misogynistic' },
+      behaviours: [],
+      conditions: [],
+      requests: [],
+      meetups: [],
+      incidents: [],
+      dayEvents: done.dayEvents,
+    }
+    const [, user] = buildFanPrompt(view, t.messages.at(-1)!.id)
+    const count = done.dayEvents[0].count!.toLocaleString('en-US')
+    expect(user.content).toContain(`${count} men had her, and you were one of them`)
+    expect(user.content).not.toContain('You message her on your own')
   })
 })
 

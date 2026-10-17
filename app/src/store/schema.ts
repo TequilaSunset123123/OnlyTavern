@@ -124,6 +124,12 @@ export const IntentSchema = z.object({
   deal: z.object({ kind: z.enum(['custom', 'meetup']), step: z.enum(['ask', 'no', 'delivered', 'late', 'met', 'back']), id: z.string().optional() }).optional(),
   /** He reacts to how a stalker incident turned out (Incident id; engine/incidents.ts). */
   incident: z.string().optional(),
+  /**
+   * He reacts to a daily event he was part of (DayEvent id; engine/events.ts, 2026-10-16).
+   * The Charity: he was one of the men who had her for free (after), or he was old money
+   * and walks out for good (left).
+   */
+  event: z.object({ kind: z.enum(['charity']), step: z.enum(['after', 'left']), id: z.string() }).optional(),
 })
 
 export const MessageSchema = z.object({

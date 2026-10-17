@@ -30,6 +30,7 @@ function view(a: Account, r: Regular) {
     loyalty: { points: 0, level: 1, cap: 5, name: 'Curious', from: 0, next: 5 },
     away: null,
     incidents: [],
+    dayEvents: [],
     personality: { id: 'pet_names', label: 'Clingy', prompt: 'calls her baby' },
     behaviours: [],
     conditions: [],

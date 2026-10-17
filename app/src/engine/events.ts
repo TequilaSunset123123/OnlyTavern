@@ -28,7 +28,7 @@ import { withBehaviour } from './personas'
 import { postTags } from './posts'
 import { tipCents } from './regulars'
 import { type Rng, rngFor } from './rng'
-import { updateRegular } from './threads'
+import { addFanMessage, updateRegular } from './threads'
 
 const D = E.daily
 /** Old events are dropped after this many days (longer than any repeat rule). */
@@ -356,12 +356,16 @@ function settle(account: Account, eventId: string, choice: string, seed: string,
       const [lo, hi] = C.men
       const men = lo + Math.floor(rng() * (hi - lo + 1))
       count = men
+      // Each of them writes to you about it (the model puts it into words): old money says goodbye first.
       for (const r of a.regulars) {
         if (awayNow(r, day)) continue
         if (r.behaviours.includes('older_gentleman')) {
-          a = blockFan(a, r.id, day, 'him')
+          a = blockFan(addFanMessage(a, r.id, day, { kind: 'opener', event: { kind: 'charity', step: 'left', id: e.id } }), r.id, day, 'him')
           left.push(r.id)
-        } else a = updateRegular(a, withBehaviour({ ...r, segment: 'freeloader', personality: 'misogynist' }, 'creepy_compliments'))
+        } else {
+          a = updateRegular(a, withBehaviour({ ...r, segment: 'freeloader', personality: 'misogynist' }, 'creepy_compliments'))
+          a = addFanMessage(a, r.id, day, { kind: 'opener', event: { kind: 'charity', step: 'after', id: e.id } })
+        }
       }
       a = { ...a, posts: [eventPost(a, C.post.replace('{count}', men.toLocaleString('en-US')), day), ...a.posts] }
       result = left.length ? 'openedRich' : 'opened'

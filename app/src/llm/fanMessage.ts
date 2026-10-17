@@ -113,11 +113,21 @@ const INCIDENT_LINE: Partial<Record<NonNullable<ThreadView['incidents'][number][
   calmed: 'You would not leave her alone; she talked you down, and you apologize.',
 }
 
+/** A daily event he was part of (engine/events.ts): The Charity. */
+function eventLine(view: ThreadView, ev: NonNullable<Intent['event']>): string {
+  const n = view.dayEvents.find((x) => x.id === ev.id)?.count
+  const men = n ? `${n.toLocaleString('en-US')} men` : 'hundreds of men'
+  const what = `Today she opened her door to any man who wanted her, for free, from noon till midnight: ${men} had her, and you were one of them.`
+  return ev.step === 'left'
+    ? `${what} Afterwards you decided this is beneath a man of your standing. Write her a cold, final goodbye: you are done with her and will not be back.`
+    : `${what} Now you see her as free for anyone and not worth paying; write to her about it.`
+}
+
 /** What happens now: one line each, only for what is happening. */
 function happening(view: ThreadView, i: Intent): string[] {
   const lines: string[] = []
   if (i.kind === 'reply') lines.push('Answer her latest message(s).')
-  else if (!i.deal && !i.incident) lines.push(`You message her on your own: you ${TOPICS[i.topic ?? 'chat']}.`)
+  else if (!i.deal && !i.incident && !i.event) lines.push(`You message her on your own: you ${TOPICS[i.topic ?? 'chat']}.`)
   for (const d of i.ppv ?? []) {
     const m = view.messages.find((x) => x.id === d.messageId)
     const desc = m ? describeItems(view, m) : ''
@@ -125,6 +135,7 @@ function happening(view: ThreadView, i: Intent): string[] {
   }
   if (i.deal) lines.push(dealLine(view, i.deal))
   if (i.incident) lines.push(INCIDENT_LINE[view.incidents.find((x) => x.id === i.incident)?.result ?? 'ok'] ?? '')
+  if (i.event) lines.push(eventLine(view, i.event))
   if (i.tip) lines.push(`You send her a ${money(i.tip)} tip with this message.`)
   return lines.filter(Boolean)
 }
