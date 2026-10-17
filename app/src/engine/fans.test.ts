@@ -157,7 +157,8 @@ describe('meetup outcomes', () => {
     const back = simulate(high.acc, until - high.acc.clock.day, 'x')
     expect(reg(back.account, high.id).status).toBe('active')
     expect(back.events).toContainEqual({ day: until, type: 'regular-back', regularId: high.id, reason: 'wife' })
-    expect(threadOf(back.account, high.id).messages.at(-1)!.intent?.deal).toEqual({ kind: 'meetup', step: 'back', id: 'm1' })
+    // He writes that he is back (a deal of his own may follow the same day).
+    expect(threadOf(back.account, high.id).messages.some((x) => x.day === until && x.intent?.deal?.step === 'back' && x.intent.deal.id === 'm1')).toBe(true)
     expect(sendDm(back.account, high.id, { text: 'welcome back' }, 's').account).toBeTruthy()
   })
 })

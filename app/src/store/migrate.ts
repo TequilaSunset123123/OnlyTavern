@@ -154,6 +154,14 @@ export const MIGRATIONS: Record<number, Migration> = {
     }
     return { ...doc, regulars: (doc.regulars as Old[]).map(upgradeOne) }
   },
+  // v14 -> v15 (2026-10-16): six common events without pictures were taken out (custom rush,
+  // payday, chargeback, off day, copycat, collab); drop them from saves that rolled them.
+  14: (doc) => {
+    const gone = new Set(['customRush', 'payday', 'chargeback', 'offDay', 'copycat', 'collab'])
+    return { ...doc, dayEvents: (doc.dayEvents as { kind: string }[]).filter((e) => !gone.has(e.kind)) }
+  },
+  // v13 -> v14 (2026-10-16): daily events (engine/events.ts), none yet.
+  13: (doc) => ({ ...doc, dayEvents: [] }),
   // v12 -> v13 (2026-10-16): an entitled fan is a freeloader now (he keeps Entitled), and
   // the notice remembers what he was.
   12: (doc) => {

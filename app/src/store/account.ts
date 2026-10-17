@@ -39,6 +39,7 @@ export function createAccount({ id, seed, now, name, handle, direction }: NewAcc
     requests: [],
     meetups: [],
     incidents: [],
+    dayEvents: [],
     ledger: [],
     events: [],
     history: [],

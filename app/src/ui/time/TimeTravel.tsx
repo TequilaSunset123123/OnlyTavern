@@ -3,9 +3,10 @@ import { AnimatePresence } from 'motion/react'
 import { type ReactNode, useCallback, useState } from 'react'
 import type { DispatchResult, Lapse, MeetupReport } from '../../api'
 import { useAccount, useActiveAccount, useDispatch } from '../../hooks/useAccounts'
-import { useIncidents, useLapsingCheck } from '../../hooks/useTime'
+import { useIncidents, useLapsingCheck, useOpenDayEvents } from '../../hooks/useTime'
 import { errorText } from '../format'
 import { TimeTravelContext } from './context'
+import { DayEventHost } from './DayEventDialog'
 import { IncidentHost } from './IncidentDialog'
 import { Loader } from './Loader'
 import { MeetupResultDialog } from './MeetupResultDialog'
@@ -17,10 +18,12 @@ import { Shutter } from './Shutter'
 //   1. if something would lapse, ask first;
 //   2. the shutter closes over the app, opens on a black loading screen, the days tick
 //      by (meetups get their own bar), the shutter closes and opens on the app again;
-//   3. a popup for each meetup, then any stalker incident to decide, then the report.
+//   3. a popup for each meetup, then any stalker incident to decide, then any rare daily
+//      event (engine/events.ts; you can put those off), then the report. A rare event
+//      stops a skip on its day (the loader only ticks the days that were simulated).
 // The engine runs as soon as you click; the screens only pace what it already decided.
 
-type Stage = 'idle' | 'confirm' | 'coverIn' | 'revealLoader' | 'loading' | 'coverOut' | 'revealApp' | 'meetups' | 'incidents' | 'report'
+type Stage = 'idle' | 'confirm' | 'coverIn' | 'revealLoader' | 'loading' | 'coverOut' | 'revealApp' | 'meetups' | 'incidents' | 'events' | 'report'
 
 type Run = { days: number; fromDay: number; lapses: Lapse[]; result: DispatchResult | null; error: string | null; meetup: number }
 
@@ -39,7 +42,9 @@ function LapseDialog({ run, onCancel, onGo }: { run: Run; onCancel: () => void; 
                 ? l.accepted
                   ? `${l.name}'s custom is due on day ${l.deadline}. You said yes: he will not pay and will be upset.`
                   : `${l.name}'s custom request expires after day ${l.deadline}.`
-                : `${l.name}'s meetup invitation needs an answer by day ${l.deadline}.`}
+                : l.kind === 'meetup'
+                  ? `${l.name}'s meetup invitation needs an answer by day ${l.deadline}.`
+                  : `${l.name}: not decided by day ${l.deadline}, it settles itself with the default choice.`}
             </div>
           ))}
         </DialogBody>
@@ -60,6 +65,7 @@ export function TimeTravelProvider({ children }: { children: ReactNode }) {
   const { data: active } = useActiveAccount()
   const { data: account } = useAccount(active?.id)
   const { data: incidents = [] } = useIncidents(active?.id)
+  const { data: dayEvents = [] } = useOpenDayEvents(active?.id)
   const dispatch = useDispatch()
   const check = useLapsingCheck()
   const [stage, setStage] = useState<Stage>('idle')
@@ -94,11 +100,18 @@ export function TimeTravelProvider({ children }: { children: ReactNode }) {
   )
 
   const loaded = useCallback(() => setStage('coverOut'), [])
+  // Each step is skipped when there is nothing in it, checked as you reach it (deciding
+  // the last one empties its list, and its result should stay up until you close it).
+  const toEvents = () => setStage(dayEvents.length ? 'events' : 'report')
+  const toIncidents = () => (incidents.length ? setStage('incidents') : toEvents())
   const afterShutter = () => {
     if (stage === 'coverIn') setStage('revealLoader')
     else if (stage === 'revealLoader') setStage('loading')
     else if (stage === 'coverOut') setStage('revealApp')
-    else if (stage === 'revealApp') setStage(run?.result?.report?.meetups.length ? 'meetups' : 'incidents')
+    else if (stage === 'revealApp') {
+      if (run?.result?.report?.meetups.length) setStage('meetups')
+      else toIncidents()
+    }
   }
   const finish = () => {
     setStage('idle')
@@ -108,27 +121,26 @@ export function TimeTravelProvider({ children }: { children: ReactNode }) {
   const curtain = stage === 'coverIn' || stage === 'revealLoader' || stage === 'loading' || stage === 'coverOut' || stage === 'revealApp'
   const loader = stage === 'revealLoader' || stage === 'loading' || stage === 'coverOut'
   const report = run?.result?.report
-  // Nothing to decide: straight on to the report.
-  const now = stage === 'incidents' && incidents.length === 0 ? 'report' : stage
 
   return (
     <TimeTravelContext.Provider value={{ advance, busy: stage !== 'idle' }}>
       {children}
       {curtain && <Shutter closed={stage === 'coverIn' || stage === 'coverOut'} onSettled={afterShutter} />}
       <AnimatePresence>
-        {loader && run && <Loader key="loader" fromDay={run.fromDay} days={run.days} meetups={run.error ? NONE : (report?.meetups ?? null)} onDone={loaded} />}
+        {loader && run && <Loader key="loader" fromDay={run.fromDay} days={report ? report.to - report.from + 1 : run.days} meetups={run.error ? NONE : (report?.meetups ?? null)} onDone={loaded} />}
       </AnimatePresence>
       {stage === 'confirm' && run?.lapses.length ? <LapseDialog run={run} onCancel={finish} onGo={() => go({ ...run, lapses: [] })} /> : null}
-      {now === 'meetups' && report && run && (
+      {stage === 'meetups' && report && run && (
         <MeetupResultDialog
           key={run.meetup}
           meetup={report.meetups[run.meetup]}
-          onClose={() => (run.meetup + 1 < report.meetups.length ? setRun({ ...run, meetup: run.meetup + 1 }) : setStage('incidents'))}
+          onClose={() => (run.meetup + 1 < report.meetups.length ? setRun({ ...run, meetup: run.meetup + 1 }) : toIncidents())}
         />
       )}
-      {active && (now === 'idle' || now === 'incidents') && <IncidentHost accountId={active.id} incidents={incidents} onEmpty={now === 'incidents' ? () => setStage('report') : undefined} />}
-      {now === 'report' && report && <ReportDialog report={report} onClose={finish} />}
-      {now === 'report' && !report && run?.error && <ErrorDialog error={run.error} onClose={finish} />}
+      {active && (stage === 'idle' || stage === 'incidents') && <IncidentHost accountId={active.id} incidents={incidents} onEmpty={stage === 'incidents' ? toEvents : undefined} />}
+      {active && stage === 'events' && <DayEventHost accountId={active.id} events={dayEvents} onEmpty={() => setStage('report')} />}
+      {stage === 'report' && report && <ReportDialog report={report} onClose={finish} />}
+      {stage === 'report' && !report && run?.error && <ErrorDialog error={run.error} onClose={finish} />}
     </TimeTravelContext.Provider>
   )
 }

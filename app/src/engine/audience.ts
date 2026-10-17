@@ -2,6 +2,7 @@
 // on day d, bucket d % 30 comes up for renewal; new subscribers join that bucket.
 import preset from '../presets/audience.json'
 import { type Audience, type Profile, SEGMENTS, type Segment } from '../store/schema'
+import { priceRenewal } from './price'
 import { binomial, logNormal, type Rng, rngFor } from './rng'
 
 type SegmentParams = (typeof preset.segments)[Segment]
@@ -42,8 +43,9 @@ export function conversionRate(p: SegmentParams, profile: Profile): number {
   return p.conversion * Math.exp((-p.priceSensitivity * profile.priceCents) / 1000)
 }
 
+/** A high price puts the price-sensitive ones off renewing (engine/price.ts). */
 function renewalRate(p: SegmentParams, profile: Profile): number {
-  return profile.accountType === 'free' ? 1 - (1 - p.renewal) * preset.freeChurnFactor : p.renewal
+  return profile.accountType === 'free' ? 1 - (1 - p.renewal) * preset.freeChurnFactor : p.renewal * priceRenewal(profile, p.priceSensitivity)
 }
 
 export type DayInputs = {
@@ -54,6 +56,10 @@ export type DayInputs = {
   /** Your direction: multiplies each fan type's share of visitors, and how many visit. */
   mixFactors?: Partial<Record<Segment, number>>
   visitorFactor?: number
+  /** The day's event (engine/eventEffects.ts): multiplies how many visitors subscribe, how often subscribers tip, and how much. */
+  conversionFactor?: number
+  tipFactor?: number
+  tipSize?: number
 }
 
 export function simulateAudienceDay(
@@ -61,7 +67,7 @@ export function simulateAudienceDay(
   profile: Profile,
   seed: string,
   day: number,
-  { extraVisitors = 0, renewalFactor = 1, mixFactors = {}, visitorFactor = 1 }: DayInputs = {},
+  { extraVisitors = 0, renewalFactor = 1, mixFactors = {}, visitorFactor = 1, conversionFactor = 1, tipFactor = 1, tipSize = 1 }: DayInputs = {},
 ): AudienceDay {
   const bucket = day % 30
   const cohorts = structuredClone(audience.cohorts)
@@ -88,16 +94,16 @@ export function simulateAudienceDay(
 
     // Tips from current subscribers (before today's newcomers).
     const tipRng = rngFor(seed, day, `tips:${s}`)
-    const tippers = binomial(tipRng, cohorts[s].reduce((a, b) => a + b, 0), p.tipDaily)
+    const tippers = binomial(tipRng, cohorts[s].reduce((a, b) => a + b, 0), Math.min(1, p.tipDaily * tipFactor))
     for (let i = 0; i < tippers; i++) {
-      const dollars = Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(tipRng, p.tipMedian, p.tipSpread))))
+      const dollars = Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(tipRng, p.tipMedian * tipSize, p.tipSpread))))
       tips.count += 1
       tips.gross += dollars * 100
     }
 
     // Newcomers: visitors of this segment who subscribe.
     const arrivals = binomial(rngFor(seed, day, `arrive:${s}`), visitors, Math.min(1, p.mix * (mixFactors[s] ?? 1)))
-    const joined = binomial(rngFor(seed, day, `join:${s}`), arrivals, conversionRate(p, profile))
+    const joined = binomial(rngFor(seed, day, `join:${s}`), arrivals, Math.min(1, conversionRate(p, profile) * conversionFactor))
     cohorts[s][bucket] += joined
     newSubscribers += joined
   }

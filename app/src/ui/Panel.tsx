@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 
 // The dashboard's building blocks (Home, 2026-10-16): one card shape and one row shape, so
 // every panel looks the same. Plain Fanvue Cards: on the glass they are see-through layers
-// (theme/fanzly.css).
+// (theme/fanzly.css). Proportions after your mock-up: one padding (the Card's own, the
+// content adds none), a line under the header, lines between rows.
 
 /** A small rounded tile in the brand tint holding an icon. */
 export function IconTile({ children }: { children: ReactNode }) {
@@ -29,9 +30,9 @@ export function Panel({
   children: ReactNode
 }) {
   return (
-    <Card className={className}>
-      <CardContent className="flex h-full flex-col gap-3">
-        <div className="flex items-center gap-3">
+    <Card className={`p-5 ${className}`}>
+      <CardContent className="flex h-full flex-col gap-3 px-0 py-0">
+        <div className="flex items-center gap-3 border-b border-border-primary pb-3">
           <IconTile>{icon}</IconTile>
           <div className="mr-auto min-w-0">
             <div className="typography-body-default-16px-semibold truncate">{title}</div>
@@ -44,6 +45,11 @@ export function Panel({
       </CardContent>
     </Card>
   )
+}
+
+/** Rows of a panel, with a line between them. */
+export function PanelRows({ className = '', children }: { className?: string; children: ReactNode }) {
+  return <div className={`divide-y divide-border-primary ${className}`}>{children}</div>
 }
 
 /** One line in a panel: something on the left (an avatar or an icon), a name and a line, something on the right. */

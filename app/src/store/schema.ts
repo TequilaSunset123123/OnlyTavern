@@ -3,7 +3,7 @@
 // a migration if old saves need converting.
 import { z } from 'zod'
 
-export const SCHEMA_VERSION = 13
+export const SCHEMA_VERSION = 15
 
 export const SEGMENTS = ['regular', 'lurker', 'simp', 'whale', 'hater', 'freeloader'] as const
 export const SegmentSchema = z.enum(SEGMENTS)
@@ -224,6 +224,35 @@ export const INCIDENT_CHOICES = ['playAlong', 'letDown', 'calm', 'block'] as con
 export const INCIDENT_RESULTS = ['gift', 'ok', 'turned', 'calmed', 'escalated', 'blocked', 'backlash'] as const
 
 /**
+ * A daily event (engine/events.ts, presets/events.json, 2026-10-16). `kind` is a common or
+ * rare event id. Common ones just change the odds from `day` to `until`. Rare ones are about
+ * one of your fans (`regularId`) and wait for your choice (`open`) for a couple of days; what
+ * you chose can leave effects behind (`after`, until its own day).
+ */
+export const DayEventSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  category: z.enum(['common', 'rare']),
+  day: z.number().int(),
+  until: z.number().int(),
+  /** Which rumor, which trending tag. */
+  variant: z.string().optional(),
+  regularId: z.string().optional(),
+  /** Money the event is about: the brand's fee, the anonymous tip. */
+  amountCents: Cents.optional(),
+  status: z.enum(['active', 'open', 'done']),
+  choice: z.string().optional(),
+  result: z.string().optional(),
+  /** The day you chose (or the choice made itself because you did not). */
+  closedDay: z.number().int().optional(),
+  /** Money the result brought or cost: his gift, the brand's fee after haggling. */
+  resultCents: Cents.optional(),
+  /** Odds left behind by what you chose, from the day after `closedDay` to `until`. */
+  after: z.object({ until: z.number().int(), effects: z.record(z.string(), z.union([z.number(), z.record(z.string(), z.number())])) }).optional(),
+})
+export type DayEvent = z.infer<typeof DayEventSchema>
+
+/**
  * A stalker incident (2026-10-15): he courts you (courtship) or will not leave you alone
  * (clingy), on an ordinary day or after you met him. You choose what to do in a popup;
  * the engine rolls how it turns out (engine/incidents.ts).
@@ -327,6 +356,21 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
     gross: Cents.nonnegative().optional(),
     lost: Count.optional(),
   }),
+  /** A daily event started (engine/events.ts); `title` in words, for notifications. */
+  z.object({ day: z.number().int(), type: z.literal('day-event'), eventId: z.string(), kind: z.string(), variant: z.string().optional(), title: z.string() }),
+  /** You chose what to do about a rare event (or it settled itself); `text` says how it turned out. */
+  z.object({
+    day: z.number().int(),
+    type: z.literal('day-event-done'),
+    eventId: z.string(),
+    kind: z.string(),
+    result: z.string(),
+    text: z.string(),
+    /** It went badly for you. */
+    bad: z.boolean().optional(),
+    gross: Cents.optional(),
+    lost: Count.optional(),
+  }),
   /** He came round after turning on you, or (wife) is back after lying low. */
   /** He had you for free (or a few dollars) too often: an entitled freeloader now (engine/meetups.ts). `from`: what he was. */
   z.object({ day: z.number().int(), type: z.literal('regular-entitled'), regularId: z.string(), from: SegmentSchema }),
@@ -377,6 +421,7 @@ export const AccountSchema = z.object({
   requests: z.array(RequestSchema),
   meetups: z.array(MeetupSchema),
   incidents: z.array(IncidentSchema),
+  dayEvents: z.array(DayEventSchema),
   ledger: z.array(LedgerEntrySchema),
   /** Recent engine events (the last `eventDays` days), for notifications. */
   events: z.array(EngineEventSchema),

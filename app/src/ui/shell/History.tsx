@@ -102,6 +102,10 @@ function describe(e: EngineEvent, postText: (id: string) => string, fan: (id: st
       return `You changed direction: ${count(e.lost)} subscriber${s(e.lost)} left`
     case 'level-up':
       return `Level up! You reached level ${e.level} as ${DIRECTION_LABEL[e.direction]} 🎉`
+    case 'day-event':
+      return `Today: ${e.title}`
+    case 'day-event-done':
+      return e.lost ? `${e.text} (${count(e.lost)} subscriber${s(e.lost)} left)` : e.text
   }
 }
 
@@ -135,6 +139,8 @@ const FILTERS: Record<string, EngineEvent['type'][]> = {
     'loyalty-up',
     'direction',
     'level-up',
+    'day-event',
+    'day-event-done',
   ],
   subscriptions: ['subscribers', 'churn', 'milestone', 'direction', 'level-up'],
   tips: ['tips', 'dm-tip'],

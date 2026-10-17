@@ -1,0 +1,484 @@
+{
+  "_doc": "Daily events (plan.md §10.2, 2026-10-16). Categories: default (an ordinary day, no event), common (random, effects only, no choice; weight is boosted by what is going on: engine/events.ts BOOSTS), rare (only if you have the fans for it; you choose what to do), special (to come). Effects are multipliers on the day's odds (engine/events.ts Effects). Words: {name} the fan, {product} the brand's product, {fee} money, {tag} a tag, {amount} money. A rare event's `after.<result>` is what that result leaves behind: {days, effects} from the next day on.",
+  "daily": {
+    "commonChance": 0.3,
+    "commonEveryDays": 7,
+    "rareChance": 0.1,
+    "rareGapDays": 6,
+    "rareRepeatDays": 20,
+    "answerDays": 2
+  },
+  "ordinary": {
+    "title": "An ordinary day",
+    "text": "Nothing out of the ordinary. Your fans do what they always do."
+  },
+  "common": {
+    "fanAppreciation": {
+      "title": "Fan Appreciation Day",
+      "text": "Fans are feeling generous today. Tips come easier, and bigger.",
+      "weight": 3,
+      "days": 1,
+      "effects": {
+        "crowdTips": 1.6,
+        "tipChance": 1.6,
+        "tipSize": 1.3
+      }
+    },
+    "trendingTag": {
+      "title": "Trending Tag",
+      "text": "#{tag} is trending. Posts with it get far more eyes for two days.",
+      "weight": 2,
+      "days": 2,
+      "effects": {
+        "tagReach": 2.5,
+        "visitors": 1.15
+      }
+    },
+    "bigSpender": {
+      "title": "Big Spender Energy",
+      "text": "Someone has money to burn. Big spenders are browsing today.",
+      "weight": 2,
+      "days": 1,
+      "effects": {
+        "mix": {
+          "whale": 3
+        },
+        "regularMix": {
+          "whale": 3
+        },
+        "tipSize": 1.2
+      }
+    },
+    "ghostTown": {
+      "title": "Ghost Town",
+      "text": "It's unusually quiet. Fewer visitors, fewer messages: a good day to clear your backlog.",
+      "weight": 2,
+      "days": 1,
+      "effects": {
+        "visitors": 0.5,
+        "conversion": 0.7,
+        "dms": 0.5,
+        "newRegulars": 0.3
+      }
+    },
+    "algorithmShift": {
+      "title": "Algorithm Shift",
+      "text": "The platform changed what it recommends. Your posts reach fewer people for three days.",
+      "weight": 1.5,
+      "days": 3,
+      "effects": {
+        "reach": 0.6,
+        "visitors": 0.85
+      }
+    },
+    "rumor": {
+      "title": "Rumor Mill",
+      "text": "",
+      "weight": 2,
+      "days": 2,
+      "effects": {}
+    },
+    "haterRaid": {
+      "title": "Hater Raid",
+      "text": "A hater brought his friends. Lots of visitors, but they came to trash you, not to subscribe.",
+      "weight": 1,
+      "days": 1,
+      "effects": {
+        "visitors": 1.3,
+        "conversion": 0.6,
+        "mix": {
+          "hater": 3
+        },
+        "regularMix": {
+          "hater": 4
+        }
+      }
+    }
+  },
+  "rumors": {
+    "boyfriend": {
+      "title": "Rumor: she has a boyfriend",
+      "text": "Word is you're taken. Fans who wanted you for themselves are not happy.",
+      "effects": {
+        "renewal": 0.92,
+        "regularMix": {
+          "simp": 0.5
+        }
+      }
+    },
+    "quitting": {
+      "title": "Rumor: she's quitting",
+      "text": "Fans think you're about to quit. The loyal ones are tipping to make you stay.",
+      "effects": {
+        "crowdTips": 1.5,
+        "tipChance": 1.5
+      }
+    },
+    "surgery": {
+      "title": "Rumor: she had work done",
+      "text": "Everyone is talking about your 'new look'. Curious people come to see, few stay.",
+      "effects": {
+        "visitors": 1.3,
+        "conversion": 0.9
+      }
+    },
+    "datingFan": {
+      "title": "Rumor: she dates her fans",
+      "text": "Somebody claims you date your fans. Every man in your DMs thinks he has a chance.",
+      "effects": {
+        "dms": 1.5,
+        "meetupRate": 1.5
+      }
+    },
+    "bot": {
+      "title": "Rumor: she's a bot",
+      "text": "A thread says your account is run by AI. Some people believe it.",
+      "effects": {
+        "visitors": 0.8,
+        "conversion": 0.8
+      }
+    }
+  },
+  "rare": {
+    "whaleWatching": {
+      "title": "Whale Watching",
+      "text": "{name} has money to throw around and he wants you to notice. For three days he is all over your page.",
+      "days": 3,
+      "target": {
+        "tipChance": 4,
+        "deal": 3,
+        "dms": 2
+      },
+      "default": "business",
+      "options": {
+        "pamper": {
+          "label": "Give him the VIP treatment",
+          "help": "He sends a big tip right away and gets more loyal."
+        },
+        "hardToGet": {
+          "label": "Play hard to get",
+          "help": "{chance} he sends something huge to win you over. Otherwise he cools off."
+        },
+        "business": {
+          "label": "Keep it business",
+          "help": "He stays busy on your page for three days. Nothing more."
+        }
+      },
+      "odds": {
+        "hardToGet": 0.5
+      },
+      "results": {
+        "pampered": "{name} loved the attention and sent you {amount}. He is more loyal than ever.",
+        "won": "{name} took the bait and sent you {amount} to win you over.",
+        "cooled": "{name} got bored of chasing you and cooled off.",
+        "business": "You kept it business. {name} keeps spending for a few days."
+      },
+      "gifts": {
+        "pamper": 3,
+        "hardToGet": 6
+      }
+    },
+    "tooClose": {
+      "title": "Too Close for Comfort",
+      "text": "{name} knows more than he should: the café you went to yesterday, the color of your front door.",
+      "days": 1,
+      "default": "keepTalking",
+      "options": {
+        "keepTalking": {
+          "label": "Keep talking to him",
+          "help": "He gets even more attached. {chance} it stays harmless."
+        },
+        "boundaries": {
+          "label": "Set boundaries",
+          "help": "{chance} he respects it. Otherwise he turns on you."
+        },
+        "block": {
+          "label": "Block him",
+          "help": "He is gone for good."
+        }
+      },
+      "odds": {
+        "keepTalking": 0.6,
+        "boundaries": 0.6
+      },
+      "results": {
+        "flattered": "{name} is thrilled you didn't mind. He's more attached than ever.",
+        "deeper": "{name} took it as a sign. He's watching you more closely now.",
+        "respected": "{name} apologized and backed off. For now.",
+        "turned": "{name} didn't take it well. He has turned on you.",
+        "blocked": "You blocked {name}. He's gone."
+      }
+    },
+    "leakedContent": {
+      "title": "Leaked Content",
+      "text": "Your paid content is all over a forum. The upload came from {name}'s account.",
+      "days": 1,
+      "default": "ignore",
+      "options": {
+        "takedown": {
+          "label": "File takedowns and block him",
+          "help": "Costs {fee}. {chance} the leak is contained."
+        },
+        "ignore": {
+          "label": "Ignore it",
+          "help": "Some subscribers cancel for a week: why pay for what is free?"
+        },
+        "leanIn": {
+          "label": "Lean into it",
+          "help": "Visitors pour in for days, freebie hunters too; a few subscribers cancel."
+        }
+      },
+      "odds": {
+        "takedown": 0.65
+      },
+      "costCents": 15000,
+      "results": {
+        "contained": "The takedowns worked and {name} is blocked. Barely anyone noticed.",
+        "spread": "The takedowns came too late and {name} is blocked. Some subscribers are cancelling.",
+        "ignored": "You let it go. Subscribers are cancelling: why pay for what is free?",
+        "leaned": "You turned the leak into an ad. Visitors are flooding in."
+      },
+      "lossShare": {
+        "spread": 0.03,
+        "leaned": 0.02
+      },
+      "after": {
+        "spread": {
+          "days": 5,
+          "effects": {
+            "renewal": 0.95
+          }
+        },
+        "ignored": {
+          "days": 7,
+          "effects": {
+            "renewal": 0.88
+          }
+        },
+        "leaned": {
+          "days": 3,
+          "effects": {
+            "visitors": 1.8,
+            "conversion": 0.9,
+            "mix": {
+              "freeloader": 2
+            }
+          }
+        }
+      }
+    },
+    "doxxed": {
+      "title": "Doxxed",
+      "text": "Someone posted your real name and your street. It started with {name}.",
+      "days": 1,
+      "default": "ignore",
+      "options": {
+        "police": {
+          "label": "Report it to the police",
+          "help": "{chance} it ends there. Otherwise you lose fans and visitors for a while."
+        },
+        "move": {
+          "label": "Move out",
+          "help": "Costs {fee}. Safe for sure, but you are offline for a few days."
+        },
+        "ignore": {
+          "label": "Ignore it",
+          "help": "{chance} it blows over. Otherwise it gets worse."
+        }
+      },
+      "odds": {
+        "police": 0.6,
+        "ignore": 0.5
+      },
+      "moveCents": 120000,
+      "lossShare": 0.05,
+      "results": {
+        "handled": "The police took the post down. It's over.",
+        "dragged": "The police took their time. Some subscribers left and visitors are down.",
+        "moved": "You moved somewhere new. Safe, but it will take a few days to get back to normal.",
+        "blewOver": "It blew over. People found something else to talk about.",
+        "escalated": "It got worse: subscribers left, and {name} won't leave you alone now."
+      },
+      "after": {
+        "dragged": {
+          "days": 5,
+          "effects": {
+            "visitors": 0.7
+          }
+        },
+        "moved": {
+          "days": 3,
+          "effects": {
+            "visitors": 0.3,
+            "conversion": 0.5,
+            "dms": 0.3,
+            "newRegulars": 0
+          }
+        },
+        "escalated": {
+          "days": 5,
+          "effects": {
+            "visitors": 0.8
+          }
+        }
+      }
+    },
+    "brandDeal": {
+      "title": "Brand Deal",
+      "text": "A brand wants you to promote their {product}. They offer {fee}.",
+      "days": 1,
+      "default": "decline",
+      "options": {
+        "accept": {
+          "label": "Take the deal",
+          "help": "You get {fee} and post an #ad. Some fans think you sold out."
+        },
+        "negotiate": {
+          "label": "Ask for more",
+          "help": "{chance} they pay half again. Otherwise they walk away."
+        },
+        "decline": {
+          "label": "Decline",
+          "help": "Nothing happens."
+        }
+      },
+      "odds": {
+        "negotiate": 0.5
+      },
+      "fee": {
+        "byLevel": [0, 0, 40000, 90000, 180000],
+        "perSubscriberCents": 100,
+        "negotiateFactor": 1.5
+      },
+      "products": {
+        "girl_next_door": "men's skincare set",
+        "porn_star": "condoms",
+        "egirl": "Gamer Girl Bathwater",
+        "escort": "'Eau de Erection' cologne",
+        "couple": "couples' massage candle",
+        "sub": "Late-Stage Capitalism Kit (a leather outfit)",
+        "domme": "Late-Stage Capitalism Kit (a leather outfit)"
+      },
+      "results": {
+        "accepted": "Deal done: {amount}. Your #ad is up; a few fans are rolling their eyes.",
+        "negotiated": "They paid up: {amount}. Your #ad is up; a few fans are rolling their eyes.",
+        "walked": "They walked away. No deal.",
+        "declined": "You passed on it."
+      },
+      "after": {
+        "accepted": {
+          "days": 5,
+          "effects": {
+            "renewal": 0.97
+          }
+        },
+        "negotiated": {
+          "days": 5,
+          "effects": {
+            "renewal": 0.97
+          }
+        }
+      },
+      "adPost": "#ad Obsessed with my new {product}. Link in bio 💕"
+    },
+    "guestStar": {
+      "title": "Guest Star",
+      "text": "{star}, a male porn star, wants to shoot a scene with you. His fans would see it, and so would yours.",
+      "days": 1,
+      "default": "decline",
+      "options": {
+        "accept": {
+          "label": "Shoot the scene",
+          "help": "His fans pour in for a few days. {chance} your devoted fans take it well; otherwise some cancel and the most attached one turns on you."
+        },
+        "decline": {
+          "label": "Turn him down",
+          "help": "Nothing happens."
+        }
+      },
+      "odds": {
+        "accept": 0.5
+      },
+      "stars": [
+        "Dax Thornfield",
+        "Colt Ravenwood",
+        "Brick Halloway",
+        "Jett Marlowe",
+        "Axel Montrose",
+        "Ryder Vale"
+      ],
+      "post": "New scene with {star} is up 🔥 Go check it out",
+      "lossShare": 0.03,
+      "after": {
+        "shot": {
+          "days": 4,
+          "effects": {
+            "visitors": 2,
+            "conversion": 1.2
+          }
+        },
+        "jealous": {
+          "days": 4,
+          "effects": {
+            "visitors": 2,
+            "conversion": 1.2
+          }
+        }
+      },
+      "results": {
+        "shot": "Your scene with {star} is up. His fans are pouring in, and yours loved it.",
+        "jealous": "Your scene with {star} is up and his fans are pouring in, but your devoted fans hate seeing you with another man. Some cancelled, and {name} turned on you.",
+        "declined": "You turned {star} down."
+      }
+    },
+    "secretAdmirer": {
+      "title": "Secret Admirer",
+      "text": "Someone sent you {amount} anonymously, with a note: 'For my favorite girl.'",
+      "days": 1,
+      "default": "keepQuiet",
+      "options": {
+        "thank": {
+          "label": "Thank them publicly",
+          "help": "More visitors for a couple of days. {chance} they send more."
+        },
+        "unmask": {
+          "label": "Find out who it was",
+          "help": "He gets more loyal, and may get obsessed."
+        },
+        "keepQuiet": {
+          "label": "Keep it quiet",
+          "help": "Nothing more happens."
+        }
+      },
+      "odds": {
+        "thank": 0.5,
+        "unmask": 0.3
+      },
+      "results": {
+        "thankedMore": "Your thank-you post went down well, and another {amount} arrived.",
+        "thanked": "Your thank-you post went down well.",
+        "unmasked": "It was {name}. He's glad you know.",
+        "obsessed": "It was {name}. Now that you know, he can't stop thinking about you.",
+        "quiet": "You kept it to yourself."
+      },
+      "gifts": {
+        "arrive": 3,
+        "more": 2
+      },
+      "after": {
+        "thankedMore": {
+          "days": 2,
+          "effects": {
+            "visitors": 1.3
+          }
+        },
+        "thanked": {
+          "days": 2,
+          "effects": {
+            "visitors": 1.3
+          }
+        }
+      }
+    }
+  }
+}

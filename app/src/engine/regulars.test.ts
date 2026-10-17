@@ -59,10 +59,10 @@ describe('regulars', () => {
     const settings = { fanLanguage: 'en' as const, connectionProfile: null }
     const a = grown('cap', 120)
     const active = a.regulars.filter((r) => r.status === 'active').length
-    expect(active).toBeGreaterThan(3)
+    expect(active).toBeGreaterThan(2)
     const day = a.clock.day + 1
-    const after = simulateRegularsDay({ ...a, requests: [], meetups: [] }, a.audience, 'cap', day, { ...settings, maxActiveRegulars: 3 }).account
-    expect(after.regulars.filter((r) => r.status === 'active' && !r.conditions.some((c) => c.id === 'hostile')).length).toBeLessThanOrEqual(3)
+    const after = simulateRegularsDay({ ...a, requests: [], meetups: [] }, a.audience, 'cap', day, { ...settings, maxActiveRegulars: 2 }).account
+    expect(after.regulars.filter((r) => r.status === 'active' && !r.conditions.some((c) => c.id === 'hostile')).length).toBeLessThanOrEqual(2)
     expect(activeCap(settings)).toBe(8)
   })
 })

@@ -13,6 +13,7 @@
   "visitorNoise": 0.3,
   "freeChurnFactor": 0.5,
   "maxTipDollars": 200,
+  "price": {"_doc": "What a high subscription price does (engine/price.ts, 2026-10-16). Each number is its effect at the highest price; from the starting price ($9.99) up it grows evenly, below it nothing.", "referenceCents": 999, "attracts": {"older_gentleman": 2, "cheapskate": 0.5, "stalker": 0.5}, "freeloaders": 0.5, "spend": 2, "renewalPenalty": 0.15},
   "post": {"heat": [1, 0.4, 0.15], "visitorsPerPost": 15, "visitorsPerLike": 0.3, "intensityTolerance": 1.5, "tagRepeatDecay": 0.85, "freshnessWindowDays": 14, "inactiveDays": 14, "inactiveRenewalFactor": 0.9, "tagCommentShare": 0.25},
   "regulars": {"cap": 8, "baseDaily": 0.12, "maxNewDaily": 0.3, "ignoredFactor": 0.3, "dormantAfterDays": 30, "dmPriceScaleCents": 2500, "maxMassReplies": 3, "massPpvFactor": 0.5, "massHeat": [1, 0.3], "recentDays": 14},
   "requests": {"dueDays": 7, "cooldownDays": 3, "upsetFactor": 0.5, "spread": 0.5, "minCents": 500, "maxCents": 200000, "passScore": 0.5, "perfectScore": 0.9, "tipFactor": 2},

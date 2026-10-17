@@ -27,6 +27,7 @@ const mass = () => import('../engine/massMessages')
 const requests = () => import('../engine/requests')
 const meetups = () => import('../engine/meetups')
 const incidents = () => import('../engine/incidents')
+const dayEvents = () => import('../engine/events')
 const timeline = () => import('../engine/report')
 
 export type Env = {
@@ -115,9 +116,10 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       let events: DispatchResult['events'] = []
       let report: DispatchResult['report']
       await update(id, (a) => {
-        const r = simulate(a, days, a.meta.seed, settings)
+        // A rare event stops the skip on its day, so you can choose (engine/events.ts).
+        const r = simulate(a, days, a.meta.seed, settings, { stopAtRare: true })
         events = r.events
-        report = periodReport(a, r.account, r.events)
+        report = periodReport(a, r.account, r.events, days)
         return r.account
       })
       return { delta: [`account:${id}`], events, report }
@@ -248,6 +250,17 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
       let events: DispatchResult['events'] = []
       await update(id, (a) => {
         const r = resolveIncident(a, incidentId, choice, a.meta.seed)
+        events = r.events
+        return r.account
+      })
+      return { delta: [`account:${id}`], events }
+    },
+
+    async 'dayEvent.choose'({ id, eventId, choice }) {
+      const { resolveDayEvent } = await dayEvents()
+      let events: DispatchResult['events'] = []
+      await update(id, (a) => {
+        const r = resolveDayEvent(a, eventId, choice, a.meta.seed)
         events = r.events
         return r.account
       })
@@ -432,6 +445,14 @@ export function createLocalApi(storage: AccountStorage, env: Env): Api {
             options: INCIDENT_OPTIONS[incident.kind].map((choice) => ({ choice, chance: odds[choice] ?? 0 })),
           }
         })
+    },
+    async getTodaysEvent(id) {
+      const { dayEventView } = await dayEvents()
+      return dayEventView(await mustLoad(id))
+    },
+    async getOpenDayEvents(id) {
+      const { openDayEvents } = await dayEvents()
+      return openDayEvents(await mustLoad(id))
     },
     async getDeliveryCheck(id, requestId, vaultIds) {
       const account = await mustLoad(id)

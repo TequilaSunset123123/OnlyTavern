@@ -5,6 +5,7 @@
 import preset from '../presets/audience.json'
 import { type Account, type Audience, type EngineEvent, type Post, SEGMENTS } from '../store/schema'
 import { subscriberCount } from './audience'
+import { eventEffects } from './eventEffects'
 import { PLATFORM_FEE } from './economy'
 import { binomial, rngFor } from './rng'
 
@@ -51,13 +52,17 @@ export function simulatePostsDay(account: Account, audience: Audience, seed: str
   let purchases = 0
   let gross = 0
   const events: EngineEvent[] = []
+  // The day's event (engine/eventEffects.ts): a trending tag, an algorithm shift.
+  const ev = eventEffects(account, day)
 
   const posts = account.posts.map((post) => {
     const age = day - post.day // 1 = the day after publishing
     const heat = P.heat[age - 1]
     if (!heat) return post
 
-    const reach = heat / Math.sqrt(sameDay.get(post.day) ?? 1) // posting a lot on one day splits attention
+    const tags = postTags(post, account)
+    const boost = ev.reach * (ev.tag && tags.includes(ev.tag) ? ev.tagReach : 1)
+    const reach = (heat / Math.sqrt(sameDay.get(post.day) ?? 1)) * boost // posting a lot on one day splits attention
     const intensity = postIntensity(post, account)
     const fresh = freshness(post, account)
     const price = post.access === 'locked' ? post.priceCents : 0

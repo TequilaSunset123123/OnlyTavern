@@ -7,10 +7,12 @@ import { requestOpen } from './deals'
 import type { MeetupOutcome } from './fans'
 import { haterFame } from './haters'
 import { actingType } from './conditions'
+import { openDayEvents } from './events'
 
-export type Lapse = { kind: 'custom' | 'meetup'; id: string; regularId: string; name: string; deadline: number; accepted: boolean }
+/** `name`: his name, or the event's title for a rare event (which settles itself with its default choice). */
+export type Lapse = { kind: 'custom' | 'meetup' | 'event'; id: string; regularId: string; name: string; deadline: number; accepted: boolean }
 
-/** Customs and invitations whose deadline passes within the next `days` days. */
+/** Customs, invitations and rare events you have not decided whose deadline passes within the next `days` days. */
 export function lapsing(account: Account, days: number): Lapse[] {
   const end = account.clock.day + days
   const name = (id: string) => account.regulars.find((r) => r.id === id)?.name ?? 'A fan'
@@ -21,6 +23,9 @@ export function lapsing(account: Account, days: number): Lapse[] {
     ...account.meetups
       .filter((m) => m.status === 'open' && m.replyBy < end)
       .map((m) => ({ kind: 'meetup' as const, id: m.id, regularId: m.regularId, name: name(m.regularId), deadline: m.replyBy, accepted: false })),
+    ...openDayEvents(account)
+      .filter((e) => e.answerBy! < end)
+      .map((e) => ({ kind: 'event' as const, id: e.id!, regularId: '', name: e.title, deadline: e.answerBy!, accepted: false })),
   ].sort((a, b) => a.deadline - b.deadline)
 }
 
@@ -46,9 +51,14 @@ export type PeriodReport = {
   /** Haters at it now, and the share of visitors they keep away. */
   haters: { active: number; visitorHit: number }
   levelUps: { direction: DirectionId; level: number }[]
+  /** Daily events that started in these days, in order (engine/events.ts). */
+  dayEvents: { day: number; title: string }[]
+  /** The skip stopped early: this rare event came up and waits for your choice. */
+  stoppedFor?: string
 }
 
-export function periodReport(before: Account, after: Account, events: EngineEvent[]): PeriodReport {
+/** `requested`: how many days you asked to skip (more than were simulated if a rare event stopped it). */
+export function periodReport(before: Account, after: Account, events: EngineEvent[], requested = after.clock.day - before.clock.day): PeriodReport {
   const from = before.clock.day + 1
   const to = after.clock.day
   const days = after.history.filter((h) => h.day >= from && h.day <= to)
@@ -79,5 +89,7 @@ export function periodReport(before: Account, after: Account, events: EngineEven
     incidents: n('incident'),
     haters: { active: haters, visitorHit: 1 - haterFame(after) },
     levelUps: after.events.flatMap((e) => (e.type === 'level-up' && e.day >= from && e.day <= to ? [{ direction: e.direction, level: e.level }] : [])),
+    dayEvents: events.flatMap((e) => (e.type === 'day-event' ? [{ day: e.day, title: e.title }] : [])),
+    ...(len < requested ? { stoppedFor: events.findLast((e) => e.type === 'day-event')?.title ?? 'Something' } : {}),
   }
 }

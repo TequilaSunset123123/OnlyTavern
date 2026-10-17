@@ -1,18 +1,19 @@
-import { Avatar, ChartIcon, ClockIcon, CommentIcon, EmptyState, EyeIcon, GiftIcon, HeartIcon, MessageIcon, PeopleIcon, TaskIcon, WalletIcon } from '@fanvue/ui'
-import type { ReactNode } from 'react'
+import { Avatar, Button, ChartIcon, ClockIcon, CommentIcon, EmptyState, EyeIcon, GiftIcon, HeartIcon, MessageIcon, PeopleIcon, TaskIcon, WalletIcon } from '@fanvue/ui'
+import { type ReactNode, useState } from 'react'
 import { useNavigate } from 'react-router'
-import type { DailyStat } from '../../api'
+import type { DailyStat, DayEventView } from '../../api'
 import { useAccount, useActiveAccount, useStatistics } from '../../hooks/useAccounts'
 import { useTags } from '../../hooks/useContent'
 import { useInbox, useRequests } from '../../hooks/useMessages'
+import { useTodaysEvent } from '../../hooks/useTime'
 import { directionLine, useCurrentDirection } from '../direction'
 import { count, money } from '../format'
-import { IconTile, Panel, PanelRow } from '../Panel'
+import { IconTile, Panel, PanelRow, PanelRows } from '../Panel'
 import { PageTitle } from '../shell/PageTitle'
+import { DayEventDialog, EventArt } from '../time/DayEventDialog'
 
 // The game's "today" page (2026-10-16; your posts moved to Posts): what is waiting for
-// you, today's event, and how the last day went. Today's event is a placeholder until
-// events exist (plan.md §10.2).
+// you, today's event (plan.md §10.2), and how the last day went.
 
 const initials = (name: string) => name.slice(0, 2).toUpperCase()
 
@@ -37,7 +38,7 @@ export function HomePage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <MessagesPanel accountId={active.id} onOpen={(id) => navigate(id ? `/messages/${id}` : '/messages')} />
         <RequestsPanel accountId={active.id} onOpen={() => navigate('/requests')} />
-        <TodaysEvent />
+        <TodaysEvent accountId={active.id} />
       </div>
       <SummaryPanel accountId={active.id} onOpen={() => navigate('/statistics')} />
     </div>
@@ -50,16 +51,18 @@ function MessagesPanel({ accountId, onOpen }: { accountId: string; onOpen: (regu
   return (
     <Panel icon={<MessageIcon />} title="Messages" subtitle="Unread messages from fans" count={waiting.length} onOpen={() => onOpen()}>
       {waiting.length === 0 && <p className="px-2 text-sm text-content-tertiary">Nothing unread.</p>}
-      {waiting.slice(0, 3).map((t) => (
-        <PanelRow
-          key={t.regular.id}
-          lead={<Avatar size={40} alt={t.regular.name} fallback={initials(t.regular.name)} />}
-          title={t.regular.name}
-          line={t.pending ? 'Typing…' : t.last?.text}
-          right={t.last && <span className="text-xs text-content-tertiary">Day {t.last.day}</span>}
-          onClick={() => onOpen(t.regular.id)}
-        />
-      ))}
+      <PanelRows>
+        {waiting.slice(0, 3).map((t) => (
+          <PanelRow
+            key={t.regular.id}
+            lead={<Avatar size={40} alt={t.regular.name} fallback={initials(t.regular.name)} />}
+            title={t.regular.name}
+            line={t.pending ? 'Typing…' : t.last?.text}
+            right={t.last && <span className="text-xs text-content-tertiary">Day {t.last.day}</span>}
+            onClick={() => onOpen(t.regular.id)}
+          />
+        ))}
+      </PanelRows>
     </Panel>
   )
 }
@@ -80,31 +83,50 @@ function RequestsPanel({ accountId, onOpen }: { accountId: string; onOpen: () =>
   return (
     <Panel icon={<TaskIcon />} title="Active requests" subtitle="Customs and meetups waiting on you" count={rows.length} onOpen={onOpen}>
       {rows.length === 0 && <p className="px-2 text-sm text-content-tertiary">No open requests.</p>}
-      {rows.slice(0, 3).map((r) => (
-        <PanelRow
-          key={r.id}
-          lead={<Avatar size={40} alt={r.name} fallback={initials(r.name)} />}
-          title={r.name}
-          line={r.line}
-          right={<span className="typography-body-default-16px-semibold text-success-content">{money(r.cents)}</span>}
-          onClick={onOpen}
-        />
-      ))}
+      <PanelRows>
+        {rows.slice(0, 3).map((r) => (
+          <PanelRow
+            key={r.id}
+            lead={<Avatar size={40} alt={r.name} fallback={initials(r.name)} />}
+            title={r.name}
+            line={r.line}
+            right={<span className="typography-body-default-16px-semibold text-success-content">{money(r.cents)}</span>}
+            onClick={onOpen}
+          />
+        ))}
+      </PanelRows>
     </Panel>
   )
 }
 
-/** Placeholder: daily events are a new feature still to come (plan.md §10.2); this is how one will look. */
-function TodaysEvent() {
+const CATEGORY: Record<DayEventView['category'], string> = { default: 'Nothing special today', common: 'Changes the odds', rare: 'Rare event' }
+
+/** Today's event (engine/events.ts): what it does, how long it lasts; a rare one waits for your choice. */
+function TodaysEvent({ accountId }: { accountId: string }) {
+  const { data: view } = useTodaysEvent(accountId)
+  const [deciding, setDeciding] = useState<DayEventView | null>(null)
+  if (!view) return <Panel icon={<GiftIcon />} title="Today's event">{null}</Panel>
+  const open = view.status === 'open'
   return (
-    <Panel icon={<GiftIcon />} title="Today's event">
-      {/* The event's picture goes here. */}
-      <div className="aspect-video w-full rounded-xl bg-surface-secondary" />
-      <div className="font-display text-2xl">Coming soon</div>
-      <p className="text-sm text-content-secondary">Each day may bring an event that changes the odds: a fan appreciation day, a platform warning, a brand deal.</p>
-      <span className="flex w-fit items-center gap-2 rounded-full bg-(--color-brand-primary-muted) px-3 py-1 text-sm text-(--color-brand-primary-default)">
-        <ClockIcon size={16} /> Ends in —
-      </span>
+    <Panel icon={<GiftIcon />} title="Today's event" subtitle={CATEGORY[view.category]}>
+      <EventArt kind={view.kind} banner />
+      <div className="font-display text-xl">{view.title}</div>
+      <p className="text-sm text-content-secondary">{view.result ?? view.text}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {view.status === 'active' && (
+          <span className="flex w-fit items-center gap-2 rounded-full bg-(--color-brand-primary-muted) px-3 py-1 text-sm text-(--color-brand-primary-default)">
+            <ClockIcon size={16} /> {view.daysLeft ? `${view.daysLeft} more day${view.daysLeft === 1 ? '' : 's'}` : 'Ends today'}
+          </span>
+        )}
+        {open && (
+          <Button variant="brand" size="32" onClick={() => setDeciding(view)}>
+            Decide
+          </Button>
+        )}
+      </div>
+      {deciding && (
+        <DayEventDialog accountId={accountId} view={deciding} onDone={() => setDeciding(null)} onLater={() => setDeciding(null)} />
+      )}
     </Panel>
   )
 }
@@ -131,19 +153,24 @@ function SummaryPanel({ accountId, onOpen }: { accountId: string; onOpen: () => 
   ]
   return (
     <Panel icon={<ChartIcon />} title="Today's summary" subtitle={`Day ${today.day}, compared with the day before`} onOpen={onOpen}>
-      <div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">
-        {rows.map((r) => (
-          <PanelRow
-            key={r.label}
-            lead={<IconTile>{r.icon}</IconTile>}
-            title={r.label}
-            right={
-              <span className="flex items-baseline gap-2">
-                <span className="typography-body-default-16px-semibold">{r.show(r.value(today))}</span>
-                {last && before && change(r.value(last), r.value(before))}
-              </span>
-            }
-          />
+      {/* Two lists side by side (one on phones), each with lines between its rows. */}
+      <div className="grid gap-x-6 sm:grid-cols-2">
+        {[rows.slice(0, 3), rows.slice(3)].map((half, i) => (
+          <PanelRows key={i}>
+            {half.map((r) => (
+              <PanelRow
+                key={r.label}
+                lead={<IconTile>{r.icon}</IconTile>}
+                title={r.label}
+                right={
+                  <span className="flex items-baseline gap-2">
+                    <span className="typography-body-default-16px-semibold">{r.show(r.value(today))}</span>
+                    {last && before && change(r.value(last), r.value(before))}
+                  </span>
+                }
+              />
+            ))}
+          </PanelRows>
         ))}
       </div>
     </Panel>

@@ -95,6 +95,24 @@ export function afterMeetup(rng: Rng, account: Account, r: Regular, meetupId: st
   return open(rng, account, r, kind, day, meetupId)
 }
 
+/** You block him: gone for good, and whatever was open with him is off. */
+export function blockFan(account: Account, regularId: string, day: number): Account {
+  const a = updateRegular(account, { ...withCondition(account.regulars.find((x) => x.id === regularId)!, { id: 'blocked', since: day, by: 'you' }), status: 'dormant' })
+  return {
+    ...a,
+    requests: a.requests.map((q) => (q.regularId === regularId && (q.status === 'open' || q.status === 'accepted') ? { ...q, status: 'expired' as const, closedDay: day } : q)),
+    meetups: a.meetups.map((m) => (m.regularId === regularId && (m.status === 'open' || m.status === 'accepted') ? { ...m, status: 'cancelled' as const, closedDay: day } : m)),
+  }
+}
+
+/** He turns on you; if he already has, he lets you know what he thinks of you. */
+export function turnOnYou(account: Account, regularId: string, day: number): { account: Account; events: EngineEvent[] } {
+  const cur = account.regulars.find((x) => x.id === regularId)!
+  if (actingType(cur) === 'hater') return { account: addFanMessage(account, regularId, day, { kind: 'opener', topic: 'harass' }), events: [] }
+  const t = turnHater(account, cur, day)
+  return { account: t.account, events: [t.event] }
+}
+
 /** You chose what to do: the engine rolls how it goes and settles it. */
 export function resolveIncident(account: Account, incidentId: string, choice: IncidentChoice, seed: string): { account: Account; events: EngineEvent[] } {
   const incident = account.incidents.find((x) => x.id === incidentId)
@@ -118,22 +136,12 @@ export function resolveIncident(account: Account, incidentId: string, choice: In
     lost = s.lost
   }
   const block = () => {
-    a = updateRegular(a, { ...withCondition(a.regulars.find((x) => x.id === r.id)!, { id: 'blocked', since: day, by: 'you' }), status: 'dormant' })
-    a = {
-      ...a,
-      requests: a.requests.map((q) => (q.regularId === r.id && (q.status === 'open' || q.status === 'accepted') ? { ...q, status: 'expired' as const, closedDay: day } : q)),
-      meetups: a.meetups.map((m) => (m.regularId === r.id && (m.status === 'open' || m.status === 'accepted') ? { ...m, status: 'cancelled' as const, closedDay: day } : m)),
-    }
+    a = blockFan(a, r.id, day)
   }
   const turn = () => {
-    const cur = a.regulars.find((x) => x.id === r.id)!
-    if (actingType(cur) === 'hater') {
-      a = addFanMessage(a, r.id, day, { kind: 'opener', topic: 'harass' })
-      return
-    }
-    const t = turnHater(a, cur, day)
+    const t = turnOnYou(a, r.id, day)
     a = t.account
-    events.push(t.event)
+    events.push(...t.events)
   }
 
   if (choice === 'playAlong') {

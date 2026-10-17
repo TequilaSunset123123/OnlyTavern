@@ -17,7 +17,9 @@ import personas from '../presets/personas.json'
 import { actingType, hasCondition } from './conditions'
 import { likeWeights, pickDistinct } from './personas'
 import { directionEffects } from './directions'
+import { eventEffects, targetFactor } from './eventEffects'
 import { fanProfile, loyaltyEffects, loyaltyLevel } from './fans'
+import { priceSpend } from './price'
 import { logNormal, type Rng, rngFor } from './rng'
 import { addFanMessage, threadOf } from './threads'
 
@@ -64,20 +66,23 @@ const loyalEnough = (r: Regular, kind: DealKind) => loyaltyLevel(r) >= fanProfil
  * You asking him to meet is different: his type's `asked.accept` (most men say yes),
  * closing in on 97% as his loyalty rises; your direction and his behaviours do not matter.
  */
-export function dealChance(account: Account, r: Regular, kind: DealKind, youAsked: boolean): number {
+export function dealChance(account: Account, r: Regular, kind: DealKind, youAsked: boolean, day = account.clock.day): number {
   const f = fanProfile(r)
   const fx = directionEffects(account)
   const loyal = loyaltyEffects(r).deal
+  // The day's event (engine/eventEffects.ts): a rumor, a whale in the spotlight. Only for what he brings up himself.
+  const ev = eventEffects(account, day)
+  const spotlight = youAsked ? 1 : targetFactor(ev, r.id, 'deal')
   if (kind === 'custom') {
     const last = account.requests.filter((q) => q.regularId === r.id).at(-1)
-    const base = youAsked ? f.custom.accept : f.custom.daily
+    const base = youAsked ? f.custom.accept : f.custom.daily * spotlight
     return Math.min(0.95, base * loyal * fx.requests.rate * (last && wentBadly(last) ? Q.upsetFactor : 1))
   }
   if (youAsked) {
     const accept = f.meetup.asked.accept
     return Math.min(0.97, accept + (0.97 - accept) * ((loyaltyLevel(r) - 1) / 4))
   }
-  return Math.min(0.95, f.meetup.daily * loyaltyEffects(r).meetup * fx.meetups.rate * f.meetup.factor)
+  return Math.min(0.95, f.meetup.daily * loyaltyEffects(r).meetup * fx.meetups.rate * f.meetup.factor * ev.meetupRate * spotlight)
 }
 
 /** You asked him to meet: does he pay like a client, or take you for a freebie? An entitled fan never pays. */
@@ -98,7 +103,8 @@ function meetupOffer(rng: Rng, account: Account, r: Regular, youAsked: boolean):
     const [lo, hi] = ASKED.lowballDollars
     return { offerCents: (lo + Math.floor(rng() * (hi - lo + 1))) * 100, terms: 'lowball' }
   }
-  const median = fanProfile(r).meetup.median * directionEffects(account).meetups.offer * loyaltyEffects(r).spend
+  // Men who pay more to subscribe pay more to meet (engine/price.ts).
+  const median = fanProfile(r).meetup.median * directionEffects(account).meetups.offer * loyaltyEffects(r).spend * priceSpend(account.profile)
   return { offerCents: Math.max(M.minCents, Math.round((logNormal(rng, median, M.spread) * 100) / M.roundCents) * M.roundCents) }
 }
 
@@ -112,8 +118,10 @@ function open(rng: Rng, account: Account, r: Regular, kind: DealKind, day: numbe
     const kink = likeWeights(r)
     const wanted = pickDistinct(rng, Object.fromEntries(r.likes.map((t) => [t, 1 + (kink[t] ?? 0)])), rng() < 0.5 ? 1 : 2)
     const intensity = Math.max(1, ...wanted.map((id) => tags.find((x) => x.id === id)?.intensity ?? 1))
-    const median = f.custom.median * fx.requests.offer * loyaltyEffects(r).spend
-    const offerCents = Math.min(Q.maxCents, Math.max(Q.minCents, Math.round(logNormal(rng, median, Q.spread)) * 100))
+    // Fans who pay more to subscribe offer more, and never less than a month of it (engine/price.ts).
+    const median = f.custom.median * fx.requests.offer * loyaltyEffects(r).spend * priceSpend(account.profile)
+    const floor = Math.max(Q.minCents, account.profile.accountType === 'free' ? 0 : Math.ceil(account.profile.priceCents / 100) * 100)
+    const offerCents = Math.min(Q.maxCents, Math.max(floor, Math.round(logNormal(rng, median, Q.spread)) * 100))
     const id = `${r.id}-q${account.requests.filter((q) => q.regularId === r.id).length}`
     const request: Request = { id, regularId: r.id, day, tags: wanted, intensity, offerCents, dueDay: day + Q.dueDays, status: 'open', messageId }
     return {
@@ -146,7 +154,7 @@ export function simulateDealsDay(account: Account, seed: string, day: number): {
     for (const kind of ['meetup', 'custom'] as const) {
       if (!eligible(a, r, kind, day, false) || !loyalEnough(r, kind)) continue
       const rng = rngFor(seed, day, `deals:${kind}:${r.id}`)
-      if (rng() >= dealChance(a, r, kind, false)) continue
+      if (rng() >= dealChance(a, r, kind, false, day)) continue
       const opened = open(rng, a, r, kind, day, `${r.id}-m${threadOf(a, r.id).messages.length}`, false)
       a = addFanMessage(opened.account, r.id, day, { kind: 'opener', deal: opened.deal })
       events.push(opened.event)

@@ -26,10 +26,12 @@ import { ContentError } from './content'
 import { paymentLine as line } from './economy'
 import { answerDeal, askedFor } from './deals'
 import { directionEffects } from './directions'
+import { type EventEffects, eventEffects, targetFactor } from './eventEffects'
 import { dormantAfterDays } from './haters'
 import { actingType, awayNow, conditionOf, hasCondition, loveHate, withoutCondition } from './conditions'
 import { likeWeights, makePersona, pickDistinct, pickLanguage } from './personas'
 import { intensityMatch, postTags } from './posts'
+import { priceAttracts, priceFreeloaders, priceSpend } from './price'
 import { logNormal, type Rng, rngFor } from './rng'
 import { addLoyalty, fanProfile, loyaltyEffects } from './fans'
 import { addFanMessage, lastContact, pendingMessage, threadOf, unanswered, updateRegular, withReply, withThread } from './threads'
@@ -57,13 +59,13 @@ function openerTopics(r: Regular): Record<Topic, number> {
   return t
 }
 
-/** A tip from one regular: around his type's median (presets/personas.json), times what his loyalty makes him spend. */
-export function tipCents(rng: Rng, r: Regular): number {
-  return Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(rng, fanProfile(r).tip.median * loyaltyEffects(r).spend, 0.6)))) * 100
+/** A tip from one regular: around his type's median (presets/personas.json), times what his loyalty makes him spend (× `size`: the day's event). */
+export function tipCents(rng: Rng, r: Regular, size = 1): number {
+  return Math.min(preset.maxTipDollars, Math.max(1, Math.round(logNormal(rng, fanProfile(r).tip.median * loyaltyEffects(r).spend * size, 0.6)))) * 100
 }
 
-/** His chance to tip: his type's, scaled by his loyalty. */
-const tipChance = (r: Regular) => Math.min(0.9, fanProfile(r).tip.chance * loyaltyEffects(r).tip)
+/** His chance to tip: his type's, scaled by his loyalty and the day's event. */
+const tipChance = (r: Regular, ev: EventEffects) => Math.min(0.9, fanProfile(r).tip.chance * loyaltyEffects(r).tip * ev.tipChance * targetFactor(ev, r.id, 'tipChance'))
 
 /**
  * Three tags he likes: any tag about as explicit as his type prefers (weight 1 each), plus
@@ -116,10 +118,11 @@ export function tagAttracts(account: Account, day: number): Record<string, numbe
   return Object.fromEntries([...pull].map(([id, extra]) => [id, 1 + extra / recent.length]))
 }
 
-/** Your direction's pull times your posts' pull. */
+/** Your direction's pull times your posts' pull times your price's (engine/price.ts). */
 function attracts(account: Account, day: number): Record<string, number> {
   const out = { ...directionEffects(account).attracts }
   for (const [id, m] of Object.entries(tagAttracts(account, day))) out[id] = (out[id] ?? 1) * m
+  for (const [id, m] of Object.entries(priceAttracts(account.profile))) out[id] = (out[id] ?? 1) * m
   return out
 }
 
@@ -189,23 +192,30 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
   // Someone new reaches out. Word gets around: if you leave regulars unanswered
   // (after giving you a few days), new ones write less often.
   const rng = rngFor(seed, day, 'regulars:new')
-  const weights = Object.fromEntries(SEGMENTS.map((s) => [s, subscriberCount(audience, s) * preset.segments[s].reachOut])) as Record<Segment, number>
+  // The day's event (engine/eventEffects.ts): who reaches out, how often, tips.
+  const ev = eventEffects(a, day)
+  // What he tips: the day's event, and what he pays to subscribe (engine/price.ts).
+  const spend = ev.tipSize * priceSpend(a.profile)
+  const weights = Object.fromEntries(
+    SEGMENTS.map((s) => [s, subscriberCount(audience, s) * preset.segments[s].reachOut * (ev.regularMix[s] ?? 1)]),
+  ) as Record<Segment, number>
   // Word gets around that you give it away: men hoping for a freebie of their own come
   // looking for you, as freeloaders, and take up your regulars' slots.
-  weights.freeloader += freebieRumour(a, day)
+  // A high price keeps most of them away (engine/price.ts).
+  weights.freeloader = (weights.freeloader + freebieRumour(a, day)) * priceFreeloaders(a.profile)
   // Better known at a higher direction level: more people reach out (directions.ts dms).
   const fame = directionEffects(a).dms
   // A little traffic from outside on top of your subscribers, so the first regulars do not wait for a big audience.
   const lambda = (R.baseDaily + Object.values(weights).reduce((x, y) => x + y, 0)) * fame
   const recent = a.regulars.filter((r) => r.since <= day - 3).slice(-cap)
   const answered = recent.length ? recent.filter((r) => threadOf(a, r.id).messages.some((m) => m.from === 'me')).length / recent.length : 1
-  const chance = Math.min(R.maxNewDaily, 1 - Math.exp(-lambda)) * (R.ignoredFactor + (1 - R.ignoredFactor) * answered)
+  const chance = Math.min(R.maxNewDaily, 1 - Math.exp(-lambda)) * (R.ignoredFactor + (1 - R.ignoredFactor) * answered) * ev.newRegulars
   if (a.regulars.filter((r) => r.status === 'active').length < cap && rng() < chance) {
     const segment = pickWeighted(rng, weights)
     const id = `r${day}-${a.regulars.length}`
     const regular = newRegular(rng, id, segment, day, settings, attracts(a, day))
     const topic = pickWeighted(rng, openerTopics(regular))
-    const tip = topic === 'tip' ? tipCents(rng, regular) : undefined
+    const tip = topic === 'tip' ? tipCents(rng, regular, spend) : undefined
     a = {
       ...a,
       regulars: [...a.regulars, { ...regular, spent: tip ?? 0 }],
@@ -229,9 +239,9 @@ export function simulateRegularsDay(account: Account, audience: Audience, seed: 
     const tail = unanswered(t)
     if (tail >= dm.maxUnanswered) continue
     const rr = rngFor(seed, day, `regulars:dm:${r.id}`)
-    if (rr() >= dm.daily * fame * (tail > 0 ? dm.ignoredFactor : 1)) continue
+    if (rr() >= dm.daily * fame * ev.dms * targetFactor(ev, r.id, 'dms') * (tail > 0 ? dm.ignoredFactor : 1)) continue
     const topic = pickWeighted(rr, openerTopics(r))
-    const tip = topic === 'tip' && rr() < Math.max(tipChance(r), 0.5) ? tipCents(rr, r) : undefined
+    const tip = topic === 'tip' && rr() < Math.max(tipChance(r, ev), 0.5) ? tipCents(rr, r, spend) : undefined
     const id = `${r.id}-m${t.messages.length}`
     a = withThread(a, { ...t, messages: [...t.messages, pendingMessage(id, day, { kind: 'opener', topic: tip ? 'tip' : topic === 'tip' ? 'chat' : topic, ...(tip ? { tip } : {}) }, tip)] })
     events.push({ day, type: 'dm', regularId: r.id })
@@ -325,8 +335,9 @@ export function sendDm(
   }
 
   let tip = folded?.tipCents
-  if (!tip && rng() < tipChance(regular)) {
-    tip = tipCents(rng, regular)
+  const ev = eventEffects(account, day)
+  if (!tip && rng() < tipChance(regular, ev)) {
+    tip = tipCents(rng, regular, ev.tipSize * priceSpend(account.profile))
     ledger.push(line(day, 'tip', `${myId}-reply`, tip))
     spent += tip
     events.push({ day, type: 'dm-tip', regularId, gross: tip })

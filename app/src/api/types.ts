@@ -34,12 +34,14 @@ export type { DmInput } from '../engine/regulars'
 export type { DeliveryCheck } from '../engine/requests'
 export type { MassInput } from '../engine/massMessages'
 export type { DirectionInfo } from '../engine/directions'
+export type { DayEventOption, DayEventView } from '../engine/events'
 export type { LoyaltyInfo, MeetupOutcome } from '../engine/fans'
 export type { LayerInfo } from '../engine/personas'
 export type { Lapse, MeetupReport, PeriodReport } from '../engine/report'
 import type { Comment } from '../engine/comments'
 import type { PostInput, VaultInput } from '../engine/content'
 import type { DirectionInfo } from '../engine/directions'
+import type { DayEventView } from '../engine/events'
 import type { LoyaltyInfo } from '../engine/fans'
 import type { LayerInfo } from '../engine/personas'
 import type { Lapse, PeriodReport } from '../engine/report'
@@ -108,6 +110,8 @@ export type Action =
   | { type: 'meetup.hide'; id: string; meetupId: string; hidden: boolean }
   /** What you do about a stalker incident; the engine rolls how it goes. */
   | { type: 'incident.resolve'; id: string; incidentId: string; choice: IncidentChoice }
+  /** What you do about a rare daily event (engine/events.ts); the engine rolls how it goes. */
+  | { type: 'dayEvent.choose'; id: string; eventId: string; choice: string }
 
 /** What changed, so the UI knows which queries to refetch. */
 export type Topic = 'accounts' | 'settings' | `account:${string}`
@@ -248,6 +252,10 @@ export interface Api {
   getDirections(id: string): Promise<Directions>
   /** Stalker incidents waiting for your decision, oldest first. */
   getIncidents(id: string): Promise<IncidentView[]>
+  /** Today's event for the Home card (an ordinary day when nothing is on). */
+  getTodaysEvent(id: string): Promise<DayEventView>
+  /** Rare events waiting for your choice, oldest first. */
+  getOpenDayEvents(id: string): Promise<DayEventView[]>
   /** What would lapse if you skipped `days` days ahead now. */
   getLapsing(id: string, days: number): Promise<Lapse[]>
   /** Would he pay if you delivered these items for his custom? A fixed rule, so it can be shown before you send. */

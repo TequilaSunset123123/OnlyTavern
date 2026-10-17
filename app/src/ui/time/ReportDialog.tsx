@@ -1,4 +1,4 @@
-import { Badge, Button, Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@fanvue/ui'
+import { Alert, Badge, Button, Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@fanvue/ui'
 import type { PeriodReport } from '../../api'
 import { count, money, trend } from '../format'
 import { AnimatedNumber } from '../motion/AnimatedNumber'
@@ -21,7 +21,8 @@ const dollars = (cents: number) => money(Math.round(cents))
 
 export function ReportDialog({ report: r, onClose }: { report: PeriodReport; onClose: () => void }) {
   const shown = useRevealed()
-  const week = r.to > r.from
+  const len = r.to - r.from + 1
+  const week = len === 7
   const earned = r.earned.platform + r.earned.cash
   const vs = r.previous ? trend(earned, r.previous.earned) : null
   const delta = r.subscribers.after - r.subscribers.before
@@ -38,17 +39,18 @@ export function ReportDialog({ report: r, onClose }: { report: PeriodReport; onC
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="md" mobilePresentation="card" overlayProps={BLUR}>
         <DialogHeader>
-          <DialogTitle>{week ? 'Your week' : `Day ${r.to}`}</DialogTitle>
-          <DialogDescription>{week ? `Days ${r.from}–${r.to}` : 'How the day went'}</DialogDescription>
+          <DialogTitle>{week ? 'Your week' : len > 1 ? `${len} days` : `Day ${r.to}`}</DialogTitle>
+          <DialogDescription>{len > 1 ? `Days ${r.from}–${r.to}` : 'How the day went'}</DialogDescription>
         </DialogHeader>
         <DialogBody className="flex flex-col gap-4">
+          {r.stoppedFor && <Alert variant="info">Stopped on day {r.to}: {r.stoppedFor} came up.</Alert>}
           <div className="grid grid-cols-2 gap-2">
             <Stat
               label="Earned"
               value={earned}
               format={dollars}
               shown={shown}
-              sub={vs ? <Badge variant={vs.trend === 'positive' ? 'success' : 'error'}>{vs.label} vs last {week ? 'week' : 'day'}</Badge> : r.earned.cash ? `${money(r.earned.cash)} of it cash` : undefined}
+              sub={vs ? <Badge variant={vs.trend === 'positive' ? 'success' : 'error'}>{vs.label} vs last {week ? 'week' : len > 1 ? `${len} days` : 'day'}</Badge> : r.earned.cash ? `${money(r.earned.cash)} of it cash` : undefined}
             />
             <Stat
               label="Subscribers"
@@ -60,6 +62,17 @@ export function ReportDialog({ report: r, onClose }: { report: PeriodReport; onC
             <Stat label="Visitors" value={r.visitors} format={(n) => count(Math.round(n))} shown={shown} />
             <Stat label="Messages from fans" value={r.regulars.messages + r.regulars.new} format={(n) => count(Math.round(n))} shown={shown} />
           </div>
+          {len > 1 && r.dayEvents.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="typography-body-small-14px-semibold">Events</span>
+              {r.dayEvents.map((e) => (
+                <div key={e.day} className="flex justify-between text-sm">
+                  <span>{e.title}</span>
+                  <span className="text-content-tertiary">Day {e.day}</span>
+                </div>
+              ))}
+            </div>
+          )}
           {r.meetups.length > 0 && (
             <div className="flex flex-col gap-1">
               <span className="typography-body-small-14px-semibold">Meetups</span>

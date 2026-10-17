@@ -5,12 +5,15 @@ import { type Account, type DailyStat, DEFAULT_SETTINGS, type EngineEvent, Ledge
 import { simulateAudienceDay, subscriberCount } from './audience'
 import { simulateDealsDay } from './deals'
 import { directionEffects } from './directions'
+import { eventEffects } from './eventEffects'
+import { rollDayEvent } from './events'
 import { ledgerLine } from './economy'
 import { haterFame, simulateHatersDay } from './haters'
 import { simulateIncidentsDay } from './incidents'
 import { simulateMassDay } from './massMessages'
 import { simulateMeetupsDay } from './meetups'
 import { activityFactor, simulatePostsDay } from './posts'
+import { priceSpend } from './price'
 import { simulateRegularsDay } from './regulars'
 import { simulateRequestsDay } from './requests'
 
@@ -18,30 +21,42 @@ export type SimulateResult = { account: Account; events: EngineEvent[] }
 
 /**
  * Advances the account by `days` days (default seed: the account's own).
- * Settings only affect who new regulars are (their language).
+ * Settings only affect who new regulars are (their language). `stopAtRare`: stop at the
+ * end of a day a rare event comes up, so you get to choose (skipping ahead in the app).
  */
 export function simulate(
   account: Account,
   days: number,
   seed: string = account.meta.seed,
   settings: Settings = DEFAULT_SETTINGS,
+  { stopAtRare = false }: { stopAtRare?: boolean } = {},
 ): SimulateResult {
   let acc = account
   const events: EngineEvent[] = []
   const price = account.profile.accountType === 'free' ? 0 : account.profile.priceCents
+  let today = account.clock.day
 
   for (let day = account.clock.day + 1; day <= account.clock.day + days; day++) {
+    today = day
     const before = subscriberCount(acc.audience)
+    // The day's event first (engine/events.ts): everything after rolls with its odds.
+    const ed = rollDayEvent(acc, seed, day)
+    acc = ed.account
+    const ev = eventEffects(acc, day)
     const pd = simulatePostsDay(acc, acc.audience, seed, day)
     const md = simulateMassDay({ ...acc, posts: pd.posts }, acc.audience, seed, day)
     acc = { ...acc, posts: pd.posts, massMessages: md.massMessages }
     const fx = directionEffects(acc)
     const r = simulateAudienceDay(acc.audience, acc.profile, seed, day, {
       extraVisitors: pd.extraVisitors,
-      renewalFactor: activityFactor(acc, day),
-      mixFactors: fx.mix,
+      renewalFactor: activityFactor(acc, day) * ev.renewal,
+      mixFactors: Object.fromEntries(SEGMENTS.map((s) => [s, fx.mix[s] * (ev.mix[s] ?? 1)])),
       // Haters badmouthing you keep some visitors away (haters.ts).
-      visitorFactor: fx.visitors * haterFame(acc),
+      visitorFactor: fx.visitors * haterFame(acc) * ev.visitors,
+      conversionFactor: ev.conversion,
+      tipFactor: ev.crowdTips,
+      // Fans who pay more tip more (engine/price.ts).
+      tipSize: ev.tipSize * priceSpend(acc.profile),
     })
     const after = subscriberCount(r.audience)
 
@@ -82,7 +97,7 @@ export function simulate(
       ],
     }
 
-    events.push(...pd.events, ...md.events)
+    events.push(...ed.events, ...pd.events, ...md.events)
     if (r.newSubscribers) events.push({ day, type: 'subscribers', count: r.newSubscribers })
     if (r.churned) events.push({ day, type: 'churn', count: r.churned })
     if (r.tips.count) events.push({ day, type: 'tips', count: r.tips.count, gross: r.tips.gross })
@@ -90,9 +105,9 @@ export function simulate(
       if (before < m && after >= m) events.push({ day, type: 'milestone', subscribers: m })
     }
     events.push(...hd.events, ...rd.events, ...qd.events, ...od.events, ...dd.events, ...id.events)
+    if (stopAtRare && acc.dayEvents.some((e) => e.day === day && e.category === 'rare')) break
   }
 
-  const today = account.clock.day + days
   const keepFrom = today - economy.eventDays
   return {
     // acc.events already holds the events engine steps noted on the account (level-ups).

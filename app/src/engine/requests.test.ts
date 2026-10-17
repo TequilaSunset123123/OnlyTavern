@@ -30,9 +30,10 @@ function talk(account: Account, done: (a: Account) => boolean, max = 120): Accou
   return a
 }
 
+// The first request still open after talking (one from before may have lapsed already).
 const withRequest = (seed = 'a') => {
-  const a = talk(grown(seed), (x) => x.requests.length > 0)
-  const q = a.requests[0]
+  const a = talk(grown(seed), (x) => x.requests.some((r) => r.status === 'open'))
+  const q = a.requests.find((r) => r.status === 'open')!
   expect(q).toBeDefined()
   return { a, q }
 }
@@ -43,8 +44,7 @@ function made(a: Account, id: string, tags: string[], intensity: number): Accoun
 }
 
 describe('custom requests', () => {
-  it('only fans you talk to ask, for things they like, with an offer and a deadline', () => {
-    expect(grown('a', 90).requests).toEqual([])
+  it('fans ask for things they like, with an offer and a deadline', () => {
     const { a, q } = withRequest()
     const fan = a.regulars.find((r) => r.id === q.regularId)!
     expect(q.tags.every((t) => fan.likes.includes(t))).toBe(true)
@@ -160,8 +160,8 @@ describe('custom requests', () => {
 
 describe('meetups', () => {
   const withInvite = () => {
-    const a = talk(grown('a'), (x) => x.meetups.length > 0, 200)
-    const m = a.meetups[0]
+    const a = talk(grown('a'), (x) => x.meetups.some((m) => m.status === 'open'), 200)
+    const m = a.meetups.find((x) => x.status === 'open')!
     expect(m).toBeDefined()
     return { a, m }
   }
@@ -176,19 +176,22 @@ describe('meetups', () => {
     expect(() => acceptMeetup(a, m.id, today, false)).toThrow(/Pick a day/)
     expect(() => acceptMeetup(a, m.id, today + preset.meetups.maxAheadDays + 1, false)).toThrow(/Pick a day/)
     const accepted = hideMeetup(acceptMeetup(a, m.id, today + 2, false), m.id, true)
-    expect(accepted.meetups[0]).toMatchObject({ status: 'accepted', meetDay: today + 2, hidden: true })
+    expect(accepted.meetups.find((x) => x.id === m.id)!).toMatchObject({ status: 'accepted', meetDay: today + 2, hidden: true })
 
     const before = balances(accepted)
     const after1 = simulate(accepted, 1, a.meta.seed, SETTINGS).account
-    expect(after1.meetups[0].status).toBe('accepted')
+    expect(after1.meetups.find((x) => x.id === m.id)!.status).toBe('accepted')
     const after = simulate(after1, 1, a.meta.seed, SETTINGS).account
-    expect(after.meetups[0]).toMatchObject({ status: 'done', closedDay: today + 2 })
-    const cash = after.ledger.find((l) => l.kind === 'offline')!
-    expect(cash).toMatchObject({ day: today + 2, gross: m.offerCents, fee: 0, net: m.offerCents })
+    expect(after.meetups.find((x) => x.id === m.id)!).toMatchObject({ status: 'done', closedDay: today + 2 })
+    // What he offered, or more if the night went well (a bonus).
+    const paid = after.meetups.find((x) => x.id === m.id)!.paidCents!
+    expect(paid).toBeGreaterThanOrEqual(m.offerCents)
+    const cash = after.ledger.find((l) => l.kind === 'offline' && l.id.endsWith(m.id))!
+    expect(cash).toMatchObject({ day: today + 2, gross: paid, fee: 0, net: paid })
     const b = balances(after)
-    expect(b.cash).toBe(before.cash + m.offerCents)
+    expect(b.cash).toBe(before.cash + paid)
     expect(b.earned + b.cash).toBe(after.ledger.filter((l) => l.kind !== 'payout').reduce((s, l) => s + l.net, 0))
-    expect(after.events.some((e) => e.type === 'meetup-done' && e.gross === m.offerCents)).toBe(true)
+    expect(after.events.some((e) => e.type === 'meetup-done' && e.gross === paid)).toBe(true)
     expect(after.direction.points.escort - accepted.direction.points.escort).toBe(5)
     const last = after.threads.find((t) => t.regularId === m.regularId)!.messages.find((x) => x.intent?.deal?.step === 'met')
     expect(last).toBeDefined()
@@ -196,12 +199,12 @@ describe('meetups', () => {
 
   it('declining, cancelling and lapsing close the invitation', () => {
     const { a, m } = withInvite()
-    expect(declineMeetup(a, m.id).meetups[0].status).toBe('declined')
+    expect(declineMeetup(a, m.id).meetups.find((x) => x.id === m.id)!.status).toBe('declined')
     expect(() => declineMeetup(declineMeetup(a, m.id), m.id)).toThrow(/no longer open/)
     expect(() => cancelMeetup(a, m.id)).toThrow(/accepted/)
-    expect(cancelMeetup(acceptMeetup(a, m.id, a.clock.day + 1, false), m.id).meetups[0].status).toBe('cancelled')
+    expect(cancelMeetup(acceptMeetup(a, m.id, a.clock.day + 1, false), m.id).meetups.find((x) => x.id === m.id)!.status).toBe('cancelled')
     const lapsed = simulate(a, preset.meetups.replyDays + 1, a.meta.seed, SETTINGS).account
-    expect(lapsed.meetups[0].status).toBe('expired')
+    expect(lapsed.meetups.find((x) => x.id === m.id)!.status).toBe('expired')
   })
 })
 

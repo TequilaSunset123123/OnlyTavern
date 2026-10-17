@@ -69,8 +69,16 @@ function Money({ accountId, name, cents }: { accountId: string; name: string; ce
   return <AnimatedNumber value={shown} format={(n) => money(Math.round(n))} springOptions={{ stiffness: 70, damping: 20 }} />
 }
 
+// Lines from daily events (engine/events.ts), told apart by their id's ending.
+const EVENT_LINES: [RegExp, string][] = [
+  [/-brand$/, 'Brand deal (paid to you directly, not in your balance)'],
+  [/-cost$/, 'Paid out of your own pocket (not from your balance)'],
+  [/-admirer$|-thank$/, 'Anonymous tip from a secret admirer'],
+]
+
 // Crowd payments are stored per day and kind, so rows read "from N fans" (plan.md §2.4).
 const describe = (e: LedgerEntry) =>
+  EVENT_LINES.find(([re]) => re.test(e.id))?.[1] ??
   ({
     subscription: `Subscriptions from ${e.count} new fan${e.count === 1 ? '' : 's'}`,
     renewal: `Recurring subscriptions from ${e.count} fan${e.count === 1 ? '' : 's'}`,

@@ -1553,7 +1553,9 @@
     "misogynist": 1
    },
    "behaviours": {
-    "older_gentleman": 0.35
+    "older_gentleman": 0.35,
+    "creepy_compliments": 0.15,
+    "obsessive": 0.1
    },
    "fan": {
     "dmDaily": 0.3,
@@ -1803,7 +1805,10 @@
    "meetup": 4,
    "creepMeetup": 1,
    "playAlong": 3,
-   "calmed": 1
+   "calmed": 1,
+   "vip": 4,
+   "flattered": 3,
+   "unmasked": 3
   },
   "ghostTurn": [
    1,

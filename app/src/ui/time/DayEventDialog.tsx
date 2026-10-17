@@ -1,0 +1,117 @@
+import { Alert, Button, Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@fanvue/ui'
+import { useState } from 'react'
+import type { DayEventView, EngineEvent } from '../../api'
+import { useDispatch } from '../../hooks/useAccounts'
+import { eventArt } from '../eventArt'
+import { count, errorText } from '../format'
+import { BLUR } from './shared'
+
+// A rare daily event (engine/events.ts): its picture and story, your options with the odds
+// the engine will roll, then what came of it. Unlike a stalker incident you can put it off
+// for a day; left too long, it settles itself with its default choice.
+
+type Done = Extract<EngineEvent, { type: 'day-event-done' }>
+
+/** The event's picture, or a gradient for events that have none. `banner`: a short strip, cropped (the Home card). */
+export function EventArt({ kind, banner = false }: { kind: string; banner?: boolean }) {
+  const src = eventArt(kind)
+  const shape = `${banner ? 'aspect-[18/5]' : 'aspect-video'} w-full rounded-xl`
+  return src ? (
+    <img src={src} alt="" className={`${shape} object-cover`} />
+  ) : (
+    <div className={`${shape} bg-linear-to-br from-(--cs-gradient-start) to-(--cs-gradient-end) opacity-80`} />
+  )
+}
+
+/**
+ * `onChoose` runs before the choice is sent: once it is resolved the event leaves the open
+ * list, so the caller keeps showing this one until `onDone`. `onLater` closes it undecided.
+ */
+export function DayEventDialog({
+  accountId,
+  view,
+  onChoose,
+  onDone,
+  onLater,
+}: {
+  accountId: string
+  view: DayEventView
+  onChoose?: () => void
+  onDone: () => void
+  onLater: () => void
+}) {
+  const dispatch = useDispatch()
+  const [done, setDone] = useState<Done | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const fallback = view.options.find((o) => o.choice === view.fallback)
+
+  const choose = (choice: string) => {
+    if (!view.id) return
+    setError(null)
+    onChoose?.()
+    dispatch
+      .mutateAsync({ type: 'dayEvent.choose', id: accountId, eventId: view.id, choice })
+      .then((res) => setDone((res.events.find((e) => e.type === 'day-event-done') as Done | undefined) ?? null))
+      .catch((e) => setError(errorText(e)))
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && (done ? onDone() : onLater())}>
+      <DialogContent size="sm" mobilePresentation="card" overlayProps={BLUR}>
+        <DialogHeader showClose={false}>
+          <DialogTitle>{view.title}</DialogTitle>
+          <DialogDescription>Rare event · day {view.day}</DialogDescription>
+        </DialogHeader>
+        <DialogBody className="flex flex-col gap-3">
+          <EventArt kind={view.kind} />
+          <p className="text-sm">{view.text}</p>
+          {error && <Alert variant="error">{error}</Alert>}
+          {done ? (
+            <Alert variant={done.bad || done.lost ? 'warning' : 'success'}>
+              {done.text}
+              {done.lost ? ` ${count(done.lost)} subscriber${done.lost === 1 ? '' : 's'} left.` : ''}
+            </Alert>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {view.options.map((o) => (
+                <button
+                  key={o.choice}
+                  type="button"
+                  disabled={dispatch.isPending}
+                  onClick={() => choose(o.choice)}
+                  className="flex flex-col gap-0.5 rounded-xl border border-border-primary bg-surface-primary p-3 text-left hover:border-brand-primary-default disabled:opacity-50"
+                >
+                  <span className="typography-body-small-14px-semibold">{o.label}</span>
+                  <span className="text-xs text-content-secondary">{o.help}</span>
+                </button>
+              ))}
+              {fallback && <p className="text-xs text-content-tertiary">Not decided by the end of day {view.answerBy}: “{fallback.label}”.</p>}
+            </div>
+          )}
+        </DialogBody>
+        <DialogFooter>
+          {done ? (
+            <Button variant="brand" onClick={onDone}>
+              OK
+            </Button>
+          ) : (
+            <Button variant="secondary" disabled={dispatch.isPending} onClick={onLater}>
+              Decide later
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** Shows open rare events one at a time; `onEmpty` once you have gone through them (decided or put off). */
+export function DayEventHost({ accountId, events, onEmpty }: { accountId: string; events: DayEventView[]; onEmpty: () => void }) {
+  // Snapshot on mount: deciding one takes it off the open list, putting it off does not.
+  const [queue] = useState(events)
+  const [index, setIndex] = useState(0)
+  const view = queue[index]
+  if (!view) return null
+  const next = () => (index + 1 < queue.length ? setIndex(index + 1) : onEmpty())
+  return <DayEventDialog key={view.id} accountId={accountId} view={view} onDone={next} onLater={next} />
+}
